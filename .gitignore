@@ -52,3 +52,10 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+#########################
+# Python Code Files
+
+*.egg-info
+*.pyc*
+__pycache__/
