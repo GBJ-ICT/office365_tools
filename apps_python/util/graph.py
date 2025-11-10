@@ -56,12 +56,8 @@ class Graph:
     # <GetInboxSnippet>
     async def get_inbox(self):
         query_params = MessagesRequestBuilder.MessagesRequestBuilderGetQueryParameters(
-            # Only request specific properties
-            select=['from', 'isRead', 'receivedDateTime', 'subject'],
             # Get at most 25 results
-            top=25,
-            # Sort by received time, newest first
-            orderby=['receivedDateTime DESC']
+            top=top,
         )
         request_config = MessagesRequestBuilder.MessagesRequestBuilderGetRequestConfiguration(
             query_parameters= query_params
@@ -117,9 +113,7 @@ class Graph:
     async def get_channel_messages(self, team_id: str, channel_id: str, top: int = 50):
         """Fetch messages from a channel"""
         query_params = MessagesRequestBuilder.MessagesRequestBuilderGetQueryParameters(
-            select=['from', 'body', 'createdDateTime', 'subject'],
             top=top,
-            orderby=['createdDateTime DESC']
         )
         request_config = MessagesRequestBuilder.MessagesRequestBuilderGetRequestConfiguration(
             query_parameters=query_params
