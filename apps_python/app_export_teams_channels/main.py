@@ -1,4 +1,3 @@
-
 import configparser
 import asyncio
 from pathlib import Path
@@ -12,8 +11,14 @@ async def main():
     azure_settings = config['azure']
 
     graph: Graph = Graph(azure_settings)
-
     await greet_user(graph)
+
+    # Specify team ID and channel ID
+    team_id = xx
+    channel_id = xx
+
+    # Export specific team and channel
+    await graph.export_specific_channel(team_id, channel_id, 'teams_export.json')
 
     print("Export Done.")
 
@@ -22,12 +27,9 @@ async def greet_user(graph: Graph):
     user = await graph.get_user()
     if user:
         print('Hello,', user.display_name)
-        # For Work/school accounts, email is in mail property
-        # Personal accounts, email is in userPrincipalName
         print('Email:', user.mail or user.user_principal_name, '\n')
     else:
         print('Could not identify user.\n')
-
 
 # Run main
 asyncio.run(main())
