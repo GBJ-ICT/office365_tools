@@ -9,13 +9,14 @@ async def main():
     config = configparser.ConfigParser()
     config.read(['config.cfg', 'config.dev.cfg'])
     azure_settings = config['azure']
+    # Specify team ID and channel ID
+    team_id = xx
+    channel_id = xx
 
     graph: Graph = Graph(azure_settings)
     await greet_user(graph)
 
-    # Specify team ID and channel ID
-    team_id = xx
-    channel_id = xx
+
 
     # Export specific team and channel
     await graph.export_specific_channel(team_id, channel_id, 'teams_export.json')
