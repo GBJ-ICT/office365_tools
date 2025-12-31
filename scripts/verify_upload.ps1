@@ -1,62 +1,47 @@
 <#
 .SYNOPSIS
     Verify that all files from a local folder are present in a SharePoint folder or document set.
-
 .DESCRIPTION
     This script compares files in a local folder with files in a SharePoint location (folder or document set).
     It recursively scans both locations and reports which files are found or missing.
-
     The script uses PnP PowerShell to connect to SharePoint and requires an app registration with
     appropriate permissions (Sites.ReadWrite.All or similar).
-
 .PARAMETER SourceFolder
     Local folder path containing the files to verify (e.g., "C:\Documents\MyFolder").
     The script will scan this folder recursively.
-
 .PARAMETER SharePointUrl
     SharePoint site URL where the files should be located.
     Format: https://tenant.sharepoint.com/sites/sitename
-
 .PARAMETER SharePointFolder
     Server-relative path to the SharePoint folder or document set.
     Format: "Shared Documents/FolderName" or "LibraryName/FolderName"
     Do not include the site path (/sites/sitename).
-
 .PARAMETER ClientId
     (Optional) Azure AD App Registration Client ID for authentication.
     If omitted, the script uses the $env:client_id environment variable.
-
     On first use, you'll be prompted to login interactively via browser.
     The ClientId is stored in the session for subsequent calls.
-
 .EXAMPLE
     .\verify_upload.ps1 -SourceFolder "C:\Documents\MyFolder" `
                         -SharePointUrl "https://contoso.sharepoint.com/sites/projects" `
                         -SharePointFolder "Shared Documents/MyFolder" `
                         -ClientId "12345678-1234-1234-1234-123456789abc"
-
     Verifies all files from C:\Documents\MyFolder are present in the SharePoint location.
-
 .EXAMPLE
     .\verify_upload.ps1 -SourceFolder "C:\Reports" `
                         -SharePointUrl "https://contoso.sharepoint.com/sites/hr" `
                         -SharePointFolder "Documents/Reports"
-
     Uses the stored ClientId from environment variable for authentication.
-
 .OUTPUTS
     Exit code 0: All files found in SharePoint
     Exit code 1: Some files missing or error occurred
-
 .NOTES
     Requirements:
     - PnP.PowerShell module must be installed
     - Azure AD App Registration with SharePoint permissions
     - login.ps1 module in the same directory
-
     The script works with both regular folders and SharePoint document sets.
 #>
-
 param(
     [Parameter(Mandatory = $true)]
     [string]$SourceFolder,
