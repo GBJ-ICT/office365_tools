@@ -142,7 +142,7 @@ try {
                             Write-LogEntry "  Nested item has unique permissions that differ from parent" "ERROR" $logFile
                             Write-LogEntry "  Parent signature: $parentPermissionSignature" "ERROR" $logFile
                             Write-LogEntry "  Item signature: $itemPermissionSignature" "ERROR" $logFile
-
+                            
                             # Reset permissions to inherit from parent
                             Write-LogEntry "  Resetting permissions to inherit from parent..." "INFO" $logFile
                             $item.ResetRoleInheritance()
