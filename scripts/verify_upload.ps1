@@ -16,11 +16,6 @@
     Server-relative path to the SharePoint folder or document set.
     Format: "Shared Documents/FolderName" or "LibraryName/FolderName"
     Do not include the site path (/sites/sitename).
-.PARAMETER ClientId
-    (Optional) Azure AD App Registration Client ID for authentication.
-    If omitted, the script uses the $env:client_id environment variable.
-    On first use, you'll be prompted to login interactively via browser.
-    The ClientId is stored in the session for subsequent calls.
 .EXAMPLE
     .\verify_upload.ps1 -SourceFolder "C:\Documents\MyFolder" `
                         -SharePointUrl "https://contoso.sharepoint.com/sites/projects" `
@@ -35,66 +30,51 @@
 .OUTPUTS
     Exit code 0: All files found in SharePoint
     Exit code 1: Some files missing or error occurred
-.NOTES
-    Requirements:
-    - PnP.PowerShell module must be installed
-    - Azure AD App Registration with SharePoint permissions
-    - login.ps1 module in the same directory
-    The script works with both regular folders and SharePoint document sets.
 #>
 param(
     [Parameter(Mandatory = $true)]
     [string]$SourceFolder,
-
     [Parameter(Mandatory = $true)]
     [string]$SharePointUrl,
-
     [Parameter(Mandatory = $true)]
-    [string]$SharePointFolder,
-
-    [Parameter(Mandatory = $false)]
-    [string]$ClientId = ""
+    [string]$SharePointFolder
 )
-
-# ==================== Initialization ====================
-
-# Get the parent directory of the script's folder
-$parentPath = Split-Path -Path $PSScriptRoot -Parent
-Import-Module "$parentPath\util\login.ps1"
-
-if (-not (Test-Path -Path $SourceFolder)) {
-    Write-Host "✗ Error: Source folder not found: $SourceFolder" -ForegroundColor Red
+if (-not $env:gbj_client_id) {
+    Write-Host "uninitialized: run ./init.ps1" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Starting verification..." -ForegroundColor Cyan
-Write-Host "Source Folder: $SourceFolder" -ForegroundColor Gray
-Write-Host "SharePoint URL: $SharePointUrl" -ForegroundColor Gray
-Write-Host "SharePoint Folder: $SharePointFolder" -ForegroundColor Gray
-Write-Host ""
-
-# ==================== SharePoint Connection ====================
-
-Write-Host "Connecting to SharePoint..." -ForegroundColor Yellow
+# Connect to SharePoint
 try {
-    Login -url $SharePointUrl -client_id $ClientId
-    Write-Host "✓ Connected successfully" -ForegroundColor Green
-    Write-Host ""
+    LogInfo "ClientID: '$env:gbj_client_id'"
+    Connect-PnPOnline -Url $SharePointUrl -ClientId $env:gbj_client_id
+    LogSuccess "✓ Connected successfully"
+    LogEmptyLine
 }
 catch {
-    Write-Host "✗ Failed to connect to SharePoint: $_" -ForegroundColor Red
+    LogError "✗ Failed to connect to SharePoint: $_"
+    exit 1
+}
+if (-not (Test-Path -Path $SourceFolder)) {
+    LogError "✗ Error: Source folder not found: $SourceFolder"
     exit 1
 }
 
-# ==================== Scan Local Files ====================
+# Log start
+LogInfo "Starting verification..."
+LogInfo "Source Folder: $SourceFolder"
+LogInfo "SharePoint URL: $SharePointUrl"
+LogInfo "SharePoint Folder: $SharePointFolder"
+LogEmptyLine
 
-Write-Host "Scanning local folder..." -ForegroundColor Yellow
+# Scan Local Files
+LogInfo "Scanning local folder..."
 $localFiles = Get-ChildItem -Path $SourceFolder -File -Recurse
-Write-Host "✓ Found $($localFiles.Count) files in local folder" -ForegroundColor Green
-Write-Host ""
+LogSuccess "✓ Found $($localFiles.Count) files in local folder"
+LogEmptyLine
 
-# ==================== Helper Function ====================
 
+# Scan SharePoint Files
 Function Get-AllFilesRecursive {
     param([string]$FolderPath)
 
@@ -113,28 +93,24 @@ Function Get-AllFilesRecursive {
         }
     }
     catch {
-        Write-Host "  Warning: Could not access $FolderPath - $_" -ForegroundColor Yellow
+        LogWarning "Could not access $FolderPath - $_"
     }
     return $allFiles
 }
 
-# ==================== Scan SharePoint Files ====================
-
-Write-Host "Retrieving files from SharePoint..." -ForegroundColor Yellow
+LogInfo "Retrieving files from SharePoint..."
 try {
     $normalizedFolder = $SharePointFolder.TrimEnd('/')
     $spFiles = Get-AllFilesRecursive -FolderPath $normalizedFolder
-    Write-Host "✓ Found $($spFiles.Count) files in SharePoint folder" -ForegroundColor Green
 }
 catch {
-    Write-Host "✗ Failed to retrieve files from SharePoint: $_" -ForegroundColor Red
-    Write-Host "Make sure the folder path is correct (e.g., 'Shared Documents/FolderName')" -ForegroundColor Yellow
+    LogError "✗ Failed to retrieve files from SharePoint: $_"
+    LogWarning "Make sure the folder path is correct (e.g., 'Shared Documents/FolderName')"
     exit 1
 }
-Write-Host ""
+LogEmptyLine
 
-# ==================== Build File Map ====================
-
+# Build File Map
 $web = Get-PnPWeb
 $fullFolderPath = "$($web.ServerRelativeUrl)/$normalizedFolder".Replace("//", "/")
 
@@ -144,47 +120,43 @@ foreach ($spFile in $spFiles) {
     $spFileMap[$relativePath] = $spFile
 }
 
-# ==================== Compare Files ====================
-
-Write-Host "Verifying files..." -ForegroundColor Yellow
+# Compare Files
+LogInfo "Verifying files..."
 $missingFiles = @()
 $foundFiles = 0
 
 foreach ($localFile in $localFiles) {
     $relativePath = $localFile.FullName.Substring($SourceFolder.Length).TrimStart('\').Replace('\', '/')
-
     if ($spFileMap.ContainsKey($relativePath)) {
         $foundFiles++
-        Write-Host "  ✓ $relativePath" -ForegroundColor Green
+        LogSuccess "  ✓ $relativePath"
     }
     else {
         $missingFiles += $relativePath
-        Write-Host "  ✗ $relativePath" -ForegroundColor Red
+        LogError "  ✗ $relativePath"
     }
 }
 
-
-# ==================== Summary ====================
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Verification Summary" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Total files in source:     $($localFiles.Count)" -ForegroundColor Gray
-Write-Host "Files found in SharePoint: $foundFiles" -ForegroundColor Green
-Write-Host "Missing files:             $($missingFiles.Count)" -ForegroundColor $(if ($missingFiles.Count -eq 0) { "Green" } else { "Red" })
-Write-Host ""
+# Log Summary
+LogEmptyLine
+LogInfo "========================================"
+LogInfo "Verification Summary"
+LogInfo "========================================"
+LogInfo "Total files in source:     $($localFiles.Count)"
+LogInfo "Files found in SharePoint: $foundFiles"
+LogInfo "Missing files:             $($missingFiles.Count)"
+LogEmptyLine
 
 if ($missingFiles.Count -eq 0) {
-    Write-Host "✓ SUCCESS: All files are present in SharePoint!" -ForegroundColor Green
+    LogSuccess "✓ SUCCESS: All files are present in SharePoint!"
     exit 0
 }
 else {
-    Write-Host "✗ WARNING: Some files are missing from SharePoint" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Missing files:" -ForegroundColor Yellow
+    LogError "✗ WARNING: Some files are missing from SharePoint"
+    LogEmptyLine
+    LogWarning "Missing files:"
     foreach ($file in $missingFiles) {
-        Write-Host "  - $file" -ForegroundColor Red
+        LogError "  - $file"
     }
     exit 1
 }
