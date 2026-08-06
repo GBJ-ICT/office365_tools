@@ -74,7 +74,11 @@ function Export-SpoListItem {
             }
 
             # Taxonomy terms expose Label; everything else stringifies fine.
-            if ($Value.PSObject.Properties.Name -contains 'Label') {
+            # Indexed rather than -contains against .Properties.Name: member
+            # enumeration over an empty property collection is an error under
+            # Set-StrictMode -Version Latest, and a value with no properties at
+            # all is exactly what several system columns hold.
+            if ($null -ne $Value.PSObject.Properties['Label']) {
                 return $Value.Label
             }
 

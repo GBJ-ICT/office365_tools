@@ -118,6 +118,22 @@ inheritance as a side effect — was split into two commands.
 if ($PSCmdlet.ShouldProcess($target, 'Remove field Priority')) { ... }
 ```
 
+**In `scripts/`, `-WhatIf` does not propagate on its own.** `$WhatIfPreference`,
+set by a script's own `-WhatIf`, does not reach a function defined inside a
+module: the function resolves preference variables in the *module's* scope,
+where it is still false. A script that relies on it writes for real while every
+`if ($WhatIfPreference)` in it agrees that nothing happened. Either forward it
+or gate the call yourself:
+
+```powershell
+Add-SpoListItem -Library $list -Values $values -WhatIf:$WhatIfPreference
+# or
+if ($PSCmdlet.ShouldProcess($list, 'Add item')) { Add-SpoListItem ... }
+```
+
+`ScriptSafety.Tests.ps1` checks every script that declares
+`SupportsShouldProcess` does one of the two.
+
 Never hand-roll confirmation with `Read-Host`. `ConfirmImpact` guidance:
 
 | Impact | Use for |

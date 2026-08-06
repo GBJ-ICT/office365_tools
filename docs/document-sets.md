@@ -145,6 +145,136 @@ documents. Folders will drift again, so a scheduled
 See [health-rules.md](health-rules.md#documentset) for what each `DocumentSet.*`
 finding means.
 
+## Register them in a list
+
+A separate problem from metadata sync: keeping a flat list — a *register* —
+that indexes the Document Sets spread across several libraries, one row each,
+carrying their metadata plus a link back to the folder.
+
+```bash
+pwsh ./scripts/Sync-DocumentSetRegister.ps1                       # plan only
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -Plan <path> -WhatIf  # preview
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -Plan <path>          # write
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -RelabelExisting      # pass two only
+```
+
+The plan is a CSV. Editing it before applying is the intended workflow, not an
+escape hatch: `Title` is copied verbatim from the Document Set, and verbatim is
+rarely right for every one of them.
+
+Scripted, the same thing:
+
+```powershell
+Get-SpoDocumentSetRegisterEntry -Library Management, Projekte -RegisterList Index `
+    -ReferenceField Link -DocumentIdField DocId -ContentTypeMap @{
+        Management = 'Management Entry'
+        Projekte   = 'Project Entry'
+    } | Add-SpoListItem -Library Index
+
+Update-SpoListItemLinkText -Library Index -Field Link -TextField Name_x0020_ID
+```
+
+### One content type per library
+
+A register usually classifies its rows by where they came from, so
+`-ContentTypeMap` says which of its content types goes with which library.
+Without it every row lands in the list's default content type, which is only
+right if there is one.
+
+The mapping has to be given because it cannot be worked out. Content types are
+named for the kind of thing (`Project Entry`), libraries for the collection
+(`Projekte`), and a rule that gets that correspondence right most of the time is
+worse than no rule — it misfiles the exceptions silently. The map is validated
+against the register before anything is read, so a typo names the content types
+that do exist rather than failing once per row.
+
+### Why it is two passes
+
+The register's link text usually comes from a **calculated** column, and a
+calculated column has no value until the item exists. It therefore cannot be
+part of the write that creates the item. Pass one writes the rows and their
+link URLs; pass two reads back what SharePoint calculated and sets the link text
+from it.
+
+`-RelabelExisting` with no `-Plan` runs pass two alone, over every row. That is
+what to run after editing Titles by hand: the calculated column follows the
+Title immediately, and the link text does not follow it until this is re-run.
+
+Which hyperlink gets labelled is `-LinkField`, and where its text comes from is
+`-LinkTextField`. Labelling the Document ID column is the usual choice — the
+link then reads `HG4425-ÄB` rather than `GBJCDS-204499463-31` while still
+pointing at the same `DocIdRedir.aspx` URL, which is the one link to a Document
+Set that a rename or a move cannot break.
+
+Relabelling that column is safe **because matching reads the ID out of the URL,
+never out of the link text.** The two agree until someone relabels; keying on the
+text would mean a friendlier register matches nothing at all, and the next sync
+duplicates every row in it.
+
+### Which columns are copied
+
+Columns are matched by **internal name**: a column on both the register and the
+Document Set is copied across, with person, lookup, managed metadata and
+hyperlink values translated to their writable form. That overlap is the whole
+mapping — there is no table of column names in the module. `-ColumnMap` handles
+names that differ, `-ExcludeColumn` drops one.
+
+Two columns are built rather than matched, because the Document Set has no
+equivalent to copy: `-ReferenceField` (the library's default view plus `?id=`
+pointing at the folder — the link that opens it *in* its library rather than as
+a bare folder listing) and `-DocumentIdField` (mirroring `_dlc_DocIdUrl`).
+
+`-ReferenceField` is optional, and a register with a Document ID column has
+little use for it. Both links open the Document Set; only one of them is a path,
+and paths go stale when a folder is renamed or moved.
+
+### What counts as "already registered"
+
+The Document ID, not the name. A Document ID is assigned once and survives a
+rename and a move to another library, so renaming a Document Set updates nothing
+and creates no duplicate.
+
+### What happens when a Document Set moves library
+
+Surviving a move is what makes the Document ID the right key, and it is also
+what creates the one case where an existing row is wrong rather than missing.
+The row is found — correctly — but it is filed under the content type of the
+library the Document Set used to be in, and a reference column, if the register
+has one, still links there.
+
+That row is planned as an **Update**, and the write pass changes exactly those:
+its content type, and its reference URL. A register keyed on the Document ID
+link alone has nothing but the content type to repair, since a `DocIdRedir` URL
+follows the Document Set wherever it goes.
+
+```powershell
+Get-SpoDocumentSetRegisterEntry -Library Management, Projekte -RegisterList Index `
+    -ReferenceField Link -ContentTypeMap $map |
+    Where-Object Action -eq 'Update' |
+    Select-Object Name, SourceList, CurrentContentType, ContentType
+```
+
+**Nothing else is touched.** The metadata columns are not rewritten from the
+source, on an Update or ever. A register is edited by hand — Titles get
+shortened, entries annotated — and re-copying every column on each run would
+undo that work. If you do want a column refreshed, put the value in the plan
+CSV; the write pass writes whatever cells the plan has filled in.
+
+Two comparisons are deliberately skipped. A library with no `-ContentTypeMap`
+entry is never reclassified, because no mapping means no opinion about where
+its rows belong, not an opinion that they belong nowhere. And references that
+differ only in casing are not drift — SharePoint rewrites URL casing on its
+own, and treating that as a change would rewrite every row every run.
+
+It has one failure mode worth knowing. **Copying a Document Set copies its
+Document ID.** The Document ID service assigns an ID on creation and does not
+re-issue one for a copy, so two folders can carry the same ID indefinitely. When
+that happens they are indistinguishable to the matcher: the first is matched and
+the rest are treated as already registered. `Get-SpoDocumentSetRegisterEntry`
+warns about duplicate keys it finds in the register; for the source side, look
+for repeated `DocumentId` values in the plan CSV. Use `-KeyField` with the
+reference column instead if a library has copies that must each get a row.
+
 ## Cost
 
 Each library is read once, in pages, and the hierarchy is worked out from the

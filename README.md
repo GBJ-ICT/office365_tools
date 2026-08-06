@@ -116,6 +116,30 @@ Test-SpoDocumentSetSharedColumn -Library Projekte
 Comparison is by term GUID and lookup ID, so a renamed term is not reported as a
 difference. See [docs/document-sets.md](docs/document-sets.md).
 
+### Index Document Sets in a list
+
+Keeps a flat list — a register — in step with the Document Sets spread across
+several libraries: one row each, carrying their metadata and a link back to the
+folder.
+
+```bash
+pwsh ./scripts/Sync-DocumentSetRegister.ps1                       # plan only
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -Plan <path> -WhatIf  # preview
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -Plan <path>          # write
+pwsh ./scripts/Sync-DocumentSetRegister.ps1 -RelabelExisting      # pass two only
+```
+
+It runs in two passes, and the split is not optional: the register's link text
+comes from a calculated column, which has no value until the item exists. Each
+library's Document Sets are registered as their own content type.
+
+Matching is on the Document ID — read from the link's URL, not its text, so the
+link can be relabelled to read `HG4425-ÄB` instead of `GBJCDS-204499463-31` and
+still match. Renaming a Document Set therefore produces no second row, and
+*moving* one to another library updates the row it already has, since that is the
+case where the register is not missing an entry but filing an existing one under
+the wrong library. See [docs/document-sets.md](docs/document-sets.md).
+
 ### Bulk-load a list from CSV
 
 ```powershell
@@ -171,9 +195,9 @@ Works offline, with no connection — useful in scripts that generate file names
 | **Permissions** | `Get-SpoPermissionMismatch` `Repair-SpoPermissionInheritance` `Get-SpoPermissionReport` `Find-SpoOrphanedPermission` `Grant-SpoPermission` `Revoke-SpoPermission` |
 | **Content types** | `Get-SpoContentType` `New-SpoContentType` `Add-SpoContentTypeToList` `Remove-SpoContentTypeFromList` `Test-SpoContentTypeLink` `Sync-SpoContentType` |
 | **Site columns** | `Get-SpoField` `New-SpoField` `Add-SpoFieldToContentType` `Remove-SpoFieldFromContentType` `Find-SpoContentTypeByColumn` |
-| **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
+| **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Get-SpoDocumentSetRegisterEntry` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
 | **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` |
-| **List items** | `Add-SpoListItem` `Update-SpoListItem` `Export-SpoListItem` `Import-SpoListItem` |
+| **List items** | `Add-SpoListItem` `Update-SpoListItem` `Update-SpoListItemLinkText` `Export-SpoListItem` `Import-SpoListItem` |
 | **Reporting** | `Export-SpoReport` |
 
 Full help for any of them:
