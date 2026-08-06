@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Analyze
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse `
+              -Settings ./PSScriptAnalyzerSettings.psd1
+          if ($results) {
+              $results | Format-Table -AutoSize | Out-String -Width 250 | Write-Host
+              throw "PSScriptAnalyzer reported $($results.Count) issue(s)."
+          }
+          Write-Host 'PSScriptAnalyzer: clean'
+
+  test:
+    name: Pester (unit)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run unit tests
+        shell: pwsh
+        run: ./build.ps1 -Task Test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: testResults.xml
+          if-no-files-found: ignore
+
+  manifest:
+    name: Module manifest
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifest and import module
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PnP.PowerShell -MinimumVersion 3.0.0 -Scope CurrentUser -Force -AllowPrerelease:$false
+          Test-ModuleManifest ./src/Office365Tools/Office365Tools.psd1 | Format-List | Out-String | Write-Host
+          Import-Module ./src/Office365Tools/Office365Tools.psd1 -Force -ErrorAction Stop
+          $commands = Get-Command -Module Office365Tools | Sort-Object Name
+          Write-Host "Exported $($commands.Count) command(s):"
+          $commands | ForEach-Object { Write-Host "  $($_.Name)" }

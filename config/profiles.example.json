@@ -1,0 +1,18 @@
+{
+    "$schema": "./profiles.schema.json",
+    "defaultProfile": "prod",
+    "profiles": {
+        "prod": {
+            "description": "Production tenant",
+            "siteUrl": "https://contoso.sharepoint.com/sites/yoursite",
+            "clientId": "00000000-0000-0000-0000-000000000000",
+            "tenant": "contoso.onmicrosoft.com"
+        },
+        "test": {
+            "description": "Test / sandbox tenant",
+            "siteUrl": "https://contoso.sharepoint.com/sites/sandbox",
+            "clientId": "00000000-0000-0000-0000-000000000000",
+            "tenant": "contoso.onmicrosoft.com"
+        }
+    }
+}

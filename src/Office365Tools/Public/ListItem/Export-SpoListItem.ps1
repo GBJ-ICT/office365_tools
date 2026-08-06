@@ -1,0 +1,118 @@
+<#
+.SYNOPSIS
+    Exports list items as flat objects.
+.DESCRIPTION
+    Flattens SharePoint's field values into plain properties so the result
+    drops straight into Export-Csv, Compare-Object, or a spreadsheet.
+
+    SharePoint returns lookups, users, taxonomy terms and URLs as structured
+    objects. Left as-is they serialise to type names in a CSV, which is useless.
+    This resolves each to its display value.
+
+    The output is round-trippable: what this exports, Import-SpoListItem can
+    import.
+.PARAMETER Library
+    Title, URL name, or GUID of the list.
+.PARAMETER Field
+    Internal names of the fields to export. Omit for all non-hidden fields.
+.PARAMETER IncludeSystemField
+    Also include SharePoint's system fields (GUID, owshiddenversion, and so
+    on). Off by default because they dominate the output and are rarely wanted.
+.PARAMETER PageSize
+    Items fetched per request.
+.OUTPUTS
+    PSCustomObject per item.
+.EXAMPLE
+    Export-SpoListItem -Library Tasks | Export-Csv out/tasks.csv -NoTypeInformation
+.EXAMPLE
+    Export-SpoListItem -Library Tasks -Field Title, Status, AssignedTo
+.LINK
+    Import-SpoListItem
+.LINK
+    Add-SpoListItem
+#>
+function Export-SpoListItem {
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipelineByPropertyName)]
+        [ValidateNotNullOrEmpty()]
+        [Alias('List', 'LibraryName')]
+        [string]$Library,
+
+        [Parameter(Position = 1)]
+        [string[]]$Field,
+
+        [Parameter()]
+        [switch]$IncludeSystemField,
+
+        [Parameter()]
+        [ValidateRange(1, 5000)]
+        [int]$PageSize = 500
+    )
+
+    begin {
+        Assert-SpoConnection | Out-Null
+
+        # Flattens one SharePoint field value to something a CSV can hold.
+        function ConvertTo-FlatValue {
+            param($Value)
+
+            if ($null -eq $Value) { return $null }
+
+            # Lookup and user fields arrive as FieldLookupValue objects.
+            if ($Value -is [Microsoft.SharePoint.Client.FieldLookupValue]) {
+                return $Value.LookupValue
+            }
+            if ($Value -is [Microsoft.SharePoint.Client.FieldUrlValue]) {
+                return $Value.Url
+            }
+
+            # Multi-value lookups and user pickers arrive as arrays.
+            if ($Value -is [System.Array]) {
+                return (@($Value | ForEach-Object { ConvertTo-FlatValue $_ }) -join '; ')
+            }
+
+            # Taxonomy terms expose Label; everything else stringifies fine.
+            if ($Value.PSObject.Properties.Name -contains 'Label') {
+                return $Value.Label
+            }
+
+            return $Value
+        }
+    }
+
+    process {
+        $list = Resolve-SpoList -Identity $Library
+
+        $selected = if ($Field) {
+            $Field
+        }
+        elseif ($IncludeSystemField) {
+            @(Get-PnPField -List $list | ForEach-Object { $_.InternalName })
+        }
+        else {
+            # Non-hidden fields, plus the handful of system fields that are
+            # genuinely useful in an export and would otherwise be filtered.
+            $alwaysInclude = 'Title', 'Created', 'Modified', 'Author', 'Editor', 'FileLeafRef'
+            @(Get-PnPField -List $list |
+                    Where-Object { -not $_.Hidden -or $_.InternalName -in $alwaysInclude } |
+                    ForEach-Object { $_.InternalName })
+        }
+
+        Write-O365Log "Exporting $(@($selected).Count) field(s) from '$($list.Title)'." 'Info'
+
+        foreach ($item in (Get-PnPListItem -List $list -PageSize $PageSize)) {
+            $record = [ordered]@{ ID = $item.Id }
+
+            foreach ($fieldName in $selected) {
+                if ($fieldName -eq 'ID') { continue }
+                $record[$fieldName] = ConvertTo-FlatValue $item.FieldValues[$fieldName]
+            }
+
+            [pscustomobject]$record
+        }
+
+        Write-O365Log "Export of '$($list.Title)' complete." 'Success'
+    }
+}
