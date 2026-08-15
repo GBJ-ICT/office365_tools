@@ -1,7 +1,7 @@
 @{
     RootModule        = 'Office365Tools.psm1'
     FormatsToProcess  = @('Office365Tools.Format.ps1xml')
-    ModuleVersion     = '0.4.1'
+    ModuleVersion     = '0.5.0'
     GUID              = 'b7f3c9a2-4d18-4e6b-9c53-8a1f2e7d4b60'
     Author            = 'office365_tools contributors'
     CompanyName       = 'Unknown'
@@ -40,6 +40,8 @@
         'New-SpoContentType'
         'Get-SpoField'
         'New-SpoField'
+        'Get-SpoListFieldSchema'
+        'Add-SpoListField'
         'Add-SpoFieldToContentType'
         'Find-SpoContentTypeByColumn'
         'Add-SpoContentTypeToList'
@@ -70,6 +72,9 @@
         'Export-SpoListItem'
         'Import-SpoListItem'
 
+        # --- Scheduling -----------------------------------------------------
+        'Get-SpoRecurringDate'
+
         # --- Reporting ------------------------------------------------------
         'Export-SpoReport'
     )
@@ -85,6 +90,28 @@
             Tags         = @('SharePoint', 'SharePointOnline', 'PnP', 'Microsoft365', 'Office365', 'Administration')
             LicenseUri   = 'https://opensource.org/licenses/MIT'
             ReleaseNotes = @'
+0.5.0
+- Get-SpoListFieldSchema / Add-SpoListField: copy a list's columns to another
+  list, as columns local to it rather than site columns. Internal names are
+  preserved, so anything written against the original -- a view, a flow, a
+  script -- addresses the copy unchanged. Choices, defaults, rich-text settings
+  and the JSON column formatter come across; the source list's provenance
+  (SourceID, ColName, RowOrdinal, Version) does not, and the stale Title
+  attribute a renamed column carries is corrected from DisplayName.
+- Lookup, taxonomy and calculated columns are reported as unportable rather
+  than copied. SharePoint accepts all three and produces a column that renders
+  empty forever, which is worse than refusing.
+- Get-SpoRecurringDate: the dates of a recurring series -- every second Sunday,
+  Sundays of odd calendar weeks, the first Sunday of the month. Needs no
+  connection, so a schedule is checkable before a tenant is involved.
+- scripts/Copy-ListSchema.ps1 reads one list and writes another, plan first.
+- scripts/New-ListItemDateSeries.ps1 creates a run of empty entries on a
+  schedule, with per-column defaults, via an editable plan CSV. Columns may be
+  named by display name or internal name; the two are reconciled against the
+  list when the plan is written. Re-runnable: entries the list already has are
+  skipped on a key that defaults to the date plus the two columns that tell one
+  of a day's entries from another.
+
 0.4.1
 - Get-SpoDocumentSetRegisterEntry: a Document ID column is now matched on the
   ID in its URL rather than on its link text. The two agree until the link is

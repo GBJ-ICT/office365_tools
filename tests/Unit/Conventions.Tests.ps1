@@ -118,4 +118,32 @@ Describe 'Safety conventions' {
     It '<Name> declares CmdletBinding' -ForEach $allCommands {
         (Get-Command $Name).CmdletBinding | Should -BeTrue
     }
+
+    It '<Name> has no loop variable shadowing one of its parameters' -ForEach $allCommands {
+        # A typed parameter and a foreach variable that differ only in case are
+        # the same variable, because PowerShell names are case-insensitive. So
+        #
+        #     param([switch]$Required)
+        #     foreach ($required in 'InternalName', 'SchemaXml') { ... }
+        #
+        # assigns a string to a switch and dies on the cast -- but only when
+        # that branch runs, which is how it reaches a tenant before a test.
+        $command = Get-Command $Name
+        $ast     = $command.ScriptBlock.Ast
+
+        $declared = @($command.Parameters.Keys)
+
+        $loops = $ast.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.ForEachStatementAst]
+            }, $true)
+
+        foreach ($loop in $loops) {
+            $variable = $loop.Variable.VariablePath.UserPath
+
+            $variable | Should -Not -BeIn $declared -Because (
+                "the foreach on line $($loop.Extent.StartLineNumber) of $Name reuses the parameter " +
+                "`$$variable, which is the same variable and carries its type")
+        }
+    }
 }

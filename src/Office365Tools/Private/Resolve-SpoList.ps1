@@ -25,6 +25,18 @@ function Resolve-SpoList {
     $list = Get-PnPList -Identity $Identity -ErrorAction SilentlyContinue
 
     if (-not $list) {
+        # Get-PnPList -Identity matches the title and the GUID, but not the
+        # folder name the list URL is built from -- and that is the spelling
+        # people copy out of the address bar. Matched here so the URL name this
+        # function documents itself as accepting actually resolves.
+        #
+        # From ServerRelativeUrl rather than RootFolder.Name, which a plain
+        # Get-PnPList leaves unpopulated and which therefore matches nothing.
+        $list = @(Get-PnPList -ErrorAction SilentlyContinue |
+                Where-Object { ($_.RootFolder.ServerRelativeUrl -split '/')[-1] -eq $Identity })[0]
+    }
+
+    if (-not $list) {
         $available = @(Get-PnPList -ErrorAction SilentlyContinue |
                 Where-Object { -not $_.Hidden } |
                 Select-Object -ExpandProperty Title |

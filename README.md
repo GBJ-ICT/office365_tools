@@ -3,7 +3,7 @@
 PowerShell tools for administering SharePoint Online: libraries, lists, content
 types and permissions. Built on [PnP.PowerShell](https://pnp.github.io/powershell/).
 
-Everything ships as one module with 38 verb-noun commands, so `Get-Help` and tab
+Everything ships as one module with 41 verb-noun commands, so `Get-Help` and tab
 completion work the way you already expect.
 
 ```powershell
@@ -140,6 +140,83 @@ still match. Renaming a Document Set therefore produces no second row, and
 case where the register is not missing an entry but filing an existing one under
 the wrong library. See [docs/document-sets.md](docs/document-sets.md).
 
+### Stand a test list up against a real one
+
+```bash
+pwsh ./scripts/Copy-ListSchema.ps1 -SourceProfile prod -SourceList Tasks \
+    -TargetProfile test -TargetList TestTasks                    # read and report
+pwsh ./scripts/Copy-ListSchema.ps1 ... -Apply -WhatIf            # preview
+pwsh ./scripts/Copy-ListSchema.ps1 ... -Apply -CopyDefaultView   # write
+```
+
+Recreates one list's columns on another with the same *internal* names, so a
+view, a flow, or a script written against the original addresses the copy
+unchanged — which is what makes testing against it mean anything. Choices,
+defaults, rich-text settings and the JSON column formatter come across too.
+
+Columns are created local to the target list rather than as site columns: a
+local column exists only on the list named and goes away with it, where a site
+column is permanent and visible to every list on the site.
+
+Lookup, managed metadata and calculated columns are reported and skipped. Each
+carries a reference that does not survive the move — a list GUID, a term set
+binding, a formula naming columns that may not be there — and SharePoint accepts
+all three without complaint, leaving a column that looks right and never works.
+
+Re-running copies only what is missing; columns the target already has are left
+alone, never duplicated and never overwritten.
+
+### Schedule a run of list items
+
+For a list whose rows are a calendar — one entry per service, per duty, per
+shift:
+
+```bash
+pwsh ./scripts/New-ListItemDateSeries.ps1 -List Duties -DateField Datum \
+    -Start 2026-09-06 -Until 2026-12-31 -DayOfWeek Sunday -Interval 2 \
+    -Default '{"Status":"planned"}'                              # plan
+pwsh ./scripts/New-ListItemDateSeries.ps1 -Plan <path> -WhatIf   # preview
+pwsh ./scripts/New-ListItemDateSeries.ps1 -Plan <path>           # write
+```
+
+`-Default` takes a hashtable from a PowerShell prompt and JSON from a shell —
+`pwsh script.ps1` runs under `-File` semantics, where every argument arrives as
+a string and a hashtable literal does not survive the trip.
+
+The entries are created empty on purpose. Scheduling them is the part a script
+does well; deciding who is doing what is the part it does not.
+
+Columns may be named the way they read on the list — `Gefäss`, `Inhalt &
+Bemerkungen` — or by their internal names — `Gef_x00e4_ss`, `Bemerkungen`.
+Either works for `-DateField`, for the keys of `-Default`, for `-DuplicateKey`
+and for the headers of a plan CSV. The translation happens when the plan is
+written, against the list itself, so a misspelled column fails there with every
+column the list has named in the error.
+
+The plan is a CSV and editing it is the intended workflow: any column whose name
+does not start with an underscore is written to the list, so changing a date
+moves an entry, deleting a row drops it, and adding a column sets it.
+
+Re-running skips entries the list already has. The key defaults to the date
+column plus `Bezeichnung` and `Gefäss` — a roster holds several entries per day,
+one per duty per vessel, and those three together are what makes one distinct.
+`-DuplicateKey` overrides it; whichever of the three the list does not have is
+dropped from the key with a note.
+
+The date arithmetic is its own command, and needs no connection:
+
+```powershell
+Get-SpoRecurringDate -Start 2026-09-06 -Until 2026-12-31 -DayOfWeek Sunday -Interval 2
+Get-SpoRecurringDate -Start 2026-09-01 -Until 2027-06-30 -DayOfWeek Sunday -WeekParity Odd
+Get-SpoRecurringDate -Start 2026-09-01 -Count 12 -Frequency Monthly -DayOfWeek Sunday -WeekOfMonth First
+```
+
+Note that the first two are different questions. `-Interval 2` counts weeks from
+`-Start`, so moving `-Start` by a week shifts the whole series; `-WeekParity Odd`
+reads the ISO 8601 week number, so it means the odd weeks on the calendar
+whatever `-Start` happens to be. The second is usually what "every other week"
+means out loud.
+
 ### Bulk-load a list from CSV
 
 ```powershell
@@ -195,6 +272,8 @@ Works offline, with no connection — useful in scripts that generate file names
 | **Permissions** | `Get-SpoPermissionMismatch` `Repair-SpoPermissionInheritance` `Get-SpoPermissionReport` `Find-SpoOrphanedPermission` `Grant-SpoPermission` `Revoke-SpoPermission` |
 | **Content types** | `Get-SpoContentType` `New-SpoContentType` `Add-SpoContentTypeToList` `Remove-SpoContentTypeFromList` `Test-SpoContentTypeLink` `Sync-SpoContentType` |
 | **Site columns** | `Get-SpoField` `New-SpoField` `Add-SpoFieldToContentType` `Remove-SpoFieldFromContentType` `Find-SpoContentTypeByColumn` |
+| **List columns** | `Get-SpoListFieldSchema` `Add-SpoListField` |
+| **Scheduling** | `Get-SpoRecurringDate` |
 | **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Get-SpoDocumentSetRegisterEntry` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
 | **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` |
 | **List items** | `Add-SpoListItem` `Update-SpoListItem` `Update-SpoListItemLinkText` `Export-SpoListItem` `Import-SpoListItem` |
