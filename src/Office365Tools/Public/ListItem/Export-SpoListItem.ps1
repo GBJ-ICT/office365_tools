@@ -18,6 +18,10 @@
 .PARAMETER IncludeSystemField
     Also include SharePoint's system fields (GUID, owshiddenversion, and so
     on). Off by default because they dominate the output and are rarely wanted.
+.PARAMETER Query
+    CAML query, as a complete <View>...</View>, so a view's own filter and
+    sort can be reproduced. -PageSize does not apply with it: PnP puts the two
+    in different parameter sets, and a row limit belongs in the CAML.
 .PARAMETER PageSize
     Items fetched per request.
 .OUTPUTS
@@ -26,6 +30,10 @@
     Export-SpoListItem -Library Tasks | Export-Csv out/tasks.csv -NoTypeInformation
 .EXAMPLE
     Export-SpoListItem -Library Tasks -Field Title, Status, AssignedTo
+.EXAMPLE
+    $view = Get-PnPView -List Tasks -Identity 'Open'
+    Export-SpoListItem -Library Tasks -Query "<View><Query>$($view.ViewQuery)</Query></View>"
+    Exports what a view shows rather than the whole list.
 .LINK
     Import-SpoListItem
 .LINK
@@ -45,6 +53,10 @@ function Export-SpoListItem {
 
         [Parameter()]
         [switch]$IncludeSystemField,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Query,
 
         [Parameter()]
         [ValidateRange(1, 5000)]
@@ -106,7 +118,12 @@ function Export-SpoListItem {
 
         Write-O365Log "Exporting $(@($selected).Count) field(s) from '$($list.Title)'." 'Info'
 
-        foreach ($item in (Get-PnPListItem -List $list -PageSize $PageSize)) {
+        # PnP puts -Query and -PageSize in different parameter sets, so
+        # passing both fails rather than paging the query.
+        $itemArguments = @{ List = $list }
+        if ($Query) { $itemArguments['Query'] = $Query } else { $itemArguments['PageSize'] = $PageSize }
+
+        foreach ($item in (Get-PnPListItem @itemArguments)) {
             $record = [ordered]@{ ID = $item.Id }
 
             foreach ($fieldName in $selected) {

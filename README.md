@@ -227,6 +227,70 @@ Import-SpoListItem -Path data/tasks.csv -Library Tasks
 Column names and required fields are checked against the list *before* the first
 item is written, so a bad header fails at row zero rather than row 400.
 
+### Print a list to PDF, and know it is all there
+
+```bash
+pwsh ./scripts/Export-ListToPdf.ps1 -ProfileName prod -List 'Aufgaben und Dienste'
+pwsh ./scripts/Export-ListToPdf.ps1 -ProfileName prod -List Dienste -View 'Saison 26/27' -GroupBy Gefaess
+```
+
+Printing a SharePoint view from the browser is not reproducible, and the reason
+is worth knowing: the modern list virtualises its rows, so only what is
+scrolled into view is in the page to print, and the layout is computed for the
+window at its **current zoom**. Change the zoom and the columns change width,
+which changes what gets cut off at the right margin — and nothing tells you
+anything was cut off.
+
+So this does not print the list. It reads the items, renders its own page, and
+has a headless Edge or Chrome convert that with the device scale factor pinned
+to 1. Nothing in the chain depends on a window size or a zoom level: `@page`
+fixes the sheet, the header row repeats on every page, rows never split across
+a page, and cells wrap instead of clipping.
+
+Then it reads the PDF back and looks for every printed value in it, so
+*everything is on there* is established rather than hoped:
+
+```powershell
+$export = Export-SpoListPdf -Library Dienste -Path out/dienste.pdf
+$export.Verified          # $true only if every printed value was found again
+$export.Finding | Export-SpoReport -Path out/check.html
+```
+
+A missing value is an `Error` naming its row and column — which is what catches
+a cell clipped by a column boundary, since a browser does not draw glyphs it
+clips. The document also ends with a line carrying the row count and a digest
+of the data; finding that line proves the PDF runs to the end.
+
+Links stay live. A Hyperlink column, or any cell holding a URL, is clickable
+in the PDF without asking; `-ItemLink` makes a column lead back to the item it
+came from:
+
+```powershell
+Export-SpoListPdf -Library 'ICT Support Ticket' -View 'Offene Tickets' `
+    -Path out/tickets.pdf -ItemLink Title
+```
+
+Links are checked separately from the text, because a link in a PDF is an
+annotation rather than a string — a document whose text reads back perfectly
+can still have lost every one of them.
+
+Layout is customisable in three steps: parameters for the ordinary cases, `-Css`
+for a rule they do not cover, and `-CellFormatter` for a value that should print
+as something other than itself. Every cell carries a `col-<column>` class:
+
+```powershell
+Export-SpoListPdf -Library Dienste -Path out/dienste.pdf -FontSize 7 -RowNumber `
+    -ColumnWidth @{ Bemerkungen = '30%' } -Css 'td.col-datum { white-space: nowrap; }'
+```
+
+Anything else in this module prints the same way:
+
+```powershell
+Test-SpoLibraryHealth -Library Documents | Export-SpoListPdf -Path out/health.pdf
+```
+
+See [Printing](docs/printing.md).
+
 ### Audit everything at once
 
 ```bash
@@ -277,7 +341,7 @@ Works offline, with no connection — useful in scripts that generate file names
 | **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Get-SpoDocumentSetRegisterEntry` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
 | **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` |
 | **List items** | `Add-SpoListItem` `Update-SpoListItem` `Update-SpoListItemLinkText` `Export-SpoListItem` `Import-SpoListItem` |
-| **Reporting** | `Export-SpoReport` |
+| **Reporting** | `Export-SpoReport` `Export-SpoListPdf` `Test-SpoPdfContent` |
 
 Full help for any of them:
 
@@ -339,6 +403,7 @@ Adding a command is one file — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Getting started](docs/getting-started.md) — the common workflows end to end
 - [Authentication](docs/authentication.md) — app registration, permissions, troubleshooting
 - [Document Sets](docs/document-sets.md) — why the metadata sync breaks, and the two fixes
+- [Printing](docs/printing.md) — why a browser print of a list is unreliable, and what this does instead
 - [Health rules](docs/health-rules.md) — what every `RuleId` means and what to do about it
 - [Migration](docs/migration.md) — mapping from the old loose scripts
 

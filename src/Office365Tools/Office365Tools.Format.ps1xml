@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
     Default views for the module's object types.
 
@@ -336,6 +336,46 @@
                     </TableRowEntry>
                 </TableRowEntries>
             </TableControl>
+        </View>
+
+        <View>
+            <Name>Office365Tools.PdfExport</Name>
+            <ViewSelectedBy>
+                <TypeName>Office365Tools.PdfExport</TypeName>
+            </ViewSelectedBy>
+            <ListControl>
+                <ListEntries>
+                    <ListEntry>
+                        <ListItems>
+                            <ListItem>
+                                <PropertyName>Path</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>RowCount</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>ColumnCount</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>PageCount</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>Digest</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>LinkCount</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>Verified</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <Label>Findings</Label>
+                                <ScriptBlock>@($_.Finding).Count</ScriptBlock>
+                            </ListItem>
+                        </ListItems>
+                    </ListEntry>
+                </ListEntries>
+            </ListControl>
         </View>
 
     </ViewDefinitions>

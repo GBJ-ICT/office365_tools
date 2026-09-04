@@ -1,7 +1,7 @@
-@{
+﻿@{
     RootModule        = 'Office365Tools.psm1'
     FormatsToProcess  = @('Office365Tools.Format.ps1xml')
-    ModuleVersion     = '0.5.0'
+    ModuleVersion     = '0.6.0'
     GUID              = 'b7f3c9a2-4d18-4e6b-9c53-8a1f2e7d4b60'
     Author            = 'office365_tools contributors'
     CompanyName       = 'Unknown'
@@ -77,6 +77,8 @@
 
         # --- Reporting ------------------------------------------------------
         'Export-SpoReport'
+        'Export-SpoListPdf'
+        'Test-SpoPdfContent'
     )
 
     CmdletsToExport   = @()
@@ -90,6 +92,36 @@
             Tags         = @('SharePoint', 'SharePointOnline', 'PnP', 'Microsoft365', 'Office365', 'Administration')
             LicenseUri   = 'https://opensource.org/licenses/MIT'
             ReleaseNotes = @'
+0.6.0
+- Export-SpoListPdf: prints a list to PDF with a page layout that does not
+  depend on a window size or a zoom level, which is what makes printing a
+  SharePoint view by hand unreproducible. The command renders its own table --
+  repeating header row, rows that never split across a page, cells that wrap
+  instead of clipping -- and a headless Edge or Chrome converts it with the
+  device scale factor pinned to 1.
+- It then reads the PDF back and checks that every printed value is in it, so
+  'everything is on there' is established rather than assumed. -Css,
+  -CellFormatter, -ColumnWidth, -GroupBy and the paper parameters cover the
+  layout; -View prints what a list view shows.
+- Links are live in the PDF: a Hyperlink column or any cell holding a URL
+  becomes clickable on its own, -ItemLink links a column back to the item it
+  came from, and -LinkColumn takes a URL template per column. They are
+  verified against the document's link annotations, which the text pass cannot
+  see -- a PDF whose text reads back perfectly can still have lost every link.
+- Export-SpoListPdf reads a PDF back in drawing order rather than visual
+  layout order. A row where two columns both wrapped used to report every
+  value in it as missing: the reader was interleaving the two cells' lines,
+  not the printer dropping them.
+- Test-SpoPdfContent does that verification on its own, against any PDF and
+  any set of rows -- including a file from months ago and a CSV of what it
+  should have said. A value that merely wrapped across lines is reported as
+  Info; one that is absent is an Error; a PDF whose text cannot be read is
+  reported as unverifiable rather than as passing.
+- Export-SpoListItem: -Query takes a CAML view query, which is what lets a
+  view's filter and sort be reproduced.
+- scripts/Export-ListToPdf.ps1 connects, prints, verifies, and writes the
+  verification report next to the PDF.
+
 0.5.0
 - Get-SpoListFieldSchema / Add-SpoListField: copy a list's columns to another
   list, as columns local to it rather than site columns. Internal names are
