@@ -288,7 +288,83 @@ Export-SpoListItem -Library Tasks | Export-Csv out/tasks.csv -NoTypeInformation
 Export output is exactly what import consumes, so exporting one row is the
 fastest way to build a correct import template.
 
-## Workflow: verify an upload
+## Workflow: check an upload
+
+One script covers both ends of an upload, and changes nothing on either side:
+
+```powershell
+# Before: what would fail if you uploaded this folder right now?
+./scripts/Test-Upload.ps1 -LocalPath C:\Reports -Library Documents -RemoteFolder Reports
+
+# After: did all of it arrive?
+./scripts/Test-Upload.ps1 -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -Mode Verify
+```
+
+The pre-flight phase runs offline; it connects only to look up the real target
+path, which is what the path length check measures against. Supply that path by
+hand with `-TargetPathPrefix /sites/team/Documents/Reports` and it needs no
+connection at all. Findings are the usual shape, so they land in `out/` as an
+HTML report and a CSV. `Upload.*` in [health rules](health-rules.md) explains
+each one.
+
+### Naming the destination
+
+`-Library` and `-RemoteFolder` are the scripted form: exact, and correct only
+if you already know both. `-Destination` is the form for a person, and takes
+the one thing they have -- the browser tab they uploaded into:
+
+```powershell
+./scripts/Test-Upload.ps1 -LocalPath C:\Reports -Mode Verify -ClientId <app id> `
+    -Destination 'https://contoso.sharepoint.com/sites/team/Shared Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FGeneral%2FTest'
+```
+
+Site, library and folder all come out of that address, so it replaces
+`-SiteUrl`, `-Library` and `-RemoteFolder` and cannot be combined with them.
+`ConvertFrom-SpoAddress` is the command that reads it, and it is worth calling
+directly to see what an address resolves to.
+
+Prefer it for anything a person types, because the thing a person types wrong
+is the channel folder. `-RemoteFolder` is relative to the library root, and on
+a Teams site that is one segment deeper than the address bar suggests: the
+channel folder (`General`, or `Allgemein` on a German tenant) sits between the
+library and everything else. The address carries it; a person retyping the
+breadcrumb does not.
+
+An address also states the target path outright, which means the pre-flight
+path length check measures against the real destination with nothing signed in.
+
+Naming a folder that does not exist is an error rather than an empty
+comparison -- otherwise a wrong path and an upload where nothing arrived
+produce the same report. Omit `-RemoteFolder` with `-Interactive` and the
+script walks the library with you instead, one level at a time; that is also
+what happens when the address names only a site or a library.
+
+The exit code is 1 when something blocks the upload, which is what makes it
+usable in a scheduled job:
+
+```powershell
+./scripts/Test-Upload.ps1 -LocalPath C:\Reports -Library Documents -FailOn Warning
+```
+
+### Handing the check to someone else
+
+The pre-flight phase is the part non-technical colleagues need, and it is the
+part that depends on nothing:
+
+```powershell
+./build.ps1 -Task Package
+```
+
+That writes `out/UploadChecker-<version>.zip` — the checker, the module, a
+plain-language read-me, an `upload-check.xml` holding the arguments so nobody
+has to type any, and a `Check-Upload.cmd` the recipient double-clicks or drags
+a folder onto. PowerShell 7 is the only prerequisite; PnP.PowerShell is not
+needed, because nothing in the pre-flight phase connects to anything.
+
+### The underlying command
+
+`Compare-SpoFolder` is what the verify phase calls, and it is the better choice
+when you want the comparison as data rather than as a report:
 
 ```powershell
 Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports
@@ -297,7 +373,8 @@ Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports
 ```
 
 Every file is emitted with a `Status` of `Match`, `MissingRemote`,
-`MissingLocal`, or `SizeDiffers`:
+`MissingLocal`, or `SizeDiffers`. A `-RemoteFolder` that does not exist throws
+instead, naming the folders that do:
 
 ```powershell
 $result = Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports

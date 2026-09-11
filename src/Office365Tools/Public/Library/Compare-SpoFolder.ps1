@@ -18,7 +18,9 @@
     SharePoint library holding the remote folder.
 .PARAMETER RemoteFolder
     Folder inside the library, relative to the library root. Omit to compare
-    against the library root itself.
+    against the library root itself. Naming a folder that does not exist is an
+    error, not an empty comparison: otherwise a wrong path is indistinguishable
+    from an upload where nothing arrived.
 .PARAMETER CompareSize
     Also compare file sizes, reporting SizeDiffers when they disagree.
 .PARAMETER DifferencesOnly
@@ -103,13 +105,20 @@ function Compare-SpoFolder {
     # One paged call over the whole library, filtered to the scope, beats
     # walking folder by folder: it is a single round trip per page instead of
     # one per folder.
-    $remoteFiles = @{}
+    $remoteFiles   = @{}
+    $remoteFolders = [System.Collections.Generic.List[string]]::new()
 
     foreach ($item in (Get-PnPListItem -List $list -PageSize $PageSize)) {
-        if ($item.FileSystemObjectType -eq 'Folder') { continue }
-
         $url = $item.FieldValues['FileRef']
         if (-not $url) { continue }
+
+        # Folders are kept rather than skipped: they are what tells a folder
+        # that is empty apart from a folder that is not there.
+        if ($item.FileSystemObjectType -eq 'Folder') {
+            $remoteFolders.Add($url)
+            continue
+        }
+
         if (-not $url.StartsWith("$scopeUrl/", [System.StringComparison]::OrdinalIgnoreCase)) { continue }
 
         $relative = $url.Substring($scopeUrl.Length).TrimStart('/')
@@ -124,6 +133,47 @@ function Compare-SpoFolder {
             Size = $size
             Id   = $item.Id
         }
+    }
+
+    # A folder that does not exist and an upload that never arrived look
+    # identical from the file list alone -- both produce nothing. Without this,
+    # a mistyped RemoteFolder reports every local file as missing, which is the
+    # most alarming possible way of saying "wrong path".
+    # Files found under the scope prove the folder is there whatever the folder
+    # listing says, so the question is only ever asked about an empty result.
+    if ($RemoteFolder -and $remoteFiles.Count -eq 0 -and -not ($remoteFolders -contains $scopeUrl)) {
+        $wanted = $RemoteFolder.Trim('/')
+        $leaf = @($wanted -split '/')[-1]
+
+        $existing = @($remoteFolders |
+                ForEach-Object { $_.Substring($rootUrl.Length).TrimStart('/') } |
+                Where-Object { $_ -and $_ -notmatch '^Forms(/|$)' } |
+                Sort-Object)
+
+        # A Teams site keeps channel files under 'General', so the folder
+        # someone reads off the address bar is usually one level deeper than
+        # the one they type. Matching on the last segment finds it.
+        $near = @($existing |
+                Where-Object {
+                    $_.EndsWith("/$wanted", [System.StringComparison]::OrdinalIgnoreCase) -or
+                    @($_ -split '/')[-1] -eq $leaf
+                } |
+                Select-Object -First 5)
+
+        $message = "There is no folder '$wanted' in '$($list.Title)', so there was nothing to compare against."
+
+        if ($near.Count -gt 0) {
+            $message += " Did you mean: $($near -join ', ')?"
+        }
+        elseif ($existing.Count -gt 0) {
+            $top = @($existing | Where-Object { $_ -notmatch '/' } | Select-Object -First 10)
+            $message += " Folders at the top level of the library: $($top -join ', ')."
+        }
+        else {
+            $message += ' That library has no folders in it at all.'
+        }
+
+        throw $message
     }
 
     Write-O365Log "Found $($remoteFiles.Count) remote file(s) under '$scopeUrl'." 'Info'

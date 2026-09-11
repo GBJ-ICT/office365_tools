@@ -20,7 +20,7 @@ git show <commit>:scripts/verify_upload.ps1
 | `scripts/correct_permission_mismatches.ps1` | `Repair-SpoPermissionInheritance` |
 | `scripts/find_content_type_by_column.ps1` | `Find-SpoContentTypeByColumn` |
 | `scripts/remove_column_from_content_types.ps1` | `Remove-SpoFieldFromContentType` |
-| `scripts/verify_upload.ps1` | `Compare-SpoFolder` |
+| `scripts/verify_upload.ps1` | `Compare-SpoFolder`, or `scripts/Test-Upload.ps1 -Mode Verify` |
 | `scripts/setup_register_pnp_application.ps1` | `scripts/Register-PnPApplication.ps1` |
 | `util/logging.ps1` (`Write-LogEntry`) | `Start-O365Log` / `Stop-O365Log` |
 | `modules/log.psm1` (`LogInfo`, `LogError`, …) | `Start-O365Log` / `Stop-O365Log` |

@@ -22,6 +22,11 @@
     Force a format instead of inferring it from the extension.
 .PARAMETER Title
     Report heading. Defaults to a generated title.
+.PARAMETER Summary
+    Ordered name/value pairs describing the run -- what was scanned, with which
+    settings -- rendered under the heading in an HTML report. Worth passing
+    whenever a clean result is a likely outcome: a report that says only
+    "nothing to report" looks identical to one that never ran.
 .PARAMETER PassThru
     Emit the input objects as well, so the exporter can sit mid-pipeline.
 .OUTPUTS
@@ -56,6 +61,9 @@ function Export-SpoReport {
 
         [Parameter()]
         [string]$Title,
+
+        [Parameter()]
+        [System.Collections.IDictionary]$Summary,
 
         [Parameter()]
         [switch]$PassThru
@@ -121,7 +129,7 @@ function Export-SpoReport {
 
             'Html' {
                 $reportTitle = if ($Title) { $Title } else { 'office365_tools report' }
-                $html = ConvertTo-SpoReportHtml -Item $collected -Title $reportTitle
+                $html = ConvertTo-SpoReportHtml -Item $collected -Title $reportTitle -Summary $Summary
                 Set-Content -LiteralPath $Path -Value $html -Encoding utf8
             }
         }

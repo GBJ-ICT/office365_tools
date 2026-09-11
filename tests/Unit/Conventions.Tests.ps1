@@ -66,6 +66,17 @@ Describe 'Module manifest' {
     It 'exports at least one command' {
         @(Get-Command -Module Office365Tools).Count | Should -BeGreaterThan 0
     }
+
+    It 'does not force PnP.PowerShell at import time' {
+        # RequiredModules is enforced when the module is imported, which would
+        # make the offline commands -- and the upload checker built on them --
+        # unusable without a 100 MB install nobody needs to validate a file
+        # name. Commands that do reach a tenant call Assert-SpoPnPModule.
+        $manifest = Import-PowerShellDataFile -Path $script:ManifestPath
+
+        $manifest.Keys | Should -Not -Contain 'RequiredModules' -Because (
+            'the package handed to people who do not use PowerShell has to import with nothing else installed')
+    }
 }
 
 Describe 'Command naming' {

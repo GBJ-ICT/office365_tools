@@ -1,0 +1,116 @@
+Upload checker
+==============
+
+What it does
+------------
+Two things, and it asks which one you want:
+
+  1. BEFORE you upload - looks at a folder on your computer and tells you which
+     files would fail or cause trouble: names SharePoint refuses, paths that
+     get too long, empty files, very large files, leftover junk.
+     No sign-in. Nothing leaves your computer.
+
+  2. AFTER you upload - signs you in and compares the folder with the library,
+     so you know whether everything actually arrived.
+
+It only looks. It never uploads, deletes, moves or changes anything, on your
+computer or in SharePoint.
+
+
+How to use it
+-------------
+1. Double-click  Check-Upload.cmd
+   (or drag the folder you want checked onto it, to skip the first question)
+
+2. A window opens: pick the folder you are uploading.
+
+3. Choose 1, 2 or 3 when asked.
+
+   If you choose 2 or 3, a window asks where in SharePoint the files went. Do
+   not type it. Open that folder in SharePoint, copy the whole address out of
+   your browser's address bar, and paste it into the box with Ctrl+V. If you
+   copied it just before starting, it is already in the box. A Microsoft
+   sign-in window follows.
+
+   Copying beats typing, and this is why: on a Teams site the files sit under
+   a hidden channel folder, so the folder that reads as "Test" is really
+   "General/Test". The address has that in it. A person retyping it does not.
+   Paste the address of the site or of the library instead, and you get a
+   numbered list to pick your way down from.
+
+   One address does not work: the one from the "Copy link" button. It names
+   no folder. Use the address bar.
+
+   Put the address in upload-check.xml and it stops asking.
+
+4. It finishes with a summary on screen and the name of the report it wrote.
+   Nothing opens by itself: the reports wait for you in the "out" folder.
+   Open the .html one in a browser to read the full list. It says at the top
+   what was checked, and then what it found:
+
+     Red    = fix this before uploading
+     Yellow = worth a look
+     Grey   = information only
+
+   "Nothing to report" with a summary above it means your folder is fine.
+
+
+Changing what it checks
+-----------------------
+Everything adjustable lives in  upload-check.xml  next to Check-Upload.cmd.
+Open it in Notepad: each setting has a note above it saying what it does and
+what happens if you leave it alone. Save the file and the next run uses it.
+
+The two worth knowing about:
+
+  Folder             set this to a fixed path and it stops asking every time
+  Destination        the address of the SharePoint folder, pasted from your
+                     browser. Fill it in and it stops asking that too - and
+                     you get warned about paths that would be too long once
+                     the files are there, without signing in to anything
+
+If you mistype something in there, the checker says which line is wrong and
+what it expected. It will not run with settings it does not understand.
+
+
+The first time
+--------------
+If a window says PowerShell 7 is missing, it needs installing once. Open the
+Start menu, type "cmd", press Enter, and paste this:
+
+    winget install --id Microsoft.PowerShell
+
+Then run Check-Upload.cmd again.
+
+If Windows warns that the file came from another computer: close everything,
+right-click the ZIP you were sent, choose Properties, tick "Unblock", press OK,
+and extract it again.
+
+
+Where the reports go
+--------------------
+Into the "out" folder next to Check-Upload.cmd, one folder per run. Old reports
+are never deleted, so you can compare runs or send one to a colleague -- the
+HTML file is self-contained and opens anywhere.
+
+
+For whoever set this up
+-----------------------
+The launcher is a wrapper around:
+
+    pwsh -File scripts/Test-Upload.ps1 -LocalPath <folder> [settings from the xml]
+
+Check-Upload.cmd only locates a PowerShell and hands over to
+Start-UploadCheck.ps1, which reads upload-check.xml, checks the prerequisites
+and builds that command. The bootstrap is deliberately written for Windows
+PowerShell 5.1, so it is able to report a missing PowerShell 7 rather than
+failing to start.
+
+Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem (missing files,
+unreadable settings, no PowerShell 7).
+
+Test-Upload.ps1 also verifies an upload after the fact (-Mode Verify) and takes
+a target library, path limits, a blocked-extension list and an exit-code
+policy. Run  Get-Help scripts/Test-Upload.ps1 -Full  for the details. The
+tenant-facing parts need the PnP.PowerShell module and a connection profile;
+everything the launcher does deliberately needs neither.

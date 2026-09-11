@@ -108,6 +108,92 @@ before users notice.
 
 ---
 
+## Upload.*
+
+From `scripts/Test-Upload.ps1`. These describe a *local* folder against the
+library it is headed for, so they are the only rules that fire before anything
+exists in SharePoint.
+
+### `Upload.PathWouldExceed` — Error
+
+The server-relative path this file would get — target folder plus its path
+inside the folder you are uploading — is over `-PathLimit` (400). The upload of
+that file fails.
+
+**Fix:** shorten a folder name near the top of the local tree; that shortens
+every path beneath it at once. Or upload into a shallower target folder.
+
+### `Upload.PathNearLimit` — Warning
+
+Within `-WarnAt` (50) characters of the limit. Fine today, broken the next time
+someone renames a parent folder.
+
+### `Upload.CaseCollision` — Error
+
+Two or more local files whose paths differ only in capitalisation. SharePoint
+compares paths case-insensitively, so they become one file and the last one
+uploaded silently wins. Happens to folders that came from a Mac or a Linux
+share, or from an archive extracted with case sensitivity on.
+
+**Fix:** rename one of them. `Detail.Paths` lists every spelling.
+
+### `Upload.EmptyFile` — Warning
+
+Zero bytes. Some upload paths skip empty files without reporting it, so the
+count at the far end does not match and nobody knows why.
+
+**Fix:** check whether the file was supposed to have content.
+
+### `Upload.TooLarge` — Error
+
+Over 250 GB, which SharePoint refuses outright.
+
+### `Upload.LargeFile` — Warning
+
+At or over `-LargeFileMb` (250 MB). Uploads time out on slow links and the file
+is slow to sync afterwards. Compare `File.Large`, which is the same observation
+about a file already in the library.
+
+### `Upload.BlockedExtension` — Error
+
+The extension is in `-BlockedExtension`. Empty by default: SharePoint Online
+blocks nothing out of the box, the list is a per-tenant setting, so pass your
+tenant's actual list.
+
+### `Upload.ExecutableFile` — Info
+
+`.exe`, `.msi`, `.dll`, `.bat`, `.cmd`, `.com`, `.scr`, `.vbs`, `.jar`, `.ps1`.
+Not a SharePoint rule — these are what tenant policy, mail gateways and AV
+commonly refuse.
+
+### `Upload.JunkFile` — Info
+
+`Thumbs.db`, `.DS_Store`, `*.tmp`. Local file system artefacts that mean nothing
+in SharePoint.
+
+### `Upload.MissingRemote` — Error
+
+Verify phase: the file is in the local folder and not in the library. It did not
+arrive.
+
+This rule can only fire against a folder that exists. Pointing the verify phase
+at a folder that is not there stops with an error naming the folders that are,
+rather than reporting every file as missing -- the two look identical from the
+file list, and only one of them is your upload's fault.
+
+### `Upload.SizeDiffers` — Warning
+
+Verify phase, `-CompareSize` only: both copies exist but their byte counts
+disagree. Note that SharePoint legitimately stores a different size for Office
+files it has processed, which is why the check is opt-in.
+
+### `Upload.ExtraRemote` — Info
+
+Verify phase: the library has a file the local folder does not. Left over from
+an earlier upload, or somebody else's.
+
+---
+
 ## File.*
 
 ### `File.CheckedOut` — Warning

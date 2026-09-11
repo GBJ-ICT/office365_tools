@@ -142,4 +142,38 @@ Describe 'Export-SpoReport' {
 
         Get-Content -LiteralPath $path -Raw | Should -Match 'Nothing to report'
     }
+
+    It 'renders a run summary above the findings' {
+        $path = Join-Path $script:TempDir 'summary.html'
+        New-TestFinding | Export-SpoReport -Path $path -Summary ([ordered]@{
+                'Folder checked' = 'C:\ToUpload'
+                'Files'          = '312'
+            })
+
+        $html = Get-Content -LiteralPath $path -Raw
+        $html | Should -Match 'Folder checked'
+        # -Match is a regex, so the backslash is escaped rather than the path
+        # being repeated verbatim.
+        $html | Should -Match 'ToUpload'
+        $html | Should -Match '312'
+    }
+
+    It 'renders the summary even when there is nothing to report' {
+        # The reason the parameter exists: a report of no findings is a blank
+        # page, and a blank page is indistinguishable from a tool that never
+        # ran. Someone handed that page has to be able to see what was checked.
+        $path = Join-Path $script:TempDir 'empty-with-summary.html'
+        @() | Export-SpoReport -Path $path -Summary ([ordered]@{ 'Folder checked' = 'C:\ToUpload' })
+
+        $html = Get-Content -LiteralPath $path -Raw
+        $html | Should -Match 'Folder checked'
+        $html | Should -Match 'Nothing to report'
+    }
+
+    It 'HTML-encodes summary values' {
+        $path = Join-Path $script:TempDir 'summary-encoded.html'
+        @() | Export-SpoReport -Path $path -Summary ([ordered]@{ 'Folder' = 'C:\<draft>' })
+
+        Get-Content -LiteralPath $path -Raw | Should -Match '&lt;draft&gt;'
+    }
 }

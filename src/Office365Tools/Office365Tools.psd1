@@ -10,9 +10,13 @@
 
     PowerShellVersion = '7.2'
 
-    RequiredModules   = @(
-        @{ ModuleName = 'PnP.PowerShell'; ModuleVersion = '3.0.0' }
-    )
+    # PnP.PowerShell is deliberately NOT declared here. RequiredModules is
+    # enforced at import time, which would make the offline commands --
+    # Test-SpoFileName, Get-SpoRecurringDate, Export-SpoReport -- unusable on a
+    # machine that has no reason to install a 100 MB dependency, and impossible
+    # to hand to someone who only wants to check a folder before uploading it.
+    # Every command that actually talks to a tenant goes through
+    # Assert-SpoPnPModule first and says what to install if it is missing.
 
     # Every exported command is listed explicitly. Wildcards here defeat
     # command discovery performance and hide accidental exports.
@@ -62,6 +66,7 @@
         'Test-SpoFileName'
         'Test-SpoPathLength'
         'Compare-SpoFolder'
+        'ConvertFrom-SpoAddress'
         'Get-SpoFileDraft'
         'Publish-SpoFileDraft'
 

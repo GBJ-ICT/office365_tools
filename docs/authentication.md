@@ -1,8 +1,12 @@
 # Authentication
 
-Every command needs a connection made by `Connect-O365`. That needs two things:
-a **site URL** and a **client ID** for an Entra ID application registered in your
-tenant.
+Every command that touches a tenant needs a connection made by `Connect-O365`.
+That needs two things: a **site URL** and a **client ID** for an Entra ID
+application registered in your tenant.
+
+(The offline commands — `Test-SpoFileName`, `Get-SpoRecurringDate`,
+`Export-SpoReport`, and the pre-flight phase of `scripts/Test-Upload.ps1` —
+need none of this, and do not even need PnP.PowerShell installed.)
 
 ## Why an app registration at all
 

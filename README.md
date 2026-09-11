@@ -17,11 +17,17 @@ Test-SpoLibraryHealth -Library Documents | Export-SpoReport -Path out/health.htm
 
 **1. Prerequisites**
 
-PowerShell 7.2+ and PnP.PowerShell 3.0+.
+PowerShell 7.2+.
 
 ```powershell
 Install-Module PnP.PowerShell -Scope CurrentUser
 ```
+
+PnP.PowerShell 3.0+ is needed for everything that talks to a tenant, which is
+almost everything here. It is deliberately *not* a hard requirement of the
+module: the offline commands — `Test-SpoFileName`, `Get-SpoRecurringDate`,
+`Export-SpoReport`, and the upload pre-flight check — import and run without
+it, so they can be handed to someone who will never connect to anything.
 
 **2. Register an application** (once per tenant, needs an admin)
 
@@ -318,13 +324,101 @@ New-SpoField -DisplayName 'Contract Value' -Type Currency -Group 'Contract Colum
 Add-SpoFieldToContentType -ContentType Contract -Field ContractValue -UpdateChildren
 ```
 
-### Check names before you upload
+### Check an upload, before and after
+
+```bash
+pwsh ./scripts/Test-Upload.ps1 -LocalPath C:\ToUpload -Library Dokumente
+```
+
+Pre-flight, before anything is uploaded: names SharePoint refuses, paths that
+would go over the 400 character limit once the target folder is prepended,
+names that collide when case stops mattering, empty files, oversized files,
+junk. Drop `-Library` and it needs no connection at all.
+
+Then upload, and confirm it arrived:
+
+```bash
+pwsh ./scripts/Test-Upload.ps1 -LocalPath C:\ToUpload -Library Dokumente -Mode Verify
+```
+
+Or name the destination the way a person can actually get hold of it — open the
+folder in SharePoint and copy the address:
+
+```bash
+pwsh ./scripts/Test-Upload.ps1 -LocalPath C:\ToUpload -Mode Verify -ClientId <app id> -Destination '<paste>'
+```
+
+Site, library and folder all come out of that address, including the channel
+folder a Teams site hides between the library and everything else — which is
+the segment people leave out when they retype it.
+
+Both phases write an HTML report and a CSV to `out/` and change nothing on
+either side. The script exits non-zero when it found something that blocks the
+upload, so it also works unattended.
+
+The single-name form, offline, for scripts that generate file names:
 
 ```powershell
 Test-SpoFileName -Name 'Q1 report: draft.docx'
 ```
 
-Works offline, with no connection — useful in scripts that generate file names.
+### Give the check to someone who does not use PowerShell
+
+```bash
+pwsh ./build.ps1 -Task Package
+```
+
+Writes `out/UploadChecker-<version>.zip` — that one file is the whole delivery:
+
+```
+Check-Upload.cmd          double-click, or drag a folder onto it
+upload-check.xml          the settings; you fill these in once
+READ-ME-FIRST.txt         a page of plain language, no jargon
+Start-UploadCheck.ps1     reads the settings, checks prerequisites, asks, runs
+scripts/Test-Upload.ps1   the check itself
+src/Office365Tools/       the module it uses
+LICENSE
+```
+
+Run it and it asks: a window to pick the folder, then what to do —
+
+```
+  1) Check this folder before I upload it        (no sign-in)
+  2) I uploaded it already - did everything arrive?  (sign-in)
+  3) Both
+```
+
+Option 1 needs **PowerShell 7 and nothing else**: no PnP.PowerShell, no client
+ID, no profile, no sign-in. Options 2 and 3 ask where in SharePoint the files
+went, and the answer is a paste, not a path: open the folder in SharePoint, copy
+the address bar. Site, library and folder come out of it together, so they
+cannot disagree with each other. Paste the address of the site or the library
+instead and the missing parts become numbered lists to pick from after signing
+in.
+
+`upload-check.xml` fixes anything you do not want asked: a permanent folder,
+the destination address, the application ID, thresholds, blocked extensions.
+Every setting carries a comment; `ask` means "prompt me every time". A
+misspelled or malformed setting stops the run with a sentence saying which one
+and what was expected, rather than being silently ignored.
+
+Bake your tenant in so the recipient never sees a URL or a GUID:
+
+```bash
+pwsh ./build.ps1 -Task Package -ProfileName CDS
+```
+
+Signing in also needs PnP.PowerShell (~100 MB); the launcher detects that it is
+missing, explains what it is, and offers to install it — asking PowerShell 7,
+not itself, because 5.1 and 7 read different module directories.
+
+`Start-UploadCheck.ps1` is deliberately written for Windows PowerShell 5.1,
+which every Windows machine already has, so it is able to *report* a missing
+PowerShell 7 and print the command that installs it.
+
+Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem. The packaging task
+runs the packaged launcher against the package itself before zipping, so a
+broken package fails on your machine rather than theirs.
 
 ## Command reference
 
@@ -339,7 +433,7 @@ Works offline, with no connection — useful in scripts that generate file names
 | **List columns** | `Get-SpoListFieldSchema` `Add-SpoListField` |
 | **Scheduling** | `Get-SpoRecurringDate` |
 | **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Get-SpoDocumentSetRegisterEntry` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
-| **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` |
+| **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` `ConvertFrom-SpoAddress` |
 | **List items** | `Add-SpoListItem` `Update-SpoListItem` `Update-SpoListItemLinkText` `Export-SpoListItem` `Import-SpoListItem` |
 | **Reporting** | `Export-SpoReport` `Export-SpoListPdf` `Test-SpoPdfContent` |
 
@@ -374,6 +468,7 @@ PowerShell machinery, not a hand-rolled `-Force` switch or a `Read-Host` prompt.
 ```
 src/Office365Tools/     The module. Public/ is the command surface, Private/ is helpers.
 scripts/                Task runners for people who do not want to learn the module.
+packaging/              Launcher and read-me for the shippable upload checker.
 config/                 profiles.example.json is tracked; profiles.json is not.
 samples/                Example CSVs for the bulk commands.
 tests/Unit/             Pester tests. No tenant required.
@@ -387,6 +482,7 @@ out/                    Reports and logs. Gitignored.
 pwsh ./build.ps1            # lint + test
 pwsh ./build.ps1 -Task Test
 pwsh ./build.ps1 -Task Import
+pwsh ./build.ps1 -Task Package   # zip the shippable upload checker into out/
 ```
 
 Needs `Pester` 5+ and `PSScriptAnalyzer`:

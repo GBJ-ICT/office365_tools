@@ -103,7 +103,9 @@ function Test-SpoNameRule {
     }
 
     if ($IncludeRisky) {
-        $risky = @('#', '%') | Where-Object { $Name.Contains($_) }
+        # Array subexpression, like $found above: an unwrapped pipeline that
+        # matches nothing yields $null, and $null.Count throws under StrictMode.
+        $risky = @(@('#', '%') | Where-Object { $Name.Contains($_) })
         if ($risky.Count -gt 0) {
             New-SpoFinding -RuleId 'FileName.RiskyCharacter' -Severity Info -Scope Item `
                 -Target $Target -List $List `

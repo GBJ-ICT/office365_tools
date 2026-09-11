@@ -79,6 +79,8 @@ function Connect-O365 {
         [switch]$PassThru
     )
 
+    Assert-SpoPnPModule
+
     if ($PSCmdlet.ParameterSetName -eq 'Profile') {
         $store = Get-O365ProfileStore
 

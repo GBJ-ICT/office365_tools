@@ -13,6 +13,10 @@
     Objects to render.
 .PARAMETER Title
     Page heading.
+.PARAMETER Summary
+    Ordered name/value pairs describing the run, rendered under the heading.
+    A report with no findings is otherwise a blank page that cannot be told
+    apart from a broken tool -- this is what says *what was checked*.
 .OUTPUTS
     System.String containing the complete HTML document.
 #>
@@ -25,7 +29,10 @@ function ConvertTo-SpoReportHtml {
         [object[]]$Item,
 
         [Parameter(Position = 1)]
-        [string]$Title = 'office365_tools report'
+        [string]$Title = 'office365_tools report',
+
+        [Parameter()]
+        [System.Collections.IDictionary]$Summary
     )
 
     $encode = { param($Value) [System.Net.WebUtility]::HtmlEncode([string]$Value) }
@@ -75,6 +82,10 @@ code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .85em; }
   .sev-Warning { background: #4a3810; color: #fce96a; }
   .sev-Info { background: #102a4a; color: #a4cafe; }
 }
+
+.runsummary { border-collapse: collapse; margin: 1rem 0 1.5rem; }
+.runsummary th { text-align: left; padding: 0.2rem 1.5rem 0.2rem 0; font-weight: 600; vertical-align: top; white-space: nowrap; }
+.runsummary td { padding: 0.2rem 0; }
 '@
 
     $builder = [System.Text.StringBuilder]::new()
@@ -98,8 +109,17 @@ code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .85em; }
         "$(& $encode $site) &middot; $($Item.Count) row(s)</p>"
     )
 
+    if ($Summary -and $Summary.Count -gt 0) {
+        [void]$builder.AppendLine('<table class="runsummary">')
+        foreach ($key in $Summary.Keys) {
+            [void]$builder.AppendLine(
+                "<tr><th>$(& $encode $key)</th><td>$(& $encode $Summary[$key])</td></tr>")
+        }
+        [void]$builder.AppendLine('</table>')
+    }
+
     if ($Item.Count -eq 0) {
-        [void]$builder.AppendLine('<div class="empty">Nothing to report. No findings were produced.</div>')
+        [void]$builder.AppendLine('<div class="empty">Nothing to report. Everything checked above was fine.</div>')
         [void]$builder.AppendLine('</body></html>')
         return $builder.ToString()
     }

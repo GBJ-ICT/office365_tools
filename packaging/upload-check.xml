@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Settings for the upload checker.
+
+  Edit this file, save it, and the next run uses it. Every setting is optional:
+  delete a line, or leave it empty, and the default in its comment applies.
+
+  The word "ask" means: ask me every time. That is the default for the two
+  things that change from run to run - which folder, and what to do.
+
+  Lines like this one, between the angle-bracket-exclamation marks, are notes.
+  They are ignored.
+-->
+<UploadCheck>
+
+  <!-- ==== What to check ==================================================
+       "ask" opens a window to pick the folder. Or put a fixed path here,
+       for example C:\ToUpload
+       Dragging a folder onto Check-Upload.cmd overrides whatever is here. -->
+  <Folder>ask</Folder>
+
+  <!-- What to do:
+         PreFlight  check the folder before uploading   (no sign-in)
+         Verify     check that an upload arrived        (sign-in)
+         Both       one after the other                 (sign-in)
+         ask        ask every time
+       Default: ask -->
+  <Mode>ask</Mode>
+
+  <!-- ==== Where it goes ==================================================
+       Only needed for Verify and Both. Leave these as they are if you only
+       ever check folders before uploading.
+
+       Destination  the folder in SharePoint the files go into. You do not
+                 type this: open that folder in SharePoint, select the whole
+                 address in your browser's address bar, copy it, and paste it
+                 between the tags below. All of it, however long it is.
+
+                 It looks like this, and the untidy part at the end matters:
+                 https://contoso.sharepoint.com/sites/team/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FGeneral%2FTest
+
+                 Copying beats typing here. On a Teams site the files sit
+                 under a channel folder, so the folder that reads as "Test"
+                 in the breadcrumb is really "General/Test", and that is the
+                 part people leave out. The address always has it.
+
+                 Paste the address of the site, or of the library, and you
+                 get asked for the rest after signing in.
+
+                 One thing it will not accept: the link from the "Copy link"
+                 button. That one names no folder. Use the address bar.
+
+       ClientId  the application your organisation signs in with. Whoever set
+                 this up has it; it is not a password and not a secret. -->
+  <Destination></Destination>
+  <ClientId></ClientId>
+
+  <!-- Also compare file sizes when checking what arrived. Off by default:
+       SharePoint legitimately stores a different size for Office documents
+       it has processed, so this reports differences that are not problems.
+       true or false. Default: false -->
+  <CompareSize>false</CompareSize>
+
+  <!-- ==== How strict ====================================================
+       Where the files are headed, as it appears after the site address:
+           /sites/cds/Freigegebene Dokumente/Projekte 2026
+       Fill this in and the checker can tell you which paths would be too long
+       once the files are there. Leave it empty and that one check is skipped;
+       everything else still runs. This causes no sign-in.
+
+       Fill in Destination above and you do not need this: the address says
+       where the files are headed, so the length check knows it too. This is
+       here for anyone who has the path but not the address. -->
+  <TargetPathPrefix></TargetPathPrefix>
+
+  <!-- Warn about files this size or larger, in MB. Default: 250 -->
+  <LargeFileMb>250</LargeFileMb>
+
+  <!-- SharePoint's path limit, and how much headroom earns a warning,
+       in characters. Defaults: 400 and 50. Leave these alone unless someone
+       told you otherwise. -->
+  <PathLimit>400</PathLimit>
+  <WarnAt>50</WarnAt>
+
+  <!-- File types your organisation blocks, separated by commas.
+       For example: .exe,.js,.msi
+       Leave empty if you do not know of any. -->
+  <BlockedExtension></BlockedExtension>
+
+  <!-- Also report names containing # or % - legal, but awkward for some
+       other programs. true or false. Default: false -->
+  <IncludeRisky>false</IncludeRisky>
+
+</UploadCheck>

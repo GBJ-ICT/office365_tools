@@ -17,6 +17,11 @@ function Assert-SpoConnection {
     [OutputType([object])]
     param()
 
+    # Before blaming the connection: a missing PnP.PowerShell also makes
+    # Get-PnPConnection fail, and "run Connect-O365 first" would send the
+    # caller round a loop that cannot succeed.
+    Assert-SpoPnPModule
+
     try {
         $connection = Get-PnPConnection -ErrorAction Stop
     }

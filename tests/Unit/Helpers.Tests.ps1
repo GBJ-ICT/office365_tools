@@ -261,3 +261,33 @@ Describe 'Get-SpoPermissionSignature' {
         }
     }
 }
+
+Describe 'Assert-SpoPnPModule' {
+
+    It 'says nothing when PnP.PowerShell is loadable' {
+        InModuleScope Office365Tools {
+            Mock Get-Command { [pscustomobject]@{ Name = 'Connect-PnPOnline' } } -ParameterFilter { $Name -eq 'Connect-PnPOnline' }
+
+            { Assert-SpoPnPModule } | Should -Not -Throw
+        }
+    }
+
+    It 'names the command that installs it when it is missing' {
+        InModuleScope Office365Tools {
+            # Both lookups come back empty: not loaded, and not installed.
+            Mock Get-Command { $null } -ParameterFilter { $Name -eq 'Connect-PnPOnline' }
+            Mock Get-Module { $null } -ParameterFilter { $Name -eq 'PnP.PowerShell' }
+
+            { Assert-SpoPnPModule } | Should -Throw -ExpectedMessage '*Install-Module PnP.PowerShell*'
+        }
+    }
+
+    It 'points at the offline commands as the alternative' {
+        InModuleScope Office365Tools {
+            Mock Get-Command { $null } -ParameterFilter { $Name -eq 'Connect-PnPOnline' }
+            Mock Get-Module { $null } -ParameterFilter { $Name -eq 'PnP.PowerShell' }
+
+            { Assert-SpoPnPModule } | Should -Throw -ExpectedMessage '*Test-SpoFileName*'
+        }
+    }
+}

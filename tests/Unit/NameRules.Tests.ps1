@@ -138,6 +138,14 @@ Describe 'Test-SpoFileName' {
             $findings.RuleId | Should -Contain 'FileName.RiskyCharacter'
             ($findings | Where-Object RuleId -eq 'FileName.RiskyCharacter').Severity | Should -Be 'Info'
         }
+
+        It 'survives -IncludeRisky on a clean name under StrictMode' {
+            # A pipeline that matches nothing yields $null, and $null.Count
+            # throws only when the caller is strict -- which every script in
+            # scripts/ is, so this failed there while passing here.
+            Set-StrictMode -Version Latest
+            { Test-SpoFileName -Name 'report.docx' -IncludeRisky } | Should -Not -Throw
+        }
     }
 
     Context 'pipeline and shape' {
