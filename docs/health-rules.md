@@ -192,6 +192,19 @@ files it has processed, which is why the check is opt-in.
 Verify phase: the library has a file the local folder does not. Left over from
 an earlier upload, or somebody else's.
 
+### `Upload.LocalNewer` — Warning
+
+Verify phase, `-CompareDate` only: both copies exist and the one on this
+computer was modified more than two seconds after the one in SharePoint. It
+changed after the upload, or an older version went up.
+
+### `Upload.RemoteNewer` — Info
+
+Verify phase, `-CompareDate` only: the copy in SharePoint is the newer one.
+Edited there since -- or, far more often, uploaded through the browser, which
+stamps every file with the time of the upload. That is why dates are ignored
+unless you ask for them.
+
 ---
 
 ## File.*

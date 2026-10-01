@@ -1,0 +1,6 @@
+# Batch files are read by cmd, which mishandles labels and goto in a file
+# with bare LF line endings. packaging/Office365-Tools.cmd is both batch and
+# PowerShell, and can be downloaded straight out of GitHub, so it has to
+# arrive as CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf

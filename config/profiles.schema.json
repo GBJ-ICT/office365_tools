@@ -1,0 +1,50 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "office365_tools connection profiles",
+    "description": "Local, untracked configuration describing the tenants this checkout may connect to.",
+    "type": "object",
+    "required": [
+        "profiles"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string"
+        },
+        "defaultProfile": {
+            "type": "string",
+            "description": "Profile used when Connect-O365 is called without -Profile."
+        },
+        "profiles": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "siteUrl",
+                    "clientId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "siteUrl": {
+                        "type": "string",
+                        "pattern": "^https://",
+                        "description": "Full site collection URL, e.g. https://contoso.sharepoint.com/sites/team"
+                    },
+                    "clientId": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        "description": "Entra ID application (client) ID used for interactive login."
+                    },
+                    "tenant": {
+                        "type": "string",
+                        "description": "Tenant name, e.g. contoso.onmicrosoft.com. Used by setup commands."
+                    }
+                }
+            }
+        }
+    }
+}

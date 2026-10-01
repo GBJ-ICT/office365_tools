@@ -177,3 +177,109 @@ Describe 'Export-SpoReport' {
         Get-Content -LiteralPath $path -Raw | Should -Match '&lt;draft&gt;'
     }
 }
+
+Describe 'Export-SpoReport with a folder comparison' {
+
+    BeforeAll {
+        function New-TestComparison {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+                'PSUseShouldProcessForStateChangingFunctions', '',
+                Justification = 'Test helper that builds an in-memory object.')]
+            [CmdletBinding()]
+            param(
+                [string]$RelativePath,
+                [string]$Status
+            )
+            [pscustomobject]@{
+                PSTypeName     = 'Office365Tools.FolderComparison'
+                RelativePath   = $RelativePath
+                Status         = $Status
+                LocalPath      = "C:\Up\$RelativePath"
+                RemoteUrl      = "/sites/team/Docs/$RelativePath"
+                LocalSize      = 2048
+                RemoteSize     = 2048
+                LocalModified  = [datetime]::new(2026, 3, 1, 12, 0, 0, [System.DateTimeKind]::Utc)
+                RemoteModified = $null
+                List           = 'Docs'
+            }
+        }
+    }
+
+    BeforeEach {
+        $script:TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "o365tools-report-$([guid]::NewGuid())"
+        New-Item -Path $script:TempDir -ItemType Directory -Force | Out-Null
+        $script:Path = Join-Path $script:TempDir 'verify.html'
+    }
+
+    AfterEach {
+        if (Test-Path -LiteralPath $script:TempDir) {
+            Remove-Item -LiteralPath $script:TempDir -Recurse -Force
+        }
+    }
+
+    It 'lists synchronised files as well as the differences' {
+        @(
+            New-TestComparison -RelativePath 'a.docx' -Status 'Match'
+            New-TestComparison -RelativePath 'b.docx' -Status 'MissingRemote'
+            New-TestComparison -RelativePath 'c.docx' -Status 'MissingLocal'
+        ) | Export-SpoReport -Path $script:Path
+
+        $html = Get-Content -LiteralPath $script:Path -Raw
+
+        $html | Should -Match 'a\.docx'
+        $html | Should -Match 'Synchronised'
+        $html | Should -Match 'Missing in SharePoint'
+        $html | Should -Match 'Missing on this computer'
+        $html | Should -Not -Match 'Different size'
+    }
+
+    It 'gives every status a tick box that hides its rows without a script' {
+        @(
+            New-TestComparison -RelativePath 'a.docx' -Status 'Match'
+            New-TestComparison -RelativePath 'b.docx' -Status 'LocalNewer'
+        ) | Export-SpoReport -Path $script:Path
+
+        $html = Get-Content -LiteralPath $script:Path -Raw
+
+        $html | Should -Match 'id="show-Match" checked'
+        $html | Should -Match 'id="show-LocalNewer" checked'
+        $html | Should -Match 'body:has\(#show-Match:not\(:checked\)\) tr\.st-Match'
+        $html | Should -Not -Match '<script'
+    }
+
+    It 'counts zero for the statuses a reader always wants an answer to' {
+        New-TestComparison -RelativePath 'a.docx' -Status 'Match' | Export-SpoReport -Path $script:Path
+
+        $html = Get-Content -LiteralPath $script:Path -Raw
+
+        $html | Should -Match '<span class="n">0</span><span class="l"><input type="checkbox" id="show-MissingRemote"'
+    }
+
+    It 'encodes file names' {
+        New-TestComparison -RelativePath 'Q1 <draft>.docx' -Status 'Match' | Export-SpoReport -Path $script:Path
+
+        Get-Content -LiteralPath $script:Path -Raw | Should -Match 'Q1 &lt;draft&gt;\.docx'
+    }
+
+    It 'shows sizes and dates in readable form' {
+        New-TestComparison -RelativePath 'a.docx' -Status 'Match' | Export-SpoReport -Path $script:Path
+
+        $html = Get-Content -LiteralPath $script:Path -Raw
+
+        $html | Should -Match '2[.,]0 KB'
+        $html | Should -Match '2026-03-01 \d\d:00'
+    }
+
+    It 'shows exact byte counts where the sizes are what differs' {
+        $row = New-TestComparison -RelativePath 'deck.pptx' -Status 'SizeDiffers'
+        $row.LocalSize = 5242880
+        $row.RemoteSize = 5251072
+        $row | Export-SpoReport -Path $script:Path
+
+        $html = Get-Content -LiteralPath $script:Path -Raw
+
+        # Whatever the reader's thousands separator: , . ' or a thin space.
+        $html | Should -Match '5\D?242\D?880 B'
+        $html | Should -Match '5\D?251\D?072 B'
+    }
+}

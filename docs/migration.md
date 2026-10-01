@@ -25,9 +25,13 @@ git show <commit>:scripts/verify_upload.ps1
 | `util/logging.ps1` (`Write-LogEntry`) | `Start-O365Log` / `Stop-O365Log` |
 | `modules/log.psm1` (`LogInfo`, `LogError`, …) | `Start-O365Log` / `Stop-O365Log` |
 | `util/content_type_utils.ps1` | `Find-SpoContentTypeByColumn`, internal helpers |
+| `scripts/connect_graph.ps1` | removed, not migrated — see below |
 
-`scripts/connect_graph.ps1` was **not** migrated. It targets Microsoft Graph
-rather than PnP/CSOM, which is a separate surface. It still works standalone.
+`scripts/connect_graph.ps1` survived the restructuring as a standalone script
+and was removed later. It targeted Microsoft Graph rather than PnP/CSOM, which
+is a separate surface nothing in this repository uses, and it kept the client
+ID in `$env:client_id` — the pattern described next. `Connect-MgGraph` from
+the Microsoft.Graph module does what it did.
 
 ## What changed, and why
 
@@ -93,8 +97,8 @@ finding. It now compares against the **immediate parent**.
 
 ### No hard-coded tenant or language
 
-`setup_register_pnp_application.ps1` had `rebuildyourchurch.onmicrosoft.com`
-baked in. `remove_column_from_content_types.ps1` defaulted to `Priorität` in the
+`setup_register_pnp_application.ps1` had a real tenant's `.onmicrosoft.com`
+domain baked in. `remove_column_from_content_types.ps1` defaulted to `Priorität` in the
 group `Kernaufgaben- und Problemspalten`.
 
 Both are parameters now, with no defaults where a default cannot be right:

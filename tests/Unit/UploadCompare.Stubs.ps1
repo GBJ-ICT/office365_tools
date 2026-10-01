@@ -27,7 +27,8 @@ Mock Resolve-SpoList { [pscustomobject]@{ Title = 'Dokumente' } }
 Mock Get-PnPProperty { [pscustomobject]@{ ServerRelativeUrl = $script:StubRoot } } -ParameterFilter { $Property -eq 'RootFolder' }
 
 # Builds what Get-PnPListItem returns: paths are given relative to the library
-# root, which is how they read in the tests.
+# root, which is how they read in the tests. -Modified stamps every file with
+# the same date, the way CSOM returns it: UTC, with Kind left Unspecified.
 function New-StubItem {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
         'PSUseShouldProcessForStateChangingFunctions', '',
@@ -36,7 +37,9 @@ function New-StubItem {
     [OutputType([pscustomobject])]
     param(
         [string[]]$Folder = @(),
-        [string[]]$File = @()
+        [string[]]$File = @(),
+        [long]$Size = 1,
+        [Nullable[datetime]]$Modified
     )
 
     foreach ($path in $Folder) {
@@ -51,7 +54,11 @@ function New-StubItem {
         [pscustomobject]@{
             FileSystemObjectType = 'File'
             Id                   = 2
-            FieldValues          = @{ FileRef = "$script:StubRoot/$path"; 'File_x0020_Size' = '1' }
+            FieldValues          = @{
+                FileRef           = "$script:StubRoot/$path"
+                'File_x0020_Size' = "$Size"
+                Modified          = if ($Modified) { [datetime]::SpecifyKind($Modified, 'Unspecified') } else { $null }
+            }
         }
     }
 }

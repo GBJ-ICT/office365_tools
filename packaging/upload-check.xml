@@ -16,7 +16,7 @@
   <!-- ==== What to check ==================================================
        "ask" opens a window to pick the folder. Or put a fixed path here,
        for example C:\ToUpload
-       Dragging a folder onto Check-Upload.cmd overrides whatever is here. -->
+       Dragging a folder onto the launcher overrides whatever is here. -->
   <Folder>ask</Folder>
 
   <!-- What to do:
@@ -26,6 +26,10 @@
          ask        ask every time
        Default: ask -->
   <Mode>ask</Mode>
+
+  <!-- Include the files in subfolders, or only those directly in the folder.
+       true or false. Default: true -->
+  <Subfolders>true</Subfolders>
 
   <!-- ==== Where it goes ==================================================
        Only needed for Verify and Both. Leave these as they are if you only
@@ -55,9 +59,25 @@
   <Destination></Destination>
   <ClientId></ClientId>
 
-  <!-- Also compare file sizes when checking what arrived. Off by default:
-       SharePoint legitimately stores a different size for Office documents
-       it has processed, so this reports differences that are not problems.
+  <!-- ==== How to compare ===============================================
+       Checking what arrived lists every file as one of
+           =   synchronised               on both sides
+           ->  missing in SharePoint      it did not arrive
+           <-  missing on this computer   only in SharePoint
+       and the two settings below can add
+           ->  newer on this computer  /  <-  newer in SharePoint
+           !=  different size
+
+       Ignore dates when comparing. Leave this on if the files went up
+       through the browser: SharePoint then stamps every file with the time
+       of the upload, so every file would look newer there. Turn it off
+       (false) when they went up through the OneDrive app or a migration
+       tool, which keep the dates. true or false. Default: true -->
+  <IgnoreDates>true</IgnoreDates>
+
+  <!-- Also compare file sizes. Off by default: SharePoint legitimately
+       stores a different size for Office documents it has processed, so
+       this reports differences that are not problems.
        true or false. Default: false -->
   <CompareSize>false</CompareSize>
 

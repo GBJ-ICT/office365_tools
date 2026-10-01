@@ -3,11 +3,13 @@
     Reads upload-check.xml, checks that everything needed is present, asks for
     what is missing, and runs the upload checker.
 .DESCRIPTION
-    The double-click entry point's brain. Check-Upload.cmd is deliberately a
-    dozen lines; everything that could go wrong is diagnosed here, where a
-    message can be a sentence instead of a batch-file echo.
+    The upload checker's half of the double-click entry point. The launcher
+    (packaging/Office365-Tools.cmd, handed out as Check-Upload.cmd) finds or
+    fetches a copy of this repository and hands over to this script;
+    everything about the upload check itself -- its settings, its questions,
+    what it needs installed -- is decided here.
 
-    This file is the one part of the package that must run under **Windows
+    This file is the one part of the checker that must run under **Windows
     PowerShell 5.1**, which is on every Windows machine. That is the whole
     point: it can report that PowerShell 7 is missing, which a script written
     for PowerShell 7 cannot. Keep it free of 7-only syntax -- no ternaries,
@@ -18,9 +20,15 @@
     can see says nothing about what 7 can load.
 .PARAMETER Folder
     Folder to check, overriding the one in upload-check.xml. This is what a
-    folder dragged onto Check-Upload.cmd arrives as.
+    folder dragged onto the launcher arrives as.
 .PARAMETER SettingsPath
     Path to the settings file. Defaults to upload-check.xml beside this script.
+    The launcher passes the one beside itself, which is the one people edit.
+.PARAMETER ReportFolder
+    Folder the reports go into, each run in its own subfolder. The launcher
+    passes the one beside itself: a copy fetched from GitHub lives in the
+    user's AppData and is replaced on every run, which is no place for
+    something a person is meant to open. Defaults to the repository's out/.
 .PARAMETER NoPrompt
     Never ask anything: use the settings file as it stands and fail if
     something needed is missing. For scheduled runs.
@@ -31,7 +39,7 @@
 .EXAMPLE
     .\Start-UploadCheck.ps1 -Folder C:\ToUpload
 
-    What dragging a folder onto Check-Upload.cmd does.
+    What dragging a folder onto the launcher does.
 .EXAMPLE
     .\Start-UploadCheck.ps1 -Folder C:\ToUpload -NoPrompt
 
@@ -44,6 +52,9 @@ param(
 
     [Parameter()]
     [string]$SettingsPath,
+
+    [Parameter()]
+    [string]$ReportFolder,
 
     [Parameter()]
     [switch]$NoPrompt
@@ -326,21 +337,11 @@ function Select-Folder {
 }
 
 # -- Locate the pieces -------------------------------------------------------
-# Beside this script is the packaged layout; one level up is the repository,
-# where this file lives in packaging/ and the rest does not.
-$root = $PSScriptRoot
+# This file lives in packaging/ wherever it runs -- the repository, a copy
+# fetched from GitHub, or an offline package, which keeps the same layout -- so
+# the rest is always one level up.
+$root = Split-Path -Parent $PSScriptRoot
 $checker = Join-Path $root 'scripts\Test-Upload.ps1'
-
-if (-not (Test-Path -LiteralPath $checker)) {
-    $parent = Split-Path -Parent $root
-    if ($parent) {
-        $candidate = Join-Path $parent 'scripts\Test-Upload.ps1'
-        if (Test-Path -LiteralPath $candidate) {
-            $root = $parent
-            $checker = $candidate
-        }
-    }
-}
 
 $module = Join-Path $root 'src\Office365Tools\Office365Tools.psd1'
 
@@ -357,17 +358,17 @@ if ($missing.Count -gt 0) {
     Write-Problem -Title 'Part of the upload checker is missing.' -Detail @(
         "Not found: $($missing -join ', ')",
         '',
-        'This usually means the ZIP was opened rather than extracted, or only',
-        'Check-Upload.cmd was copied out of it. Extract the whole folder, keep',
-        'the files together, and run Check-Upload.cmd from there.')
+        'If you were sent a ZIP with everything in it, it was probably opened',
+        'rather than extracted: extract the whole folder and start it from',
+        'there. Otherwise just start it again; it fetches a fresh copy.')
     exit $SETUP_PROBLEM
 }
 
 # -- Read the settings -------------------------------------------------------
 $known = @(
-    'Folder', 'Mode', 'Destination', 'ClientId',
-    'TargetPathPrefix', 'LargeFileMb', 'PathLimit', 'WarnAt',
-    'BlockedExtension', 'CompareSize', 'IncludeRisky')
+    'Folder', 'Mode', 'Destination', 'ClientId', 'Subfolders',
+    'IgnoreDates', 'CompareSize', 'TargetPathPrefix', 'LargeFileMb',
+    'PathLimit', 'WarnAt', 'BlockedExtension', 'IncludeRisky')
 
 # Settings that used to exist and no longer matter. Accepted and ignored, with
 # a word about it: refusing to run over a line that was correct last week is a
@@ -398,7 +399,8 @@ catch {
         '',
         'Something in the file is malformed - usually a missing angle bracket,',
         'or a setting whose closing tag does not match its opening tag.',
-        'Open it in Notepad and compare it with the copy in the ZIP.')
+        'Open it in Notepad and look for that, or delete the file: the next',
+        'run puts a fresh one in its place.')
     exit $SETUP_PROBLEM
 }
 
@@ -452,7 +454,8 @@ if ($obsolete.Count -gt 0) {
         'folder a Teams site hides, which is what typing gets wrong.',
         '',
         'Delete those lines, add a <Destination> line, and run this again.',
-        'The copy of upload-check.xml in the ZIP shows the shape of it.')
+        'A fresh upload-check.xml shows the shape of it: rename yours, and',
+        'the next run puts a new one beside it.')
     exit $SETUP_PROBLEM
 }
 
@@ -533,7 +536,7 @@ $Folder = $Folder.Trim().Trim('"').TrimEnd('\')
 
 if (-not $Folder) {
     Write-Problem -Title 'No folder was chosen, so there is nothing to check.' -Detail @(
-        'Run Check-Upload.cmd again and pick a folder, or drag a folder onto it.')
+        'Start it again and pick a folder, or drag a folder onto it.')
     exit $SETUP_PROBLEM
 }
 
@@ -616,7 +619,7 @@ if (-not $pwsh) {
         '    winget install --id Microsoft.PowerShell',
         '',
         'or download it from https://aka.ms/powershell-release',
-        'Then run Check-Upload.cmd again.')
+        'Then start this again.')
     exit $SETUP_PROBLEM
 }
 
@@ -666,7 +669,7 @@ if ($needsSignIn) {
         if (-not $install) {
             Write-Problem -Title 'Cannot check what arrived without signing in.' -Detail @(
                 'Option 1 - checking the folder before you upload - still works,',
-                'and needs nothing extra. Run Check-Upload.cmd again and pick it.',
+                'and needs nothing extra. Start this again and pick it.',
                 '',
                 'To install the component later, from PowerShell 7:',
                 '',
@@ -703,6 +706,15 @@ $arguments = @(
     '-LocalPath', $Folder
     '-Mode', $mode)
 
+if ($ReportFolder) {
+    $arguments += @('-OutputPath', (Join-Path $ReportFolder "upload-check-$(Get-Date -Format 'yyyyMMdd_HHmmss')"))
+}
+
+# Both phases: which files count is the same question before and after.
+if (-not (Read-Boolean -Name 'Subfolders' -Default $true)) {
+    $arguments += '-TopLevelOnly'
+}
+
 if (-not $NoPrompt) {
     # Lets the checker ask for the library, which it can only do once it is
     # connected and knows which libraries exist.
@@ -721,6 +733,10 @@ if ($needsSignIn) {
 
     if (Read-Boolean -Name 'CompareSize' -Default $false) {
         $arguments += '-CompareSize'
+    }
+
+    if (-not (Read-Boolean -Name 'IgnoreDates' -Default $true)) {
+        $arguments += '-CompareDate'
     }
 }
 

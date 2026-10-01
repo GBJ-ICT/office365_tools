@@ -6,12 +6,16 @@
 #   2. Nothing a script produced is ever committed (out/, log/).
 # ---------------------------------------------------------------------------
 
-# Real configuration. Only the *.example.json templates are tracked.
+# Real configuration. Only the *.example.json templates are tracked -- and
+# the schema they point at, which describes the shape and holds no tenant.
 config/*.json
 !config/*.example.json
+!config/*.schema.json
 
-# Script output: reports, logs, exports.
+# Script output: reports, logs, exports. Reports/ is where the double-click
+# launcher puts them, beside itself -- in packaging/ when run from a checkout.
 out/
+Reports/
 log/
 logs/
 *.log

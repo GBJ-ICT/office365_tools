@@ -10,8 +10,8 @@ Two things, and it asks which one you want:
      get too long, empty files, very large files, leftover junk.
      No sign-in. Nothing leaves your computer.
 
-  2. AFTER you upload - signs you in and compares the folder with the library,
-     so you know whether everything actually arrived.
+  2. AFTER you upload - signs you in and compares the folder with SharePoint,
+     file by file, so you know whether everything actually arrived.
 
 It only looks. It never uploads, deletes, moves or changes anything, on your
 computer or in SharePoint.
@@ -19,8 +19,14 @@ computer or in SharePoint.
 
 How to use it
 -------------
-1. Double-click  Check-Upload.cmd
-   (or drag the folder you want checked onto it, to skip the first question)
+1. Extract the ZIP first (right-click it, "Extract All..."). Then
+   double-click  Check-Upload.cmd  in the folder that creates
+   (or drag the folder you want checked onto it, to skip the next question).
+   If you were sent several tools at once, the file is called
+   Office365-Tools.cmd instead, and it asks which one first.
+
+   It needs the internet for a moment each time: it fetches the newest copy
+   of the checker before it starts.
 
 2. A window opens: pick the folder you are uploading.
 
@@ -44,30 +50,59 @@ How to use it
    Put the address in upload-check.xml and it stops asking.
 
 4. It finishes with a summary on screen and the name of the report it wrote.
-   Nothing opens by itself: the reports wait for you in the "out" folder.
-   Open the .html one in a browser to read the full list. It says at the top
-   what was checked, and then what it found:
+   Nothing opens by itself: the reports wait for you in the "Reports" folder.
+   Open the .html one in a browser.
+
+
+Reading the reports
+-------------------
+BEFORE uploading, the report says at the top what was checked, and then what
+it found:
 
      Red    = fix this before uploading
      Yellow = worth a look
      Grey   = information only
 
-   "Nothing to report" with a summary above it means your folder is fine.
+"Nothing to report" with a summary above it means your folder is fine.
+
+AFTER uploading, the report lists every file, the way a folder-comparison
+program does:
+
+     =    Synchronised               on both sides
+     ->   Missing in SharePoint      it did not arrive - upload it again
+     <-   Missing on this computer   only in SharePoint
+
+and, if you switched those comparisons on in upload-check.xml:
+
+     ->   Newer on this computer
+     <-   Newer in SharePoint
+     !=   Different size
+
+There is a tick box for each at the top of the page. Untick one to hide those
+files - untick "Synchronised" and what is left is what needs looking at.
 
 
 Changing what it checks
 -----------------------
 Everything adjustable lives in  upload-check.xml  next to Check-Upload.cmd.
-Open it in Notepad: each setting has a note above it saying what it does and
-what happens if you leave it alone. Save the file and the next run uses it.
+(If it is not there, the first run puts one there.) Open it in Notepad: each
+setting has a note above it saying what it does and what happens if you
+leave it alone. Save the file and the next run uses it.
 
-The two worth knowing about:
+The ones worth knowing about:
 
-  Folder             set this to a fixed path and it stops asking every time
-  Destination        the address of the SharePoint folder, pasted from your
-                     browser. Fill it in and it stops asking that too - and
-                     you get warned about paths that would be too long once
-                     the files are there, without signing in to anything
+  Folder        set this to a fixed path and it stops asking every time
+  Destination   the address of the SharePoint folder, pasted from your
+                browser. Fill it in and it stops asking that too - and you
+                get warned about paths that would be too long once the files
+                are there, without signing in to anything
+  Subfolders    true: check the files in subfolders too (the default)
+                false: only the files directly in the folder
+  IgnoreDates   true: do not compare dates (the default). Leave it like this
+                if you upload through the browser: SharePoint then dates every
+                file to the moment of the upload, so every file would look
+                newer there. Set it to false if the files went up through the
+                OneDrive app, which keeps the dates.
 
 If you mistype something in there, the checker says which line is wrong and
 what it expected. It will not run with settings it does not understand.
@@ -75,6 +110,10 @@ what it expected. It will not run with settings it does not understand.
 
 The first time
 --------------
+Windows may ask whether you really want to run a file that came from the
+internet. It is this checker - choose "Run" (or "More info", then
+"Run anyway").
+
 If a window says PowerShell 7 is missing, it needs installing once. Open the
 Start menu, type "cmd", press Enter, and paste this:
 
@@ -82,35 +121,38 @@ Start menu, type "cmd", press Enter, and paste this:
 
 Then run Check-Upload.cmd again.
 
-If Windows warns that the file came from another computer: close everything,
-right-click the ZIP you were sent, choose Properties, tick "Unblock", press OK,
-and extract it again.
-
 
 Where the reports go
 --------------------
-Into the "out" folder next to Check-Upload.cmd, one folder per run. Old reports
-are never deleted, so you can compare runs or send one to a colleague -- the
-HTML file is self-contained and opens anywhere.
+Into the "Reports" folder next to Check-Upload.cmd, one folder per run. Old
+reports are never deleted, so you can compare runs or send one to a colleague
+-- the HTML file is self-contained and opens anywhere.
 
 
 For whoever set this up
 -----------------------
-The launcher is a wrapper around:
+Check-Upload.cmd is the repository's packaging\Office365-Tools.cmd, pinned
+to this one tool ($Tool at the top of its PowerShell half). It is a batch
+file and a PowerShell script in one. It fetches the repository from GitHub
+(the branch, tag or commit named by $Ref) into
+%LOCALAPPDATA%\office365_tools\<ref>, falls back to the copy it fetched last
+time when GitHub cannot be reached, looks the tool up in
+packaging\tools.psd1, and hands over to packaging\Start-UploadCheck.ps1. If
+the code is beside it instead -- an offline package, or a checkout -- it uses
+that and fetches nothing.
+
+Start-UploadCheck.ps1 reads upload-check.xml, checks the prerequisites and
+runs:
 
     pwsh -File scripts/Test-Upload.ps1 -LocalPath <folder> [settings from the xml]
 
-Check-Upload.cmd only locates a PowerShell and hands over to
-Start-UploadCheck.ps1, which reads upload-check.xml, checks the prerequisites
-and builds that command. The bootstrap is deliberately written for Windows
-PowerShell 5.1, so it is able to report a missing PowerShell 7 rather than
-failing to start.
+Both are written for Windows PowerShell 5.1, so they are able to report a
+missing PowerShell 7 rather than failing to start.
 
-Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem (missing files,
-unreadable settings, no PowerShell 7).
+Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem (could not fetch
+the checker, unreadable settings, no PowerShell 7).
 
-Test-Upload.ps1 also verifies an upload after the fact (-Mode Verify) and takes
-a target library, path limits, a blocked-extension list and an exit-code
-policy. Run  Get-Help scripts/Test-Upload.ps1 -Full  for the details. The
-tenant-facing parts need the PnP.PowerShell module and a connection profile;
-everything the launcher does deliberately needs neither.
+Test-Upload.ps1 takes a target library, path limits, a blocked-extension list
+and an exit-code policy. Run  Get-Help scripts/Test-Upload.ps1 -Full  for the
+details. Checking after the upload needs the PnP.PowerShell module, which the
+launcher offers to install; checking before it needs nothing.

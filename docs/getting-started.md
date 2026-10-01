@@ -352,14 +352,16 @@ The pre-flight phase is the part non-technical colleagues need, and it is the
 part that depends on nothing:
 
 ```powershell
-./build.ps1 -Task Package
+./build.ps1 -Task Package -Tool UploadCheck
 ```
 
-That writes `out/UploadChecker-<version>.zip` — the checker, the module, a
-plain-language read-me, an `upload-check.xml` holding the arguments so nobody
-has to type any, and a `Check-Upload.cmd` the recipient double-clicks or drags
-a folder onto. PowerShell 7 is the only prerequisite; PnP.PowerShell is not
-needed, because nothing in the pre-flight phase connects to anything.
+That writes `out/Check-Upload.zip` -- a `Check-Upload.cmd` the recipient
+double-clicks or drags a folder onto, an `upload-check.xml` holding the
+arguments so nobody has to type any, and a plain-language read-me. The
+launcher fetches the checker itself from GitHub when it runs, so push before
+you send; `-IncludeCode` builds an offline ZIP with everything in it instead.
+PowerShell 7 is the only prerequisite for the pre-flight phase; PnP.PowerShell
+is not needed, because nothing in it connects to anything.
 
 ### The underlying command
 
@@ -370,11 +372,29 @@ when you want the comparison as data rather than as a report:
 Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports
 Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -DifferencesOnly
 Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -CompareSize
+Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -CompareDate -TopLevelOnly
 ```
 
-Every file is emitted with a `Status` of `Match`, `MissingRemote`,
-`MissingLocal`, or `SizeDiffers`. A `-RemoteFolder` that does not exist throws
-instead, naming the folders that do:
+Every file is emitted with a `Status`, the categories of a directory
+synchronisation tool:
+
+| Status | Meaning |
+|---|---|
+| `Match` | on both sides, equal by whatever was compared |
+| `MissingRemote` | only on this computer -- it did not arrive |
+| `MissingLocal` | only in SharePoint |
+| `LocalNewer` / `RemoteNewer` | on both sides, one copy newer (`-CompareDate`, two seconds' tolerance by default) |
+| `SizeDiffers` | on both sides, byte counts disagree (`-CompareSize`) |
+
+Names only by default, dates ignored: an upload through the browser stamps
+every file with the time of the upload, and SharePoint stores Office files it
+processed at a different size, so both comparisons report differences that are
+not problems unless the files went up through something that keeps them.
+`-TopLevelOnly` leaves subfolders out on both sides. Each object also carries
+`LocalModified` and `RemoteModified`, in UTC.
+
+A `-RemoteFolder` that does not exist throws instead, naming the folders that
+do:
 
 ```powershell
 $result = Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports

@@ -4,7 +4,12 @@
 .DESCRIPTION
     Produces a single file with no external references, so it survives being
     e-mailed or dropped on a file share. Findings get a summary and severity
-    grouping; anything else falls back to a plain table.
+    grouping; folder comparisons get a synchronisation view, every file with
+    its status and a tick box per status to show or hide it; anything else
+    falls back to a plain table.
+
+    The tick boxes filter with CSS alone (:has), so they work in a page whose
+    scripts a mail client or a locked-down browser would block.
 
     All values are HTML-encoded. Findings contain file names and paths straight
     from the tenant, and a file legitimately named 'Q1 <draft>.docx' would
@@ -38,6 +43,45 @@ function ConvertTo-SpoReportHtml {
     $encode = { param($Value) [System.Net.WebUtility]::HtmlEncode([string]$Value) }
 
     $isFindingReport = $Item.Count -gt 0 -and ($Item[0].PSObject.TypeNames -contains 'Office365Tools.Finding')
+    $isComparisonReport = $Item.Count -gt 0 -and ($Item[0].PSObject.TypeNames -contains 'Office365Tools.FolderComparison')
+
+    # How each comparison status reads, in the order the tick boxes appear.
+    # The arrows are a synchronisation tool's: which way a copy would go to
+    # put it right.
+    $comparisonStatus = [ordered]@{
+        MissingRemote = @{ Symbol = '&rarr;'; Label = 'Missing in SharePoint' }
+        MissingLocal  = @{ Symbol = '&larr;'; Label = 'Missing on this computer' }
+        LocalNewer    = @{ Symbol = '&rarr;'; Label = 'Newer on this computer' }
+        RemoteNewer   = @{ Symbol = '&larr;'; Label = 'Newer in SharePoint' }
+        SizeDiffers   = @{ Symbol = '&ne;'; Label = 'Different size' }
+        Match         = @{ Symbol = '='; Label = 'Synchronised' }
+    }
+
+    $formatSize = {
+        param($Bytes)
+        if ($null -eq $Bytes) { return '' }
+        if ($Bytes -lt 1KB) { return "$Bytes B" }
+        if ($Bytes -lt 1MB) { return '{0:N1} KB' -f ($Bytes / 1KB) }
+        if ($Bytes -lt 1GB) { return '{0:N1} MB' -f ($Bytes / 1MB) }
+        return '{0:N2} GB' -f ($Bytes / 1GB)
+    }
+
+    # Rounded for reading, exact on hover -- and exact outright on a row that
+    # is there because the sizes differ, which rounding would hide: 5,242,880
+    # and 5,251,072 bytes are both "5.0 MB".
+    $sizeCell = {
+        param($Bytes, [bool]$Exact)
+        if ($null -eq $Bytes) { return '<td class="num"></td>' }
+        $shown = if ($Exact) { '{0:N0} B' -f $Bytes } else { & $formatSize $Bytes }
+        "<td class=""num"" title=""$('{0:N0}' -f $Bytes) bytes"">$(& $encode $shown)</td>"
+    }
+
+    # Stored in UTC, shown in the reader's own time.
+    $formatDate = {
+        param($Value)
+        if ($Value -isnot [datetime]) { return '' }
+        $Value.ToLocalTime().ToString('yyyy-MM-dd HH:mm')
+    }
 
     $style = @'
 :root { color-scheme: light dark; }
@@ -86,6 +130,29 @@ code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .85em; }
 .runsummary { border-collapse: collapse; margin: 1rem 0 1.5rem; }
 .runsummary th { text-align: left; padding: 0.2rem 1.5rem 0.2rem 0; font-weight: 600; vertical-align: top; white-space: nowrap; }
 .runsummary td { padding: 0.2rem 0; }
+
+.toggles { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.toggle { cursor: pointer; user-select: none; border-left-width: 4px; }
+.toggle input { margin: 0 .4rem 0 0; vertical-align: middle; }
+.hint { color: #666; font-size: .8rem; margin: 0 0 1.5rem; }
+.st { display: inline-block; padding: .1rem .5rem; border-radius: 3px;
+      font-size: .8rem; font-weight: 600; white-space: nowrap; }
+td.num { text-align: right; white-space: nowrap; }
+td.date { white-space: nowrap; }
+th.side { text-align: center; }
+.st-Match { background: #def7ec; color: #03543f; border-color: #31c48d; }
+.st-MissingRemote { background: #fde8e8; color: #9b1c1c; border-color: #f05252; }
+.st-MissingLocal, .st-RemoteNewer { background: #e1effe; color: #1e429f; border-color: #3f83f8; }
+.st-LocalNewer, .st-SizeDiffers { background: #fdf6b2; color: #8e4b10; border-color: #e3a008; }
+.toggle.st-Match, .toggle.st-MissingRemote, .toggle.st-MissingLocal,
+.toggle.st-RemoteNewer, .toggle.st-LocalNewer, .toggle.st-SizeDiffers { background: transparent; color: inherit; }
+@media (prefers-color-scheme: dark) {
+  .hint { color: #999; }
+  .st-Match { background: #0f3d2b; color: #84e1bc; }
+  .st-MissingRemote { background: #4a1010; color: #f8b4b4; }
+  .st-MissingLocal, .st-RemoteNewer { background: #102a4a; color: #a4cafe; }
+  .st-LocalNewer, .st-SizeDiffers { background: #4a3810; color: #fce96a; }
+}
 '@
 
     $builder = [System.Text.StringBuilder]::new()
@@ -124,7 +191,64 @@ code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .85em; }
         return $builder.ToString()
     }
 
-    if ($isFindingReport) {
+    if ($isComparisonReport) {
+        $counts = @{}
+        foreach ($row in $Item) {
+            $counts[$row.Status] = 1 + [int]$counts[$row.Status]
+        }
+
+        # The three a reader always wants a number for, even when it is 0 --
+        # "0 missing" is the answer, not an absence of one. The others only
+        # exist when their comparison was switched on.
+        $shown = @($comparisonStatus.Keys | Where-Object {
+                $_ -in 'Match', 'MissingRemote', 'MissingLocal' -or $counts[$_]
+            })
+
+        $filter = [System.Text.StringBuilder]::new()
+        [void]$builder.AppendLine('<div class="toggles">')
+        foreach ($status in $shown) {
+            $look = $comparisonStatus[$status]
+            $count = [int]$counts[$status]
+            [void]$builder.AppendLine(
+                "<label class=""card toggle st-$status""><span class=""n"">$count</span>" +
+                "<span class=""l""><input type=""checkbox"" id=""show-$status"" checked>" +
+                "$($look.Symbol) $($look.Label)</span></label>")
+            [void]$filter.Append("body:has(#show-${status}:not(:checked)) tr.st-$status { display: none; } ")
+        }
+        [void]$builder.AppendLine('</div>')
+        [void]$builder.AppendLine("<style>$($filter.ToString())</style>")
+        [void]$builder.AppendLine('<p class="hint">Untick a box to hide those files.</p>')
+
+        [void]$builder.AppendLine(
+            '<table><thead>' +
+            '<tr><th rowspan="2">Status</th><th rowspan="2">File</th>' +
+            '<th class="side" colspan="2">On this computer</th><th class="side" colspan="2">In SharePoint</th></tr>' +
+            '<tr><th>Size</th><th>Modified</th><th>Size</th><th>Modified</th></tr>' +
+            '</thead><tbody>')
+
+        # Sorted by path, so a folder's files sit together as they do in a
+        # file manager, whatever their status.
+        $ordered = $Item | Sort-Object { $_.RelativePath }
+
+        foreach ($row in $ordered) {
+            $look = $comparisonStatus[[string]$row.Status]
+            $badge = if ($look) { "$($look.Symbol) $($look.Label)" } else { & $encode $row.Status }
+            $exact = $row.Status -eq 'SizeDiffers'
+
+            [void]$builder.AppendLine(
+                "<tr class=""st-$(& $encode $row.Status)"">" +
+                "<td><span class=""st st-$(& $encode $row.Status)"">$badge</span></td>" +
+                "<td class=""wrap"">$(& $encode $row.RelativePath)</td>" +
+                (& $sizeCell $row.LocalSize $exact) +
+                "<td class=""date"">$(& $encode (& $formatDate $row.LocalModified))</td>" +
+                (& $sizeCell $row.RemoteSize $exact) +
+                "<td class=""date"">$(& $encode (& $formatDate $row.RemoteModified))</td>" +
+                '</tr>')
+        }
+
+        [void]$builder.AppendLine('</tbody></table>')
+    }
+    elseif ($isFindingReport) {
         $bySeverity = $Item | Group-Object Severity
 
         [void]$builder.AppendLine('<div class="summary">')

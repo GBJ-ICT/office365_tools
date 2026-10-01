@@ -1,7 +1,7 @@
 ﻿@{
     RootModule        = 'Office365Tools.psm1'
     FormatsToProcess  = @('Office365Tools.Format.ps1xml')
-    ModuleVersion     = '0.6.0'
+    ModuleVersion     = '0.7.0'
     GUID              = 'b7f3c9a2-4d18-4e6b-9c53-8a1f2e7d4b60'
     Author            = 'office365_tools contributors'
     CompanyName       = 'Unknown'
@@ -97,6 +97,38 @@
             Tags         = @('SharePoint', 'SharePointOnline', 'PnP', 'Microsoft365', 'Office365', 'Administration')
             LicenseUri   = 'https://opensource.org/licenses/MIT'
             ReleaseNotes = @'
+0.7.0
+- scripts/Test-Upload.ps1: checks a folder before it is uploaded to
+  SharePoint -- names SharePoint refuses, paths over the 400 character limit
+  once the target folder is prepended, case collisions, empty, oversized and
+  junk files -- and afterwards checks that everything arrived. Pre-flight
+  needs no connection at all.
+- The after-upload check lists every file the way a directory
+  synchronisation tool does: synchronised, missing in SharePoint, missing on
+  this computer, and with -CompareDate and -CompareSize newer on either side
+  or different in size. -TopLevelOnly leaves subfolders out. The HTML report
+  has a tick box per category, which filters without a script.
+- Compare-SpoFolder: -CompareDate (with -DateTolerance) reports LocalNewer
+  and RemoteNewer, -TopLevelOnly compares one level, and every result carries
+  LocalModified and RemoteModified in UTC. A -RemoteFolder that does not exist
+  throws, naming the folders that do, instead of reporting every local file
+  as missing.
+- ConvertFrom-SpoAddress: turns an address copied out of the browser into a
+  site, a library and a folder -- including the channel folder a Teams site
+  hides. Offline; nothing is contacted.
+- Export-SpoReport: -Summary describes the run at the top of an HTML report,
+  so a clean result reads as checked rather than as not run. Folder
+  comparisons get their own synchronisation view.
+- PnP.PowerShell is no longer a RequiredModule. The offline commands load
+  without it; every command that talks to a tenant says what to install when
+  it is missing.
+- packaging/: a double-click launcher for people who do not use PowerShell.
+  One .cmd file, a batch file and a PowerShell script in one, that fetches
+  this repository from GitHub and runs a tool from packaging/tools.psd1.
+  build.ps1 -Task Package -Tool <name> builds the ZIP to hand out;
+  -IncludeCode builds one that needs no GitHub.
+- scripts/connect_graph.ps1 is removed. Use Connect-MgGraph.
+
 0.6.0
 - Export-SpoListPdf: prints a list to PDF with a page layout that does not
   depend on a window size or a zoom level, which is what makes printing a

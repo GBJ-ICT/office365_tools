@@ -5,13 +5,26 @@
     Answers "did the upload actually complete?" -- the job the old
     verify_upload.ps1 did, generalised.
 
-    Recursively walks both sides and emits one object per file with a Status of
-    Match, MissingRemote, MissingLocal, or SizeDiffers. Emitting every file
-    rather than only problems means the output doubles as an inventory, and
-    `Where-Object Status -ne 'Match'` gets you the exception list.
+    Walks both sides and emits one object per file, the way a directory
+    synchronisation tool lists them. Status is one of:
 
-    Size comparison is optional because SharePoint may legitimately store a
-    different byte count for Office files it has processed.
+      Match          on both sides, and equal by whatever was compared
+      MissingRemote  only on this computer -- it did not arrive
+      MissingLocal   only in SharePoint
+      SizeDiffers    on both sides, byte counts disagree      (-CompareSize)
+      LocalNewer     on both sides, the local copy is newer    (-CompareDate)
+      RemoteNewer    on both sides, SharePoint's copy is newer (-CompareDate)
+
+    Emitting every file rather than only problems means the output doubles as
+    an inventory, and `Where-Object Status -ne 'Match'` gets you the exception
+    list.
+
+    By default a file counts as matching when it exists on both sides: names
+    only, dates ignored. Both refinements are opt-in, and for the same reason
+    -- an upload changes them without anything being wrong. SharePoint may
+    store a different byte count for an Office file it has processed, and an
+    upload through the browser stamps the file with the time of the upload
+    rather than the time it was last edited.
 .PARAMETER LocalPath
     Local folder to compare. Scanned recursively.
 .PARAMETER Library
@@ -23,6 +36,18 @@
     from an upload where nothing arrived.
 .PARAMETER CompareSize
     Also compare file sizes, reporting SizeDiffers when they disagree.
+.PARAMETER CompareDate
+    Also compare modification dates, reporting LocalNewer or RemoteNewer when
+    they are further apart than -DateTolerance. A date difference takes
+    precedence over a size difference, since the newer copy is what explains
+    the other.
+.PARAMETER DateTolerance
+    Seconds two modification dates may differ by and still count as equal.
+    Default 2: FAT and some network drives keep times to two seconds, and
+    SharePoint keeps them to one.
+.PARAMETER TopLevelOnly
+    Compare only the files directly in the folder, not those in its
+    subfolders, on both sides.
 .PARAMETER DifferencesOnly
     Emit only files whose Status is not Match.
 .PARAMETER PageSize
@@ -34,6 +59,11 @@
 .EXAMPLE
     Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -DifferencesOnly
     Lists only what does not line up.
+.EXAMPLE
+    Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports -CompareDate -TopLevelOnly
+    Only the files directly in Reports, and says which side has the newer
+    copy -- worth it when the files were copied by something that keeps
+    dates, such as the OneDrive client.
 .EXAMPLE
     $result = Compare-SpoFolder -LocalPath C:\Reports -Library Documents -RemoteFolder Reports
     $result | Group-Object Status | Select-Object Name, Count
@@ -68,6 +98,16 @@ function Compare-SpoFolder {
         [switch]$CompareSize,
 
         [Parameter()]
+        [switch]$CompareDate,
+
+        [Parameter()]
+        [ValidateRange(0, 86400)]
+        [int]$DateTolerance = 2,
+
+        [Parameter()]
+        [switch]$TopLevelOnly,
+
+        [Parameter()]
         [switch]$DifferencesOnly,
 
         [Parameter()]
@@ -94,7 +134,7 @@ function Compare-SpoFolder {
     $localRoot  = (Resolve-Path -LiteralPath $LocalPath).Path.TrimEnd('\')
     $localFiles = @{}
 
-    foreach ($file in (Get-ChildItem -LiteralPath $localRoot -File -Recurse)) {
+    foreach ($file in (Get-ChildItem -LiteralPath $localRoot -File -Recurse:(-not $TopLevelOnly))) {
         $relative = $file.FullName.Substring($localRoot.Length).TrimStart('\').Replace('\', '/')
         $localFiles[$relative] = $file
     }
@@ -123,15 +163,34 @@ function Compare-SpoFolder {
 
         $relative = $url.Substring($scopeUrl.Length).TrimStart('/')
 
+        # Decided on the path rather than by asking for one level: the whole
+        # library comes back in one paged call either way.
+        if ($TopLevelOnly -and $relative.Contains('/')) { continue }
+
         $size = 0L
         if ($item.FieldValues['File_x0020_Size']) {
             [long]::TryParse($item.FieldValues['File_x0020_Size'].ToString(), [ref]$size) | Out-Null
         }
 
+        # CSOM hands dates back in UTC without always saying so: a value whose
+        # Kind is Unspecified is UTC, and reading it as local time would shift
+        # every file by the time zone.
+        $modified = $item.FieldValues['Modified']
+        $modifiedUtc = $null
+        if ($modified -is [datetime]) {
+            $modifiedUtc = if ($modified.Kind -eq [System.DateTimeKind]::Local) {
+                $modified.ToUniversalTime()
+            }
+            else {
+                [datetime]::SpecifyKind($modified, [System.DateTimeKind]::Utc)
+            }
+        }
+
         $remoteFiles[$relative] = [pscustomobject]@{
-            Url  = $url
-            Size = $size
-            Id   = $item.Id
+            Url      = $url
+            Size     = $size
+            Modified = $modifiedUtc
+            Id       = $item.Id
         }
     }
 
@@ -201,31 +260,52 @@ function Compare-SpoFolder {
 
         if (-not $remote) {
             & $emit ([pscustomobject]@{
-                    PSTypeName   = 'Office365Tools.FolderComparison'
-                    RelativePath = $relative
-                    Status       = 'MissingRemote'
-                    LocalPath    = $local.FullName
-                    RemoteUrl    = $null
-                    LocalSize    = $local.Length
-                    RemoteSize   = $null
-                    List         = $list.Title
+                    PSTypeName     = 'Office365Tools.FolderComparison'
+                    RelativePath   = $relative
+                    Status         = 'MissingRemote'
+                    LocalPath      = $local.FullName
+                    RemoteUrl      = $null
+                    LocalSize      = $local.Length
+                    RemoteSize     = $null
+                    LocalModified  = $local.LastWriteTimeUtc
+                    RemoteModified = $null
+                    List           = $list.Title
                 })
             continue
         }
 
         [void]$seenRemote.Add($relative)
 
-        $status = if ($CompareSize -and $local.Length -ne $remote.Size) { 'SizeDiffers' } else { 'Match' }
+        $status = 'Match'
+
+        # A file with no date on the SharePoint side cannot be called older or
+        # newer, so it is left to the other comparisons.
+        if ($CompareDate -and $null -ne $remote.Modified) {
+            $drift = ($local.LastWriteTimeUtc - $remote.Modified).TotalSeconds
+
+            if ($drift -gt $DateTolerance) {
+                $status = 'LocalNewer'
+            }
+            elseif ($drift -lt -$DateTolerance) {
+                $status = 'RemoteNewer'
+            }
+        }
+
+        if ($status -eq 'Match' -and $CompareSize -and $local.Length -ne $remote.Size) {
+            $status = 'SizeDiffers'
+        }
 
         & $emit ([pscustomobject]@{
-                PSTypeName   = 'Office365Tools.FolderComparison'
-                RelativePath = $relative
-                Status       = $status
-                LocalPath    = $local.FullName
-                RemoteUrl    = $remote.Url
-                LocalSize    = $local.Length
-                RemoteSize   = $remote.Size
-                List         = $list.Title
+                PSTypeName     = 'Office365Tools.FolderComparison'
+                RelativePath   = $relative
+                Status         = $status
+                LocalPath      = $local.FullName
+                RemoteUrl      = $remote.Url
+                LocalSize      = $local.Length
+                RemoteSize     = $remote.Size
+                LocalModified  = $local.LastWriteTimeUtc
+                RemoteModified = $remote.Modified
+                List           = $list.Title
             })
     }
 
@@ -233,14 +313,16 @@ function Compare-SpoFolder {
         if ($seenRemote.Contains($relative)) { continue }
 
         & $emit ([pscustomobject]@{
-                PSTypeName   = 'Office365Tools.FolderComparison'
-                RelativePath = $relative
-                Status       = 'MissingLocal'
-                LocalPath    = $null
-                RemoteUrl    = $remoteFiles[$relative].Url
-                LocalSize    = $null
-                RemoteSize   = $remoteFiles[$relative].Size
-                List         = $list.Title
+                PSTypeName     = 'Office365Tools.FolderComparison'
+                RelativePath   = $relative
+                Status         = 'MissingLocal'
+                LocalPath      = $null
+                RemoteUrl      = $remoteFiles[$relative].Url
+                LocalSize      = $null
+                RemoteSize     = $remoteFiles[$relative].Size
+                LocalModified  = $null
+                RemoteModified = $remoteFiles[$relative].Modified
+                List           = $list.Title
             })
     }
 

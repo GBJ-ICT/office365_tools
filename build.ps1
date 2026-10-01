@@ -9,7 +9,7 @@
       Analyze - run PSScriptAnalyzer over the repository
       Test    - run the Pester unit tests (no tenant required)
       Import  - import the module into the current session
-      Package - build the shippable upload checker into out/
+      Package - build a hand-out ZIP of the double-click tools into out/
       All     - Analyze then Test (the default, and what CI effectively does)
 .EXAMPLE
     ./build.ps1
@@ -17,18 +17,36 @@
 .EXAMPLE
     ./build.ps1 -Task Test
     Runs only the unit tests.
+.PARAMETER Tool
+    Package only. Build the ZIP for this one tool from packaging/tools.psd1:
+    its launcher is named for it (Check-Upload.cmd for UploadCheck) and runs
+    it alone, so tools added later never appear for this recipient. Omit to
+    ship Office365-Tools.cmd, which offers every tool in the list.
 .PARAMETER ProfileName
-    Package only. Bakes this connection profile's site URL and client ID into
-    the packaged settings file, so the recipient is never asked for them.
-    Omit to ship the settings file with those fields empty.
+    Package only. Bakes this connection profile's details into the packaged
+    settings files -- whichever settings each tool's Prefill names -- so the
+    recipient is never asked for them. Omit to ship those fields empty.
+.PARAMETER IncludeCode
+    Package only. Put the code in the ZIP as well, for a machine that cannot
+    reach GitHub. Without it the ZIP holds only the launcher, the settings and
+    the read-me, and the launcher fetches the code from GitHub when it runs.
 .EXAMPLE
-    ./build.ps1 -Task Package
-    Writes out/UploadChecker-<version>.zip: the checker, its module, and a
-    double-click launcher, for someone who does not use PowerShell.
+    ./build.ps1 -Task Package -Tool UploadCheck
+    Writes out/Check-Upload.zip: the double-click launcher, its settings file
+    and a read-me, for someone who does not use PowerShell. The code itself
+    comes from GitHub when they run it, so it is always current.
 .EXAMPLE
-    ./build.ps1 -Task Package -ProfileName CDS
+    ./build.ps1 -Task Package -Tool UploadCheck -ProfileName CDS
     Same, with the CDS site and client ID already filled in, so checking that
     an upload arrived works on their machine without them typing anything.
+.EXAMPLE
+    ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
+    Writes out/Check-Upload-<version>-offline.zip, which has everything in it
+    and needs no access to GitHub.
+.EXAMPLE
+    ./build.ps1 -Task Package
+    Writes out/Office365-Tools.zip, whose launcher offers every tool in
+    packaging/tools.psd1 -- and every tool added to it later.
 #>
 [CmdletBinding()]
 param(
@@ -37,7 +55,13 @@ param(
     [string]$Task = 'All',
 
     [Parameter()]
-    [string]$ProfileName
+    [string]$Tool,
+
+    [Parameter()]
+    [string]$ProfileName,
+
+    [Parameter()]
+    [switch]$IncludeCode
 )
 
 Set-StrictMode -Version Latest
@@ -103,9 +127,26 @@ function Invoke-ImportTask {
     $commands | ForEach-Object { Write-Host "      $($_.Name)" -ForegroundColor Gray }
 }
 
+# The launcher's tool list, read as data -- the same way the launcher reads it,
+# so a list the launcher would refuse fails the build too.
+function Read-ToolList {
+    $path = Join-Path $repoRoot 'packaging/tools.psd1'
+
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors)
+    if ($parseErrors) {
+        throw "packaging/tools.psd1 does not parse: $($parseErrors[0].Message)"
+    }
+
+    $table = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false)
+    return @($table.SafeGetValue().Tools)
+}
+
 function Invoke-PackageTask {
     param(
-        [string]$ProfileName
+        [string]$Tool,
+        [string]$ProfileName,
+        [switch]$IncludeCode
     )
 
     Write-Host '==> Package' -ForegroundColor Cyan
@@ -113,30 +154,89 @@ function Invoke-PackageTask {
     $manifest = Import-PowerShellDataFile -Path $manifestPath
     $version = $manifest.ModuleVersion
 
-    $staging = Join-Path $repoRoot 'out/UploadChecker'
-    $archive = Join-Path $repoRoot "out/UploadChecker-$version.zip"
+    $allTools = Read-ToolList
+
+    if ($Tool) {
+        $tools = @($allTools | Where-Object { $_.Name -eq $Tool })
+        if ($tools.Count -eq 0) {
+            throw "No tool '$Tool' in packaging/tools.psd1. Known: $(($allTools | ForEach-Object { $_.Name }) -join ', ')."
+        }
+        $launcherName = $tools[0].Launcher
+    }
+    else {
+        $tools = $allTools
+        $launcherName = 'Office365-Tools.cmd'
+    }
+
+    $base = [System.IO.Path]::GetFileNameWithoutExtension($launcherName)
+    $name = if ($IncludeCode) { "$base-$version-offline" } else { $base }
+    $staging = Join-Path $repoRoot "out/$name"
+    $archive = Join-Path $repoRoot "out/$name.zip"
 
     if (Test-Path -LiteralPath $staging) {
         Remove-Item -LiteralPath $staging -Recurse -Force
     }
+    New-Item -Path $staging -ItemType Directory -Force | Out-Null
 
-    # The layout mirrors the repository rather than flattening it, so
-    # Test-Upload.ps1 finds the module at the same relative path it always does
-    # and the package needs no special-casing anywhere.
-    New-Item -Path (Join-Path $staging 'scripts') -ItemType Directory -Force | Out-Null
-    New-Item -Path (Join-Path $staging 'src') -ItemType Directory -Force | Out-Null
+    # -- The launcher, pinned to the tool when there is one -------------------
+    # Edited as text, on the one line it reserves for this. Kept ASCII with
+    # its CRLF endings, which cmd needs.
+    $launcherText = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'packaging/Office365-Tools.cmd'))
 
-    Copy-Item -Path (Join-Path $repoRoot 'scripts/Test-Upload.ps1') -Destination (Join-Path $staging 'scripts') -Force
-    Copy-Item -Path (Join-Path $repoRoot 'src/Office365Tools') -Destination (Join-Path $staging 'src') -Recurse -Force
-    Copy-Item -Path (Join-Path $repoRoot 'packaging/Check-Upload.cmd') -Destination $staging -Force
-    Copy-Item -Path (Join-Path $repoRoot 'packaging/Start-UploadCheck.ps1') -Destination $staging -Force
-    Copy-Item -Path (Join-Path $repoRoot 'packaging/upload-check.xml') -Destination $staging -Force
-    Copy-Item -Path (Join-Path $repoRoot 'packaging/READ-ME-FIRST.txt') -Destination $staging -Force
+    if ($Tool) {
+        $unpinned = "`$Tool       = ''"
+        if (([regex]::Matches($launcherText, [regex]::Escape($unpinned))).Count -ne 1) {
+            throw "packaging/Office365-Tools.cmd no longer has exactly one line reading: $unpinned"
+        }
+        $launcherText = $launcherText.Replace($unpinned, "`$Tool       = '$Tool'")
+    }
+
+    [System.IO.File]::WriteAllText((Join-Path $staging $launcherName), $launcherText, [System.Text.Encoding]::ASCII)
+
+    # -- What the recipient reads and edits -----------------------------------
+    $settingsFiles = @{}
+
+    foreach ($entry in $tools) {
+        $settingsName = Split-Path -Leaf $entry.Settings
+        if ($settingsFiles.ContainsKey($settingsName)) {
+            throw "Two tools keep their settings in $settingsName; they would overwrite each other beside the launcher."
+        }
+        $settingsFiles[$settingsName] = $entry
+
+        Copy-Item -Path (Join-Path $repoRoot $entry.Settings) -Destination (Join-Path $staging $settingsName) -Force
+
+        if ($entry.ReadMe) {
+            $readMeName = if ($Tool) { 'READ-ME-FIRST.txt' } else { "READ-ME-FIRST - $($entry.Title).txt" }
+            Copy-Item -Path (Join-Path $repoRoot $entry.ReadMe) -Destination (Join-Path $staging $readMeName) -Force
+        }
+    }
+
     Copy-Item -Path (Join-Path $repoRoot 'LICENSE') -Destination $staging -Force
 
-    # Filling the tenant details in here is the difference between a recipient
-    # who signs in and one who is asked for a site URL and an application ID
-    # they have never heard of.
+    # -- The code, for a machine that cannot reach GitHub ---------------------
+    # The repository's own layout, so the launcher finds the code beside itself
+    # exactly as it does in a checkout. All of scripts/, because an entry
+    # script is free to call any of them.
+    if ($IncludeCode) {
+        foreach ($folder in 'packaging', 'scripts', 'src') {
+            New-Item -Path (Join-Path $staging $folder) -ItemType Directory -Force | Out-Null
+        }
+
+        Copy-Item -Path (Join-Path $repoRoot 'packaging/tools.psd1') -Destination (Join-Path $staging 'packaging') -Force
+        foreach ($entry in $tools) {
+            Copy-Item -Path (Join-Path $repoRoot $entry.Entry) -Destination (Join-Path $staging $entry.Entry) -Force
+            Copy-Item -Path (Join-Path $repoRoot $entry.Settings) -Destination (Join-Path $staging $entry.Settings) -Force
+        }
+
+        Copy-Item -Path (Join-Path $repoRoot 'scripts/*.ps1') -Destination (Join-Path $staging 'scripts') -Force
+        Copy-Item -Path (Join-Path $repoRoot 'src/Office365Tools') -Destination (Join-Path $staging 'src') -Recurse -Force
+    }
+
+    # -- Tenant details -------------------------------------------------------
+    # Filling these in here is the difference between a recipient who signs in
+    # and one who is asked for a site URL and an application ID they have
+    # never heard of. Each tool's Prefill says which of its settings take
+    # which profile property.
     if ($ProfileName) {
         $store = Join-Path $repoRoot 'config/profiles.json'
 
@@ -150,61 +250,125 @@ function Invoke-PackageTask {
             throw "Profile '$ProfileName' is not in config/profiles.json."
         }
 
-        $entry = $profiles.$ProfileName
-        $settingsPath = Join-Path $staging 'upload-check.xml'
+        $connection = $profiles.$ProfileName
 
-        # The site URL on its own is a destination the checker understands: it
-        # gets the recipient signed in and then offers the libraries and
-        # folders that are actually there. Which is as far as a profile can
-        # take them -- a profile knows the site, not the folder they are
-        # uploading into this week.
-        $xml = New-Object System.Xml.XmlDocument
-        $xml.Load($settingsPath)
-        $xml.SelectSingleNode('/UploadCheck/Destination').InnerText = $entry.siteUrl
-        $xml.SelectSingleNode('/UploadCheck/ClientId').InnerText = $entry.clientId
-        $xml.Save($settingsPath)
+        foreach ($settingsName in $settingsFiles.Keys) {
+            $entry = $settingsFiles[$settingsName]
+            if (-not $entry.Prefill) { continue }
 
-        Write-Host "    settings prefilled from profile '$ProfileName' ($($entry.siteUrl))" -ForegroundColor Gray
+            $settingsPath = Join-Path $staging $settingsName
+            $xml = New-Object System.Xml.XmlDocument
+            $xml.Load($settingsPath)
+
+            foreach ($element in $entry.Prefill.Keys) {
+                $node = $xml.DocumentElement.SelectSingleNode($element)
+                if (-not $node) {
+                    throw "$settingsName has no <$element> for the profile's $($entry.Prefill[$element]) to go into."
+                }
+                $node.InnerText = $connection.($entry.Prefill[$element])
+            }
+
+            $xml.Save($settingsPath)
+        }
+
+        Write-Host "    settings prefilled from profile '$ProfileName' ($($connection.siteUrl))" -ForegroundColor Gray
     }
 
-    # Prove the package works before it is handed over, through the same
-    # bootstrap the recipient runs and under the same Windows PowerShell that
-    # will run it -- so a settings file that does not parse, or a module file
-    # left out of the copy, fails here rather than on someone else's desk.
-    $bootstrap = Join-Path $staging 'Start-UploadCheck.ps1'
+    # -- Self-test: fail here rather than on someone else's desk -------------
+    $launcherPath = Join-Path $staging $launcherName
+    $bytes = [System.IO.File]::ReadAllBytes($launcherPath)
 
-    $host51 = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue
-    if ($host51) {
-        & $host51.Source -NoProfile -ExecutionPolicy Bypass -File $bootstrap -Folder $staging -NoPrompt | Out-Null
+    # cmd misreads labels in a file with bare LF endings. .gitattributes
+    # keeps the checkout CRLF; this catches a copy that did not get the memo.
+    $bareLf = 0
+    for ($i = 0; $i -lt $bytes.Length; $i++) {
+        if ($bytes[$i] -eq 10 -and ($i -eq 0 -or $bytes[$i - 1] -ne 13)) { $bareLf++ }
     }
-    else {
-        Write-Host '    (Windows PowerShell not found; self-testing under this host instead)' -ForegroundColor DarkGray
-        & $bootstrap -Folder $staging -NoPrompt | Out-Null
-    }
-
-    # 0 is clean and 1 is "found something in the staging folder", which is
-    # fine -- the package contains .ps1 files. 2 means the package is broken.
-    if ($LASTEXITCODE -gt 1) {
-        throw "The packaged checker reported a setup problem (exit $LASTEXITCODE) during its self-test."
+    if ($bareLf -gt 0) {
+        throw "$launcherName has $bareLf line(s) ending in LF alone; cmd needs CRLF. Run: git add --renormalize packaging/Office365-Tools.cmd"
     }
 
-    Remove-Item -LiteralPath (Join-Path $staging 'out') -Recurse -Force -ErrorAction SilentlyContinue
+    # The whole file is PowerShell -- the batch half is a comment to it -- so
+    # it parses as one script or the launcher is broken.
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseInput(
+        [System.Text.Encoding]::ASCII.GetString($bytes), [ref]$null, [ref]$parseErrors) | Out-Null
+    if ($parseErrors) {
+        throw "$launcherName does not parse as PowerShell: $($parseErrors[0].Message) (line $($parseErrors[0].Extent.StartLineNumber))"
+    }
+
+    foreach ($settingsName in $settingsFiles.Keys) {
+        try {
+            $check = New-Object System.Xml.XmlDocument
+            $check.Load((Join-Path $staging $settingsName))
+        }
+        catch {
+            throw "The packaged $settingsName does not load: $($_.Exception.Message)"
+        }
+    }
+
+    # With the code in the ZIP, run each tool: through the entry script the
+    # launcher hands over to, under the same Windows PowerShell, against the
+    # staging folder itself.
+    if ($IncludeCode) {
+        $host51 = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue
+
+        foreach ($settingsName in $settingsFiles.Keys) {
+            $entry = $settingsFiles[$settingsName]
+            $entryPath = Join-Path $staging $entry.Entry
+            $selfTestReports = Join-Path ([System.IO.Path]::GetTempPath()) "office365-tools-selftest-$([guid]::NewGuid().ToString('N'))"
+
+            $selfTestArgs = @{
+                SettingsPath = (Join-Path $staging $settingsName)
+                Folder       = $staging
+                ReportFolder = $selfTestReports
+                NoPrompt     = $true
+            }
+
+            if ($host51) {
+                & $host51.Source -NoProfile -ExecutionPolicy Bypass -File $entryPath `
+                    -SettingsPath $selfTestArgs.SettingsPath -Folder $staging -ReportFolder $selfTestReports -NoPrompt | Out-Null
+            }
+            else {
+                Write-Host '    (Windows PowerShell not found; self-testing under this host instead)' -ForegroundColor DarkGray
+                & $entryPath @selfTestArgs | Out-Null
+            }
+            $selfTestExit = $LASTEXITCODE
+
+            Remove-Item -LiteralPath $selfTestReports -Recurse -Force -ErrorAction SilentlyContinue
+
+            # 0 is clean and 1 is "found something in the staging folder",
+            # which is fine. 2 means the package is broken.
+            if ($selfTestExit -gt 1) {
+                throw "$($entry.Title) reported a setup problem (exit $selfTestExit) during the package self-test."
+            }
+        }
+    }
 
     if (Test-Path -LiteralPath $archive) {
         Remove-Item -LiteralPath $archive -Force
     }
     Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $archive
 
-    $size = [Math]::Round((Get-Item -LiteralPath $archive).Length / 1MB, 1)
+    # The ZIP is the product. A staging copy left behind is a second set of
+    # scripts under out/ that the analyzer would then report on, stale.
+    Remove-Item -LiteralPath $staging -Recurse -Force
 
-    Write-Host "    $archive ($size MB)" -ForegroundColor Green
-    Write-Host '    Send the zip. The recipient extracts it and runs Check-Upload.cmd.' -ForegroundColor Gray
+    $size = [Math]::Round((Get-Item -LiteralPath $archive).Length / 1KB)
+
+    Write-Host "    $archive ($size KB)" -ForegroundColor Green
+    Write-Host "    $(($tools | ForEach-Object { $_.Title }) -join ', ')" -ForegroundColor Gray
+    Write-Host '    Send the ZIP, or put it where they can download it. They extract it and' -ForegroundColor Gray
+    Write-Host "    double-click $launcherName." -ForegroundColor Gray
+    if (-not $IncludeCode) {
+        Write-Host '    The code comes from GitHub when they run it: push before you send this.' -ForegroundColor Yellow
+    }
 }
 
 switch ($Task) {
     'Analyze' { Invoke-AnalyzeTask }
     'Test' { Invoke-TestTask }
     'Import' { Invoke-ImportTask }
-    'Package' { Invoke-PackageTask -ProfileName $ProfileName }
+    'Package' { Invoke-PackageTask -Tool $Tool -ProfileName $ProfileName -IncludeCode:$IncludeCode }
     'All' { Invoke-AnalyzeTask; Invoke-TestTask }
 }

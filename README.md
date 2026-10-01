@@ -233,6 +233,29 @@ Import-SpoListItem -Path data/tasks.csv -Library Tasks
 Column names and required fields are checked against the list *before* the first
 item is written, so a bad header fails at row zero rather than row 400.
 
+### Rename choice values items already hold
+
+Renaming a Choice column's options changes the column, not the items: values
+are stored as plain text, so every existing item keeps the old one.
+
+```powershell
+./scripts/Update-SpoFieldValue.ps1 -Field Section -Mapping @{ Board = 'BOARD'; Undefined = 'MISC' } -WhatIf
+./scripts/Update-SpoFieldValue.ps1 -Field Section -Mapping @{ Board = 'BOARD'; Undefined = 'MISC' }
+./scripts/Update-SpoFieldValue.ps1 -Field Section -Mapping @{ '' = 'MISC' } -DocumentSetOnly
+```
+
+Finds every item still holding an old value — one CAML query per value, so it
+stays fast on large libraries — in every visible list that has the column, or
+only in `-Library`. An empty key fills blanks instead of renaming. Writes are
+system updates by default: a rename is bookkeeping, so it bumps neither
+*Modified* nor the version (`-SystemUpdate:$false` to change that).
+`-DocumentSetOnly` and `-SkipInapplicable` keep a blank-fill off items whose
+content type does not carry the column, which it would otherwise stamp:
+a column defined on a list shows up on every item in it.
+
+Run it from a PowerShell prompt: `-Mapping` is a hashtable, which does not
+survive `pwsh script.ps1` from another shell.
+
 ### Print a list to PDF, and know it is all there
 
 ```bash
@@ -352,6 +375,18 @@ Site, library and folder all come out of that address, including the channel
 folder a Teams site hides between the library and everything else — which is
 the segment people leave out when they retype it.
 
+The verify report lists every file the way a directory synchronisation tool
+does — `=` synchronised, `->` missing in SharePoint, `<-` missing on this
+computer — with a tick box per category to hide it, so unticking
+*Synchronised* leaves exactly what needs attention. The usual options are
+there too:
+
+| | |
+|---|---|
+| `-TopLevelOnly` | leave subfolders out, in both phases and on both sides |
+| `-CompareDate` | say which side is newer. Off by default — dates are ignored — because a browser upload stamps every file with the time of the upload |
+| `-CompareSize` | report a different byte count. Off by default: SharePoint stores Office files it processed at a different size |
+
 Both phases write an HTML report and a CSV to `out/` and change nothing on
 either side. The script exits non-zero when it found something that blocks the
 upload, so it also works unattended.
@@ -365,22 +400,80 @@ Test-SpoFileName -Name 'Q1 report: draft.docx'
 ### Give the check to someone who does not use PowerShell
 
 ```bash
-pwsh ./build.ps1 -Task Package
+pwsh ./build.ps1 -Task Package -Tool UploadCheck
 ```
 
-Writes `out/UploadChecker-<version>.zip` — that one file is the whole delivery:
+Writes `out/Check-Upload.zip`, about 10 KB:
 
 ```
-Check-Upload.cmd          double-click, or drag a folder onto it
-upload-check.xml          the settings; you fill these in once
-READ-ME-FIRST.txt         a page of plain language, no jargon
-Start-UploadCheck.ps1     reads the settings, checks prerequisites, asks, runs
-scripts/Test-Upload.ps1   the check itself
-src/Office365Tools/       the module it uses
+Check-Upload.cmd     double-click, or drag a folder onto it
+upload-check.xml     the settings; you fill these in once
+READ-ME-FIRST.txt    a page of plain language, no jargon
 LICENSE
 ```
 
-Run it and it asks: a window to pick the folder, then what to do —
+The code is not in it. `Check-Upload.cmd` fetches this repository from GitHub
+each time it runs — `github.com/GBJ-ICT/office365_tools/archive/master.zip`,
+a few hundred KB, unpacked into `%LOCALAPPDATA%\office365_tools\master` — and
+hands over to the tool. A fix therefore reaches everyone the next time they
+run it, without anything being sent; when GitHub cannot be reached, the copy
+fetched last time is used. Two consequences:
+
+- **Push before you send.** What the recipient runs is what is on GitHub, not
+  what is in your working tree.
+- **Whoever can push to `master` ships code to every machine that runs the
+  launcher.** To pin it instead, set `$Ref` at the top of the launcher's
+  PowerShell half to a tag or a commit. Each ref gets its own folder in the
+  cache, so launchers pinned to different versions never replace each
+  other's copy.
+
+Settings stay beside the launcher, and reports go into `Reports\` beside it —
+never inside the fetched copy, which is replaced on every run. A launcher with
+no settings beside it puts the template there on its first run.
+
+The launcher is a batch file and a PowerShell script in one. Its first line is
+a label to cmd and opens a comment to PowerShell, so cmd runs the dozen batch
+lines at the top, which start Windows PowerShell on the same file, and
+PowerShell skips them. Windows only lets you double-click a batch file; this
+is how a double-click runs PowerShell, with no second file, no execution
+policy change and no shortcut that breaks when the folder moves.
+
+For a machine that cannot reach GitHub, put the code in the ZIP:
+
+```bash
+pwsh ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
+```
+
+`out/Check-Upload-<version>-offline.zip` adds `packaging/`, `scripts/` and
+`src/` in the repository's own layout. The launcher finds them beside itself
+and fetches nothing — as it does in a checkout, or in a ZIP downloaded from
+GitHub by hand, where `packaging/Office365-Tools.cmd` runs the code around it.
+
+#### More than one tool
+
+There is one launcher, `packaging/Office365-Tools.cmd`, and the tools it can
+run are listed in `packaging/tools.psd1`: a name, a title, the entry script,
+the settings template, the read-me, what the launcher is called when handed
+out for that tool alone, and which settings `-ProfileName` fills in.
+
+- `-Tool <Name>` builds a ZIP for that tool alone. Its launcher is renamed
+  (`Check-Upload.cmd`) and pinned to it — `$Tool` at the top is set — so it
+  goes straight into that tool and never shows the others, including ones
+  added later.
+- Without `-Tool`, the ZIP holds `Office365-Tools.cmd` and every tool's
+  settings and read-me. It goes straight into the tool when the list has one,
+  and shows a menu when it has several.
+
+Adding a tool is an entry in `tools.psd1` plus its entry script and settings
+template — and a push: launchers already handed out read the list from GitHub
+on their next run. An entry script takes `-SettingsPath`, `-ReportFolder`,
+`-Folder` and `-NoPrompt`, runs under Windows PowerShell 5.1, and exits 0, 1
+or 2. `tests/Unit/Launcher.Tests.ps1` holds every entry in the list to that,
+since changing it would break every launcher already handed out.
+
+#### What the upload checker asks
+
+Run it and it asks: a window to pick the folder, then what to do --
 
 ```
   1) Check this folder before I upload it        (no sign-in)
@@ -397,28 +490,31 @@ instead and the missing parts become numbered lists to pick from after signing
 in.
 
 `upload-check.xml` fixes anything you do not want asked: a permanent folder,
-the destination address, the application ID, thresholds, blocked extensions.
-Every setting carries a comment; `ask` means "prompt me every time". A
-misspelled or malformed setting stops the run with a sentence saying which one
-and what was expected, rather than being silently ignored.
+the destination address, the application ID, whether subfolders count, whether
+dates and sizes are compared, thresholds, blocked extensions. Every setting
+carries a comment; `ask` means "prompt me every time". A misspelled or
+malformed setting stops the run with a sentence saying which one and what was
+expected, rather than being silently ignored.
 
 Bake your tenant in so the recipient never sees a URL or a GUID:
 
 ```bash
-pwsh ./build.ps1 -Task Package -ProfileName CDS
+pwsh ./build.ps1 -Task Package -Tool UploadCheck -ProfileName CDS
 ```
 
 Signing in also needs PnP.PowerShell (~100 MB); the launcher detects that it is
 missing, explains what it is, and offers to install it — asking PowerShell 7,
 not itself, because 5.1 and 7 read different module directories.
 
-`Start-UploadCheck.ps1` is deliberately written for Windows PowerShell 5.1,
-which every Windows machine already has, so it is able to *report* a missing
-PowerShell 7 and print the command that installs it.
+The launcher and `Start-UploadCheck.ps1` are deliberately written for Windows
+PowerShell 5.1, which every Windows machine already has, so they are able to
+*report* a missing PowerShell 7 and print the command that installs it.
 
-Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem. The packaging task
-runs the packaged launcher against the package itself before zipping, so a
-broken package fails on your machine rather than theirs.
+Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem. Before zipping,
+the packaging task checks the launcher — CRLF line endings, which cmd needs;
+that it parses; that the settings load — and with `-IncludeCode` runs each
+packaged tool against the package itself, so a broken package fails on your
+machine rather than theirs.
 
 ## Command reference
 
@@ -468,10 +564,11 @@ PowerShell machinery, not a hand-rolled `-Force` switch or a `Read-Host` prompt.
 ```
 src/Office365Tools/     The module. Public/ is the command surface, Private/ is helpers.
 scripts/                Task runners for people who do not want to learn the module.
-packaging/              Launcher and read-me for the shippable upload checker.
+packaging/              The double-click launcher, its tool list, and each tool's entry script.
 config/                 profiles.example.json is tracked; profiles.json is not.
 samples/                Example CSVs for the bulk commands.
 tests/Unit/             Pester tests. No tenant required.
+tests/Integration/      Tests against a real sandbox tenant. Run by hand, never by CI.
 docs/                   Guides beyond what Get-Help covers.
 out/                    Reports and logs. Gitignored.
 ```
@@ -482,7 +579,7 @@ out/                    Reports and logs. Gitignored.
 pwsh ./build.ps1            # lint + test
 pwsh ./build.ps1 -Task Test
 pwsh ./build.ps1 -Task Import
-pwsh ./build.ps1 -Task Package   # zip the shippable upload checker into out/
+pwsh ./build.ps1 -Task Package -Tool UploadCheck   # hand-out ZIP into out/
 ```
 
 Needs `Pester` 5+ and `PSScriptAnalyzer`:

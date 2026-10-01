@@ -13,8 +13,11 @@
                  all; give it -Library and it connects only to look up the
                  real target path, which is what the path length check needs.
 
-      Verify     Compares the local folder with the library after the upload
-                 and reports what did not arrive.
+      Verify     Compares the local folder with the library after the upload,
+                 the way a directory synchronisation tool does: every file is
+                 listed as synchronised, missing in SharePoint, missing on
+                 this computer -- and, when those comparisons are switched
+                 on, newer on one side or different in size.
 
     Both phases write an HTML report and a CSV to out/, so the result can be
     handed to someone who does not use PowerShell. The script exits non-zero
@@ -23,7 +26,8 @@
 
     Rule reference: docs/health-rules.md.
 .PARAMETER LocalPath
-    The folder you are about to upload, or just uploaded. Scanned recursively.
+    The folder you are about to upload, or just uploaded. Scanned with its
+    subfolders unless -TopLevelOnly.
     Required unless -Interactive, which asks for it.
 .PARAMETER Destination
     Where the files go, as the address of the folder in SharePoint -- copied
@@ -66,6 +70,15 @@
 .PARAMETER CompareSize
     Verify phase: also compare file sizes. Off by default because SharePoint
     legitimately stores a different byte count for Office files it processed.
+.PARAMETER CompareDate
+    Verify phase: also compare modification dates and say which side is newer.
+    Off by default -- dates are ignored -- because an upload through the
+    browser stamps every file with the time of the upload, so every file
+    would read as newer in SharePoint. Worth switching on when the files went
+    up through the OneDrive client or a migration tool, which keep dates.
+.PARAMETER TopLevelOnly
+    Only the files directly in the folder; leave its subfolders out. Applies
+    to both phases, and in Verify to both sides.
 .PARAMETER IncludeRisky
     Also report names containing # or %, which are legal but break some
     downstream tools.
@@ -89,7 +102,8 @@
     Exit with code 1 when a finding of this severity or worse was reported.
     Error (default), Warning, or None.
 .PARAMETER AlwaysReport
-    Write the HTML report even when there is nothing to report. This is what
+    Write the pre-flight HTML report even when there is nothing to report.
+    (The verify report lists every file compared, so it is always written.) This is what
     the double-click launcher passes: a run that found nothing still has to
     leave a page saying what was checked, or there is no telling it apart from
     a run that never happened.
@@ -169,6 +183,12 @@ param(
 
     [Parameter()]
     [switch]$CompareSize,
+
+    [Parameter()]
+    [switch]$CompareDate,
+
+    [Parameter()]
+    [switch]$TopLevelOnly,
 
     [Parameter()]
     [switch]$IncludeRisky,
@@ -727,11 +747,11 @@ if ($Mode -in 'PreFlight', 'Both') {
     Write-Section "Pre-flight: $LocalPath"
 
     $localRoot = (Resolve-Path -LiteralPath $LocalPath).Path.TrimEnd('\')
-    $files = @(Get-ChildItem -LiteralPath $localRoot -File -Recurse -Force)
+    $files = @(Get-ChildItem -LiteralPath $localRoot -File -Recurse:(-not $TopLevelOnly) -Force)
     $totalSize = ($files | Measure-Object -Property Length -Sum).Sum
     if (-not $totalSize) { $totalSize = 0 }
 
-    Write-Host "  $($files.Count) file(s), $(Format-Size -Bytes $totalSize)"
+    Write-Host "  $($files.Count) file(s), $(Format-Size -Bytes $totalSize)$(if ($TopLevelOnly) { ', subfolders left out' })"
 
     if ($prefix) {
         Write-Host "  Paths measured against $prefix" -ForegroundColor DarkGray
@@ -887,6 +907,7 @@ if ($Mode -in 'PreFlight', 'Both') {
             'Folder checked'  = $localRoot
             'Files'           = "$($files.Count), $(Format-Size -Bytes $totalSize)"
             'Uploading to'    = if ($prefix) { $prefix } else { 'not given, so path lengths were not checked' }
+            'Subfolders'      = if ($TopLevelOnly) { 'left out' } else { 'included' }
             'Result'          = $verdict
             'Path limit'      = "$PathLimit characters, warning below $WarnAt left"
             'Large file from' = "$LargeFileMb MB"
@@ -905,7 +926,8 @@ if ($Mode -in 'Verify', 'Both') {
     Write-Section "Verify: $LocalPath -> $scope"
 
     try {
-        $comparison = @(Compare-SpoFolder -LocalPath $LocalPath -Library $Library -RemoteFolder $RemoteFolder -CompareSize:$CompareSize)
+        $comparison = @(Compare-SpoFolder -LocalPath $LocalPath -Library $Library -RemoteFolder $RemoteFolder `
+                -CompareSize:$CompareSize -CompareDate:$CompareDate -TopLevelOnly:$TopLevelOnly)
     }
     catch {
         # Nothing was compared, so there is no result to report -- saying so is
@@ -930,8 +952,38 @@ if ($Mode -in 'Verify', 'Both') {
         exit 2
     }
 
-    $matched = @($comparison | Where-Object Status -eq 'Match').Count
-    Write-Host "  $($comparison.Count) file(s) compared, $matched matched"
+    $counts = @{}
+    foreach ($row in $comparison) {
+        $counts[$row.Status] = 1 + [int]$counts[$row.Status]
+    }
+
+    $matched = [int]$counts['Match']
+    $missing = [int]$counts['MissingRemote']
+    $differs = [int]$counts['SizeDiffers'] + [int]$counts['LocalNewer'] + [int]$counts['RemoteNewer']
+
+    # Laid out the way a synchronisation tool lists them, arrows pointing the
+    # way a copy would go to put it right. The categories whose comparison is
+    # switched off are left out rather than shown as a reassuring 0.
+    $categories = @(
+        @{ Status = 'Match'; Symbol = '= '; Label = 'Synchronised'; Colour = 'Green' }
+        @{ Status = 'MissingRemote'; Symbol = '->'; Label = 'Missing in SharePoint'; Colour = 'Red' }
+        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Cyan' }
+    )
+    if ($CompareDate) {
+        $categories += @{ Status = 'LocalNewer'; Symbol = '->'; Label = 'Newer on this computer'; Colour = 'Yellow' }
+        $categories += @{ Status = 'RemoteNewer'; Symbol = '<-'; Label = 'Newer in SharePoint'; Colour = 'Cyan' }
+    }
+    if ($CompareSize) {
+        $categories += @{ Status = 'SizeDiffers'; Symbol = '!='; Label = 'Different size'; Colour = 'Yellow' }
+    }
+
+    Write-Host "  $($comparison.Count) file(s) compared$(if ($TopLevelOnly) { ', subfolders left out' })"
+    Write-Host ''
+    foreach ($category in $categories) {
+        $count = [int]$counts[$category.Status]
+        $colour = if ($count -gt 0) { $category.Colour } else { 'DarkGray' }
+        Write-Host ('    {0}  {1,-26} {2,6}' -f $category.Symbol, $category.Label, $count) -ForegroundColor $colour
+    }
 
     $findings = [System.Collections.Generic.List[object]]::new()
 
@@ -952,6 +1004,16 @@ if ($Mode -in 'Verify', 'Both') {
                             -Message 'In the library but not in the local folder. Left over from an earlier upload, or added by someone else.' `
                             -Detail @{ RemoteUrl = $row.RemoteUrl; RemoteSize = $row.RemoteSize }))
             }
+            'LocalNewer' {
+                $findings.Add((New-UploadFinding -RuleId 'Upload.LocalNewer' -Severity Warning -Target $row.RelativePath `
+                            -Message "The copy on this computer is newer ($($row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')), SharePoint has $($row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm'))): changed after the upload, or an older version went up." `
+                            -Detail @{ LocalModified = $row.LocalModified; RemoteModified = $row.RemoteModified; RemoteUrl = $row.RemoteUrl }))
+            }
+            'RemoteNewer' {
+                $findings.Add((New-UploadFinding -RuleId 'Upload.RemoteNewer' -Severity Info -Target $row.RelativePath `
+                            -Message "The copy in SharePoint is newer ($($row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')), this computer has $($row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm'))): edited there since, or stamped with the time of a browser upload." `
+                            -Detail @{ LocalModified = $row.LocalModified; RemoteModified = $row.RemoteModified; RemoteUrl = $row.RemoteUrl }))
+            }
         }
     }
 
@@ -963,30 +1025,33 @@ if ($Mode -in 'Verify', 'Both') {
 
     $comparison | Export-Csv -Path (Join-Path $OutputPath 'comparison.csv') -NoTypeInformation -Encoding utf8
 
-    if ($findings.Count -gt 0 -or $AlwaysReport) {
-        $missing = @($findings | Where-Object RuleId -eq 'Upload.MissingRemote').Count
-
-        $verdict = if ($missing -gt 0) {
-            "$missing file(s) did not arrive"
-        }
-        else {
-            'everything arrived'
-        }
-
-        $summary = [ordered]@{
-            'Folder on this computer' = (Resolve-Path -LiteralPath $LocalPath).Path
-            'Compared with'           = $scope
-            'Site'                    = $script:TargetSiteUrl
-            'Files compared'          = $comparison.Count
-            'Matched'                 = $matched
-            'Result'                  = $verdict
-            'Sizes compared'          = if ($CompareSize) { 'yes' } else { 'no (Office files legitimately differ)' }
-            'Checked'                 = (Get-Date -Format 'yyyy-MM-dd HH:mm')
-        }
-
-        $findings | Export-SpoReport -Path (Join-Path $OutputPath 'verify.html') `
-            -Title "After uploading -- $verdict" -Summary $summary
+    # Always written: it lists every file compared, so even a clean result is
+    # a page worth having -- the inventory of what is now in SharePoint.
+    $verdict = if ($missing -gt 0) {
+        "$missing file(s) did not arrive"
     }
+    elseif ($differs -gt 0) {
+        "everything arrived, $differs file(s) differ"
+    }
+    else {
+        'everything arrived'
+    }
+
+    $summary = [ordered]@{
+        'Folder on this computer' = (Resolve-Path -LiteralPath $LocalPath).Path
+        'Compared with'           = $scope
+        'Site'                    = $script:TargetSiteUrl
+        'Files compared'          = $comparison.Count
+        'Synchronised'            = $matched
+        'Result'                  = $verdict
+        'Subfolders'              = if ($TopLevelOnly) { 'left out' } else { 'included' }
+        'Dates'                   = if ($CompareDate) { 'compared' } else { 'ignored (a browser upload stamps its own time)' }
+        'Sizes'                   = if ($CompareSize) { 'compared' } else { 'ignored (Office files legitimately differ)' }
+        'Checked'                 = (Get-Date -Format 'yyyy-MM-dd HH:mm')
+    }
+
+    $comparison | Export-SpoReport -Path (Join-Path $OutputPath 'verify.html') `
+        -Title "After uploading -- $verdict" -Summary $summary
 }
 
 # -- Result ------------------------------------------------------------------

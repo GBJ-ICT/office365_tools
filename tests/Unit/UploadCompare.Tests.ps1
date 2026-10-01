@@ -156,4 +156,122 @@ Describe 'Compare-SpoFolder' {
             $result[0].Status | Should -Be 'Match'
         }
     }
+
+    Context 'options a synchronisation tool offers' {
+
+        BeforeEach {
+            # notes.txt is one byte; give it a known date and a sibling one
+            # level down, so both options have something to act on.
+            $script:Stamp = [datetime]::new(2026, 3, 1, 12, 0, 0, [System.DateTimeKind]::Utc)
+            (Get-Item -LiteralPath (Join-Path $script:TempDir 'notes.txt')).LastWriteTimeUtc = $script:Stamp
+
+            $sub = New-Item -Path (Join-Path $script:TempDir 'Sub') -ItemType Directory -Force
+            Set-Content -LiteralPath (Join-Path $sub.FullName 'deep.txt') -Value 'x' -NoNewline
+        }
+
+        It 'reports both kinds of missing file in one pass' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test', 'Test/Sub' -File 'Test/notes.txt', 'Test/only-here.txt' }
+
+                $result = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test')
+                $byPath = @{}
+                $result | ForEach-Object { $byPath[$_.RelativePath] = $_.Status }
+
+                $byPath['notes.txt']      | Should -Be 'Match'
+                $byPath['Sub/deep.txt']   | Should -Be 'MissingRemote'
+                $byPath['only-here.txt']  | Should -Be 'MissingLocal'
+            }
+        }
+
+        It 'leaves subfolders out on both sides with -TopLevelOnly' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test', 'Test/Other' -File 'Test/notes.txt', 'Test/Other/remote-deep.txt' }
+
+                $result = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly)
+
+                $result.RelativePath | Should -Be @('notes.txt')
+                $result[0].Status    | Should -Be 'Match'
+            }
+        }
+
+        It 'ignores dates unless asked to compare them' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' -Modified ([datetime]'2026-09-01 08:00') }
+
+                $result = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly)
+
+                $result[0].Status | Should -Be 'Match'
+            }
+        }
+
+        It 'says which side is newer with -CompareDate' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' -Modified ([datetime]'2026-09-01 08:00') }
+                $later = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareDate)
+
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' -Modified ([datetime]'2025-01-01 08:00') }
+                $earlier = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareDate)
+
+                $later[0].Status   | Should -Be 'RemoteNewer'
+                $earlier[0].Status | Should -Be 'LocalNewer'
+            }
+        }
+
+        It 'reads an unmarked SharePoint date as UTC, so equal times match in any time zone' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                # 12:00:01 UTC against a local file stamped 12:00:00 UTC: inside
+                # the default two-second tolerance.
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' -Modified ([datetime]'2026-03-01 12:00:01') }
+
+                $result = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareDate)
+
+                $result[0].Status         | Should -Be 'Match'
+                $result[0].RemoteModified.Kind | Should -Be 'Utc'
+            }
+        }
+
+        It 'lets a date difference win over a size difference' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' -Size 99 -Modified ([datetime]'2026-09-01 08:00') }
+
+                $both = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareDate -CompareSize)
+                $sizeOnly = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareSize)
+
+                $both[0].Status     | Should -Be 'RemoteNewer'
+                $sizeOnly[0].Status | Should -Be 'SizeDiffers'
+            }
+        }
+
+        It 'treats a file with no SharePoint date as not comparable by date' {
+            InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+                param($TempDir, $StubPath)
+
+                . $StubPath
+                Mock Get-PnPListItem { New-StubItem -Folder 'Test' -File 'Test/notes.txt' }
+
+                $result = @(Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test' -TopLevelOnly -CompareDate)
+
+                $result[0].Status | Should -Be 'Match'
+            }
+        }
+    }
 }
