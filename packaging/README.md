@@ -55,6 +55,18 @@ keep:
 - **It runs under Windows PowerShell 5.1** and stays plain ASCII, like the
   entry scripts.
 
+With more than one tool, `Start-Tool.ps1` opens a window with a button for
+each -- its `Title` in bold, its `Description` under it -- and starts the one
+clicked. Close or Esc runs nothing. Where no window can open (PowerShell 7,
+no desktop), it falls back to a numbered list in the console.
+
+Two environment variables are for trying a change before it is pushed:
+
+| Variable | What it does |
+|---|---|
+| `OFFICE365TOOLS_ARCHIVE` | Fetch this ZIP (a path, or a URL) instead of GitHub's. Laid out the way GitHub lays them out: one folder at the top. Cached apart from every real ref. |
+| `OFFICE365TOOLS_CONSOLE` | Set to anything: the numbered list instead of the window, so the launcher can be driven with its input piped in. |
+
 A launcher refuses a download without `Start-Tool.ps1` in it, so
 `build.ps1 -Task Package -Ref <ref>` refuses a ref from before it existed.
 Launchers built before this split carry their own menu and keep working:

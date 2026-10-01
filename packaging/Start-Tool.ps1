@@ -128,6 +128,248 @@ function Get-ToolSet {
     return $tools
 }
 
+$script:DpiAware = $false
+$script:UiScale = 1.0
+
+function Enable-HighDpi {
+    <#
+        Windows scales the windows of a process that has not said it
+        understands DPI, and scales them as bitmaps -- which is why they come
+        out fuzzy on a laptop screen. Saying so has to happen before the
+        process owns its first window, and the tool started after the menu
+        runs in this same process, so this is where it happens. Entry scripts
+        may ask again; a second time changes nothing.
+
+        $UiScale is what is left to do by hand: this process is now told the
+        true pixel count, so a size written as 560 has to become 840 at 150%.
+    #>
+    if ($script:DpiAware) { return }
+    $script:DpiAware = $true
+
+    try {
+        Add-Type -Namespace Office365ToolsLauncher -Name Display -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+public static extern bool SetProcessDPIAware();
+'@ -ErrorAction Stop
+
+        [Office365ToolsLauncher.Display]::SetProcessDPIAware() | Out-Null
+    }
+    catch {
+        # Windows too old to have it, or a machine where compiling is not
+        # allowed. Fuzzy is not worth giving up the window over.
+        Write-Verbose "Could not ask for DPI awareness: $($_.Exception.Message)"
+    }
+
+    try {
+        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+
+        $graphics = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero)
+        $script:UiScale = $graphics.DpiX / 96.0
+        $graphics.Dispose()
+    }
+    catch {
+        Write-Verbose "Could not read the screen DPI: $($_.Exception.Message)"
+    }
+}
+
+function ConvertTo-Pixel {
+    param(
+        [int]$Length
+    )
+
+    return [int][Math]::Round($Length * $script:UiScale)
+}
+
+# Windows Forms needs a single-threaded apartment, which Windows PowerShell
+# runs in and PowerShell 7 does not. OFFICE365TOOLS_CONSOLE, set to anything,
+# asks for the numbered list instead: for a session with no desktop to draw
+# on, and for trying the launcher with its input piped in.
+function Test-WindowPossible {
+    if ($env:OFFICE365TOOLS_CONSOLE) { return $false }
+    if (-not [Environment]::UserInteractive) { return $false }
+
+    $apartment = [System.Threading.Thread]::CurrentThread.GetApartmentState()
+    return ($apartment -eq [System.Threading.ApartmentState]::STA)
+}
+
+# The menu as a window: one button per tool, its title over its description.
+# Built and returned unshown. A click closes it with DialogResult OK and the
+# tool's index in the form's Tag; Close and Esc close it with Cancel.
+function New-ToolWindow {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+        'PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Builds a window in memory and does not show it. Nothing outside this process is changed, so -WhatIf would be meaningless.')]
+    param(
+        [object[]]$Tools
+    )
+
+    Enable-HighDpi
+
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+    Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+
+    $margin = ConvertTo-Pixel 16
+    $gap = ConvertTo-Pixel 8
+    $width = ConvertTo-Pixel 560
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'office365_tools'
+    $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.ShowInTaskbar = $true
+
+    # Without this it can open behind the console window, which looks exactly
+    # like nothing happening.
+    $form.TopMost = $true
+    $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+
+    $heading = New-Object System.Windows.Forms.Label
+    $heading.Text = 'What would you like to do?'
+    $heading.Font = New-Object System.Drawing.Font('Segoe UI', 12)
+    $heading.AutoSize = $true
+    $heading.Location = New-Object System.Drawing.Point($margin, $margin)
+
+    $explain = New-Object System.Windows.Forms.Label
+    $explain.Text = 'Click one to start it. It runs in the window behind this one.'
+    $explain.AutoSize = $true
+    $explain.ForeColor = [System.Drawing.SystemColors]::GrayText
+    $explain.Location = New-Object System.Drawing.Point(($margin + 2), ($margin + (ConvertTo-Pixel 32)))
+
+    $listTop = $margin + (ConvertTo-Pixel 60)
+
+    # The buttons, top to bottom. Scrolls once there are more than fit on
+    # most of the screen, so the Close button never ends up below its edge.
+    $list = New-Object System.Windows.Forms.FlowLayoutPanel
+    $list.FlowDirection = [System.Windows.Forms.FlowDirection]::TopDown
+    $list.WrapContents = $false
+    $list.AutoScroll = $true
+    $list.Location = New-Object System.Drawing.Point($margin, $listTop)
+
+    $padding = ConvertTo-Pixel 10
+    $titleFont = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+    $wrap = [System.Windows.Forms.TextFormatFlags]::WordBreak
+    $maxHeight = [int]([System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height * 0.6)
+
+    # How tall each tool's two lines are at a given button width.
+    $measure = {
+        param([int]$ButtonWidth)
+
+        $textWidth = $ButtonWidth - 2 * $padding
+        foreach ($entry in $Tools) {
+            $titleHeight = [System.Windows.Forms.TextRenderer]::MeasureText([string]$entry['Title'], $titleFont,
+                (New-Object System.Drawing.Size($textWidth, 0)), $wrap).Height
+            $descriptionHeight = 0
+            if ($entry['Description']) {
+                $descriptionHeight = [System.Windows.Forms.TextRenderer]::MeasureText([string]$entry['Description'], $form.Font,
+                    (New-Object System.Drawing.Size($textWidth, 0)), $wrap).Height
+            }
+            , @($titleHeight, ($titleHeight + $descriptionHeight + 2 * $padding + (ConvertTo-Pixel 2)))
+        }
+    }
+
+    # Full width unless that is too tall to fit, in which case the list
+    # scrolls and the buttons make room for the scroll bar.
+    $buttonWidth = $width
+    $heights = @(& $measure $buttonWidth)
+    $total = 0
+    foreach ($pair in $heights) { $total += $pair[1] + $gap }
+    if ($total -gt $maxHeight) {
+        $buttonWidth = $width - [System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth - $gap
+        $heights = @(& $measure $buttonWidth)
+    }
+
+    $listHeight = 0
+    for ($i = 0; $i -lt $Tools.Count; $i++) {
+        $title = [string]$Tools[$i]['Title']
+        $description = [string]$Tools[$i]['Description']
+        $titleHeight = $heights[$i][0]
+
+        # A button has one font and one colour for its text, and this wants a
+        # bold title over a grey description. So the button gets no text: it
+        # draws its own background, border, hover and focus, and the Paint
+        # handler draws the two lines on top. Screen readers get them from
+        # the accessible name and description.
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = ''
+        $button.AccessibleName = $title
+        $button.AccessibleDescription = $description
+        $button.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, $gap)
+        $button.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $button.Size = New-Object System.Drawing.Size($buttonWidth, $heights[$i][1])
+        $button.Tag = @{
+            Index       = $i
+            Title       = $title
+            Description = $description
+            TitleFont   = $titleFont
+            Padding     = $padding
+            TitleHeight = $titleHeight
+        }
+
+        $button.Add_Paint({
+                param($source, $paint)
+
+                $info = $source.Tag
+                $area = $source.ClientRectangle
+                $left = $area.Left + $info.Padding
+                $top = $area.Top + $info.Padding
+                $inner = $area.Width - 2 * $info.Padding
+
+                [System.Windows.Forms.TextRenderer]::DrawText($paint.Graphics, $info.Title, $info.TitleFont,
+                    (New-Object System.Drawing.Rectangle($left, $top, $inner, $info.TitleHeight)),
+                    [System.Drawing.SystemColors]::ControlText, [System.Windows.Forms.TextFormatFlags]::WordBreak)
+
+                if ($info.Description) {
+                    $below = $top + $info.TitleHeight + 2
+                    [System.Windows.Forms.TextRenderer]::DrawText($paint.Graphics, $info.Description, $source.Font,
+                        (New-Object System.Drawing.Rectangle($left, $below, $inner, ($area.Bottom - $below))),
+                        [System.Drawing.SystemColors]::GrayText, [System.Windows.Forms.TextFormatFlags]::WordBreak)
+                }
+            })
+
+        # FindForm rather than $form: the handler runs when the button is
+        # clicked, long after this function has returned.
+        $button.Add_Click({
+                param($source)
+
+                $owner = $source.FindForm()
+                $owner.Tag = $source.Tag.Index
+                $owner.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            })
+
+        $list.Controls.Add($button)
+        $listHeight += $button.Height + $gap
+    }
+
+    # The last button's gap is not needed below it, and would make a list
+    # that just fits scroll by that much.
+    $list.Controls[$list.Controls.Count - 1].Margin = New-Object System.Windows.Forms.Padding(0)
+    $list.Size = New-Object System.Drawing.Size($width, ([Math]::Min($listHeight - $gap, $maxHeight)))
+
+    $close = New-Object System.Windows.Forms.Button
+    $close.Text = 'Close'
+    $close.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $close.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
+    $closeTop = $listTop + $list.Height + $gap
+    $close.Location = New-Object System.Drawing.Point(($margin + $width - $close.Width), $closeTop)
+
+    $form.Controls.AddRange(@($heading, $explain, $list, $close))
+    $form.CancelButton = $close
+    $form.ClientSize = New-Object System.Drawing.Size(($width + 2 * $margin), ($closeTop + $close.Height + $margin))
+
+    $form.Add_Shown({
+            param($source)
+
+            $source.Activate()
+            $first = $source.Controls | Where-Object { $_ -is [System.Windows.Forms.FlowLayoutPanel] } | Select-Object -First 1
+            if ($first -and $first.Controls.Count -gt 0) { $first.Controls[0].Focus() | Out-Null }
+        })
+
+    return $form
+}
+
 function Select-Tool {
     param(
         [object[]]$Tools,
@@ -157,12 +399,44 @@ function Select-Tool {
         return $Tools[0]
     }
 
+    # A window if one can be had; the numbered list below if not, or if it
+    # fails to open. Closed without a choice is an answer, not a failure.
+    if (Test-WindowPossible) {
+        $form = $null
+        $opened = $false
+        $picked = -1
+        try {
+            $form = New-ToolWindow -Tools $Tools
+            $result = $form.ShowDialog()
+            $opened = $true
+            if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                $picked = [int]$form.Tag
+            }
+        }
+        catch {
+            Write-Host "  (Could not open a window: $($_.Exception.Message))" -ForegroundColor DarkGray
+        }
+        finally {
+            if ($form) { $form.Dispose() }
+        }
+
+        if ($picked -ge 0) {
+            return $Tools[$picked]
+        }
+
+        if ($opened) {
+            Write-Host ''
+            Write-Host '  Nothing chosen, so nothing was run.' -ForegroundColor Gray
+            exit 0
+        }
+    }
+
     Write-Host ''
     Write-Host '  What would you like to do?' -ForegroundColor Cyan
     for ($i = 0; $i -lt $Tools.Count; $i++) {
         Write-Host ('    {0}) {1}' -f ($i + 1), $Tools[$i].Title)
-        if ($Tools[$i].Description) {
-            Write-Host "       $($Tools[$i].Description)" -ForegroundColor Gray
+        if ($Tools[$i]['Description']) {
+            Write-Host "       $($Tools[$i]['Description'])" -ForegroundColor Gray
         }
     }
 

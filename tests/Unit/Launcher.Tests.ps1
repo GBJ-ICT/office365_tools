@@ -253,3 +253,80 @@ Describe 'Tool <Name>' -ForEach $toolCases {
         }
     }
 }
+
+Describe 'The menu window' -Skip:(-not $IsWindows) {
+
+    BeforeAll {
+        $script:Form = $null
+
+        # The functions of Start-Tool.ps1, without running the script: it
+        # would go looking for tools and start one.
+        $startAst = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $script:RepoRoot 'packaging/Start-Tool.ps1'), [ref]$null, [ref]$null)
+        $definitions = $startAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)
+        foreach ($definition in $definitions) {
+            . ([scriptblock]::Create($definition.Extent.Text))
+        }
+        $script:DpiAware = $false
+        $script:UiScale = 1.0
+
+        $script:MenuTools = @(
+            @{ Title = 'First'; Description = 'The first tool.' }
+            @{ Title = 'Second'; Description = ('A description long enough to wrap onto a second line, ' * 3) }
+            @{ Title = 'Third' }
+        )
+        $script:Form = New-ToolWindow -Tools $script:MenuTools
+        $script:List = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.FlowLayoutPanel] }
+    }
+
+    AfterAll {
+        if ($script:Form) { $script:Form.Dispose() }
+    }
+
+    It 'has one button per tool, in order, named for screen readers' {
+        $script:List.Controls.Count | Should -Be $script:MenuTools.Count
+        for ($i = 0; $i -lt $script:MenuTools.Count; $i++) {
+            $script:List.Controls[$i].AccessibleName | Should -Be $script:MenuTools[$i].Title
+        }
+    }
+
+    It 'answers with the index of the tool clicked' {
+        # What the Click handler puts in the form's Tag, which Select-Tool
+        # reads back as the index into the same list.
+        for ($i = 0; $i -lt $script:MenuTools.Count; $i++) {
+            $script:List.Controls[$i].Tag.Index | Should -Be $i
+        }
+    }
+
+    It 'gives a longer description a taller button' {
+        $script:List.Controls[1].Height | Should -BeGreaterThan $script:List.Controls[0].Height
+    }
+
+    It 'closes on Esc without choosing anything' {
+        $script:Form.CancelButton | Should -Not -BeNullOrEmpty
+        $script:Form.CancelButton.DialogResult | Should -Be ([System.Windows.Forms.DialogResult]::Cancel)
+    }
+
+    It 'fits on the screen with many tools, by scrolling' {
+        $many = @(1..40 | ForEach-Object { @{ Title = "Tool $_"; Description = 'Does something.' } })
+        $form = New-ToolWindow -Tools $many
+        try {
+            $form.ClientSize.Height | Should -BeLessThan ([System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height)
+            ($form.Controls | Where-Object { $_ -is [System.Windows.Forms.FlowLayoutPanel] }).AutoScroll | Should -BeTrue
+        }
+        finally {
+            $form.Dispose()
+        }
+    }
+
+    It 'can be turned off for the numbered list' {
+        $saved = $env:OFFICE365TOOLS_CONSOLE
+        try {
+            $env:OFFICE365TOOLS_CONSOLE = '1'
+            Test-WindowPossible | Should -BeFalse
+        }
+        finally {
+            $env:OFFICE365TOOLS_CONSOLE = $saved
+        }
+    }
+}

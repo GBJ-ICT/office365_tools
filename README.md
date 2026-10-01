@@ -471,7 +471,7 @@ says what goes in it.
   tool to its own version.
 - Without `-Tool`, the ZIP holds `Office365-Tools.cmd` and every tool's
   settings and read-me. It goes straight into the tool when there is one,
-  and shows a menu when there are several.
+  and opens a window with a button per tool when there are several.
 
 #### What the upload checker asks
 
