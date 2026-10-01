@@ -6,6 +6,7 @@ asked questions.
 ```
 packaging/
   Office365-Tools.cmd        the launcher -- one file, shared by every tool
+  Start-Tool.ps1             what the launcher hands over to: the menu, the settings, starting the tool
   UploadCheck/               one folder per tool; the folder name is the tool's name
     tool.psd1                what the launcher and build.ps1 need to know
     Start-UploadCheck.ps1    the entry script the launcher hands over to
@@ -34,6 +35,31 @@ the copy it already has. A launcher built for one tool also reads only that
 tool's folder, so a mistake in another tool's `tool.psd1` cannot stop it.
 With `-Ref` set to a tag, a tool stays on that version while the others
 follow `master`.
+
+## Changing the launcher
+
+A launcher on someone's machine never changes, so `Office365-Tools.cmd` does
+as little as it can: it finds a copy of this repository beside itself, or
+fetches one, and hands over to `Start-Tool.ps1` in that copy. Everything
+after that -- reading the `tool.psd1` files, the menu, the settings file
+beside the launcher, starting the tool -- is in `Start-Tool.ps1`, and a push
+reaches everyone who already has a launcher.
+
+So change `Start-Tool.ps1`, not the `.cmd`, wherever you can. Two things to
+keep:
+
+- **Its parameters are a contract.** `-Root`, `-LauncherPath`, `-Tool` and
+  `-Dropped` are what every launcher handed out passes. Add parameters with a
+  default that does what an older launcher expects; never rename or remove
+  one. `tests/Unit/Launcher.Tests.ps1` checks this.
+- **It runs under Windows PowerShell 5.1** and stays plain ASCII, like the
+  entry scripts.
+
+A launcher refuses a download without `Start-Tool.ps1` in it, so
+`build.ps1 -Task Package -Ref <ref>` refuses a ref from before it existed.
+Launchers built before this split carry their own menu and keep working:
+they read the same `tool.psd1` files and pass the entry scripts the same
+parameters.
 
 ## Adding a tool
 
@@ -81,3 +107,5 @@ puts all of them side by side.
 launchers already handed out depend on it, and changing it breaks all of
 them at once. A push is all it takes to ship a new tool to people who
 already have `Office365-Tools.cmd`; to anyone else, send them its ZIP.
+The same goes for the menu itself, for launchers that hand over to
+`Start-Tool.ps1`.

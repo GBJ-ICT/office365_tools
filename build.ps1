@@ -205,6 +205,29 @@ function Invoke-PackageTask {
         $launcherName = 'Office365-Tools.cmd'
     }
 
+    # The launcher hands over to packaging/Start-Tool.ps1 in what it fetches,
+    # and refuses a download without it. A ref from before that script existed
+    # makes a launcher that can never start, so stop here instead. Looked up
+    # as GitHub has it where possible: origin/<branch>, then the ref itself.
+    if (-not $IncludeCode -and (Get-Command -Name git -ErrorAction SilentlyContinue)) {
+        $commit = $null
+        foreach ($candidate in "origin/$Ref", $Ref) {
+            $commit = git -C $repoRoot rev-parse --verify --quiet "$candidate^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0 -and $commit) { break }
+            $commit = $null
+        }
+
+        if (-not $commit) {
+            Write-Warning "Cannot find $Ref in this checkout, so whether it has packaging/Start-Tool.ps1 is unchecked."
+        }
+        else {
+            git -C $repoRoot cat-file -e "${commit}:packaging/Start-Tool.ps1" 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                throw "$Ref has no packaging/Start-Tool.ps1, which this launcher hands over to. Push it to $Ref first, or pick a later -Ref."
+            }
+        }
+    }
+
     $base = [System.IO.Path]::GetFileNameWithoutExtension($launcherName)
     $name = if ($IncludeCode) { "$base-$version-offline" } else { $base }
     $staging = Join-Path $repoRoot "out/$name"
@@ -261,6 +284,8 @@ function Invoke-PackageTask {
         foreach ($folder in 'packaging', 'scripts', 'src') {
             New-Item -Path (Join-Path $staging $folder) -ItemType Directory -Force | Out-Null
         }
+
+        Copy-Item -Path (Join-Path $repoRoot 'packaging/Start-Tool.ps1') -Destination (Join-Path $staging 'packaging') -Force
 
         foreach ($entry in $tools) {
             Copy-Item -Path (Join-Path $repoRoot $entry.Folder) -Destination (Join-Path $staging 'packaging') -Recurse -Force

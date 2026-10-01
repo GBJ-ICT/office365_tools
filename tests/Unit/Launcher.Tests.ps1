@@ -108,6 +108,77 @@ Describe 'Office365-Tools.cmd' {
     It 'looks for tools in the folder they are in' {
         $script:Setting['ToolFolder'] | Should -Be 'packaging'
     }
+
+    It 'hands over to Start-Tool.ps1' {
+        $script:Setting['Handover'] | Should -Be 'Start-Tool.ps1'
+    }
+}
+
+Describe 'Start-Tool.ps1' {
+
+    BeforeAll {
+        $script:StartPath = Join-Path $script:RepoRoot 'packaging/Start-Tool.ps1'
+        $script:StartBytes = [System.IO.File]::ReadAllBytes($script:StartPath)
+
+        $parseErrors = $null
+        $script:StartAst = [System.Management.Automation.Language.Parser]::ParseFile(
+            $script:StartPath, [ref]$null, [ref]$parseErrors)
+        $script:StartErrors = $parseErrors
+    }
+
+    It 'parses' {
+        $script:StartErrors | Should -BeNullOrEmpty
+    }
+
+    It 'is plain ASCII, because Windows PowerShell reads it without a BOM as the ANSI code page' {
+        @($script:StartBytes | Where-Object { $_ -gt 127 }).Count | Should -Be 0
+    }
+
+    It 'takes every parameter the launcher passes it' {
+        # Every launcher handed out passes these. One the script stops taking
+        # breaks all of them at once.
+        $call = $script:Ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.CommandAst] -and
+                $node.CommandElements[0] -is [System.Management.Automation.Language.VariableExpressionAst] -and
+                $node.CommandElements[0].VariablePath.UserPath -eq 'start'
+            }, $true)
+        $call | Should -Not -BeNullOrEmpty -Because 'the launcher hands over with & $start'
+
+        $passed = @($call.CommandElements |
+                Where-Object { $_ -is [System.Management.Automation.Language.CommandParameterAst] } |
+                ForEach-Object { $_.ParameterName })
+        $accepted = @($script:StartAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+
+        $passed | Should -Not -BeNullOrEmpty
+        foreach ($parameter in $passed) {
+            $accepted | Should -Contain $parameter
+        }
+    }
+
+    It 'still takes what launchers already handed out pass' {
+        $accepted = @($script:StartAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+
+        foreach ($parameter in 'Root', 'LauncherPath', 'Tool', 'Dropped') {
+            $accepted | Should -Contain $parameter
+        }
+    }
+
+    It 'requires nothing a launcher might not pass' {
+        # Only what the first launcher to hand over already passed can be
+        # mandatory: an older launcher does not know about anything added later.
+        $mandatory = @($script:StartAst.ParamBlock.Parameters | Where-Object {
+                $_.Attributes | Where-Object {
+                    $_ -is [System.Management.Automation.Language.AttributeAst] -and
+                    $_.TypeName.Name -eq 'Parameter' -and
+                    ($_.NamedArguments | Where-Object { $_.ArgumentName -eq 'Mandatory' })
+                }
+            } | ForEach-Object { $_.Name.VariablePath.UserPath })
+
+        foreach ($parameter in $mandatory) {
+            $parameter | Should -BeIn @('Root', 'LauncherPath')
+        }
+    }
 }
 
 Describe 'The tools under packaging/' {

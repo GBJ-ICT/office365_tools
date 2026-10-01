@@ -438,13 +438,18 @@ PowerShell skips them. Windows only lets you double-click a batch file; this
 is how a double-click runs PowerShell, with no second file, no execution
 policy change and no shortcut that breaks when the folder moves.
 
+The launcher itself only finds or fetches the code and hands over to
+`packaging/Start-Tool.ps1` in it, which shows the menu and starts the tool. A
+launcher handed out never changes; `Start-Tool.ps1` arrives with every fetch,
+so changes to the menu reach everyone with a push.
+
 For a machine that cannot reach GitHub, put the code in the ZIP:
 
 ```bash
 pwsh ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
 ```
 
-`out/Check-Upload-<version>-offline.zip` adds `packaging/UploadCheck/`,
+`out/Check-Upload-<version>-offline.zip` adds `packaging/Start-Tool.ps1`, `packaging/UploadCheck/`,
 `scripts/` and `src/` in the repository's own layout. The launcher finds them beside itself
 and fetches nothing — as it does in a checkout, or in a ZIP downloaded from
 GitHub by hand, where `packaging/Office365-Tools.cmd` runs the code around it.

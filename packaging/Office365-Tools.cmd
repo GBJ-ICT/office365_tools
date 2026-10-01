@@ -62,9 +62,12 @@ $Tool       = ''
 $Repository = 'GBJ-ICT/office365_tools'
 $Ref        = 'master'
 
-# Every folder in here with a tool.psd1 in it is a tool.
+# This file is handed out and never changes on anyone's machine, so it only
+# finds a copy of the code, or fetches one, and hands over to $Handover in
+# $ToolFolder there. Everything after that -- the menu, the settings, starting
+# the tool -- is in that script and arrives with every fetch.
 $ToolFolder = 'packaging'
-$Reports    = 'Reports'
+$Handover   = 'Start-Tool.ps1'
 
 $ErrorActionPreference = 'Stop'
 
@@ -100,13 +103,25 @@ function Find-LocalCopy {
     foreach ($candidate in @($here, (Split-Path -Parent $here))) {
         if (-not $candidate) { continue }
 
-        $hasTools  = Test-Path -LiteralPath (Join-Path $candidate $ToolFolder) -PathType Container
+        $hasTools  = Test-Path -LiteralPath (Join-Path (Join-Path $candidate $ToolFolder) $Handover) -PathType Leaf
         $hasModule = Test-Path -LiteralPath (Join-Path $candidate 'src\Office365Tools\Office365Tools.psd1')
 
         if ($hasTools -and $hasModule) { return $candidate }
     }
 
     return $null
+}
+
+# Which of the paths in $Required, relative to $Folder, are not there.
+function Get-MissingPart {
+    param(
+        [string]$Folder,
+        [string[]]$Required
+    )
+
+    foreach ($part in $Required) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Folder $part))) { $part }
+    }
 }
 
 # Fetches the repository as GitHub's ZIP of $Ref and unpacks it into the
@@ -125,16 +140,17 @@ function Get-RemoteCopy {
     $source = "$Repository@$Ref"
     $key    = $Ref -replace '[^A-Za-z0-9._-]', '_'
 
-    # What a download must contain to be any use to this launcher. A launcher
-    # with no tool of its own shares one copy across all of them; tool names
-    # start with a letter, so _all is never one of them.
+    # What a download must contain to be any use to this launcher: the script
+    # it hands over to, and the tool it is pinned to. A launcher with no tool
+    # of its own shares one copy across all of them; tool names start with a
+    # letter, so _all is never one of them.
+    $required = @(Join-Path $ToolFolder $Handover)
     if ($Tool) {
         $owner    = $Tool
-        $required = Join-Path (Join-Path $ToolFolder $Tool) 'tool.psd1'
+        $required += Join-Path (Join-Path $ToolFolder $Tool) 'tool.psd1'
     }
     else {
         $owner    = '_all'
-        $required = $ToolFolder
     }
 
     # For trying a build before it is pushed: a path to a ZIP laid out the way
@@ -193,8 +209,12 @@ function Get-RemoteCopy {
         # the ref -- and drops a leading v from a tag -- so it is found rather
         # than predicted.
         $top = @(Get-ChildItem -LiteralPath $unpacked -Directory)
-        if ($top.Count -ne 1 -or -not (Test-Path -LiteralPath (Join-Path $top[0].FullName $required))) {
-            throw "what was downloaded does not contain $required"
+        $missing = $required
+        if ($top.Count -eq 1) {
+            $missing = @(Get-MissingPart -Folder $top[0].FullName -Required $required)
+        }
+        if ($missing.Count -gt 0) {
+            throw "what was downloaded does not contain $($missing -join ' or ')"
         }
 
         # Renamed out of the way rather than deleted, so a copy that is in use
@@ -218,7 +238,7 @@ function Get-RemoteCopy {
 
         $cached = (Test-Path -LiteralPath $marker) -and
             ((Get-Content -LiteralPath $marker -TotalCount 1) -eq $source) -and
-            (Test-Path -LiteralPath (Join-Path $current $required))
+            (@(Get-MissingPart -Folder $current -Required $required).Count -eq 0)
 
         if ($cached) {
             $when = (Get-Item -LiteralPath $marker).LastWriteTime.ToString('yyyy-MM-dd HH:mm')
@@ -268,116 +288,6 @@ function Get-RemoteCopy {
     exit $SETUP_PROBLEM
 }
 
-# A tool.psd1 is read as data -- the way Import-PowerShellDataFile reads one,
-# which a Windows PowerShell started from PowerShell 7 can fail to find. Plain
-# values only; anything that would have to run to produce a value is refused.
-function Read-Tool {
-    param(
-        [string]$Folder
-    )
-
-    $name = Split-Path -Leaf $Folder
-    $path = Join-Path $Folder 'tool.psd1'
-    $shown = "$ToolFolder\$name\tool.psd1"
-
-    $parseErrors = $null
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors)
-    if ($parseErrors) {
-        throw "$shown does not parse: $($parseErrors[0].Message)"
-    }
-
-    $table = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false)
-    if (-not $table) {
-        throw "$shown describes no tool"
-    }
-
-    $entry = $table.SafeGetValue()
-    foreach ($field in 'Title', 'Entry', 'Settings') {
-        if (-not $entry[$field]) {
-            throw "$shown has no $field"
-        }
-    }
-
-    $entry.Name = $name
-    $entry.Folder = $Folder
-    return $entry
-}
-
-# A launcher pinned to one tool reads that tool's folder and no other, so a
-# mistake in another tool's tool.psd1 cannot stop it.
-function Get-ToolSet {
-    param(
-        [string]$Root
-    )
-
-    $folder = Join-Path $Root $ToolFolder
-
-    if ($Tool) {
-        $folders = @(Join-Path $folder $Tool)
-    }
-    else {
-        $folders = @(Get-ChildItem -LiteralPath $folder -Directory | Sort-Object Name | ForEach-Object { $_.FullName })
-    }
-
-    $tools = @()
-    foreach ($candidate in $folders) {
-        if (Test-Path -LiteralPath (Join-Path $candidate 'tool.psd1')) {
-            $tools += Read-Tool -Folder $candidate
-        }
-    }
-
-    return $tools
-}
-
-function Select-Tool {
-    param(
-        [object[]]$Tools
-    )
-
-    if ($Tool) {
-        foreach ($entry in $Tools) {
-            if ($entry.Name -eq $Tool) { return $entry }
-        }
-
-        Write-Problem -Title "This launcher runs '$Tool', and the copy it found does not have that." -Detail @(
-            "There is no $ToolFolder\$Tool\tool.psd1 in",
-            "    $root",
-            '',
-            'Show this window to whoever sent you this file.')
-        exit $SETUP_PROBLEM
-    }
-
-    if ($Tools.Count -eq 0) {
-        Write-Problem -Title "There are no tools in $ToolFolder\, so there is nothing to run." -Detail @(
-            'Show this window to whoever sent you this file.')
-        exit $SETUP_PROBLEM
-    }
-
-    if ($Tools.Count -eq 1) {
-        return $Tools[0]
-    }
-
-    Write-Host ''
-    Write-Host '  What would you like to do?' -ForegroundColor Cyan
-    for ($i = 0; $i -lt $Tools.Count; $i++) {
-        Write-Host ('    {0}) {1}' -f ($i + 1), $Tools[$i].Title)
-        if ($Tools[$i].Description) {
-            Write-Host "       $($Tools[$i].Description)" -ForegroundColor Gray
-        }
-    }
-
-    $choice = 0
-    while ($choice -lt 1 -or $choice -gt $Tools.Count) {
-        Write-Host ''
-        $answer = "$(Read-Host '  Number [1]')".Trim()
-        if (-not $answer) { $answer = '1' }
-        $choice = 0
-        [void][int]::TryParse($answer, [ref]$choice)
-    }
-
-    return $Tools[$choice - 1]
-}
-
 try {
     # Explorer runs a file double-clicked inside a ZIP from a temporary copy,
     # alone: no settings beside it, and reports written where nobody finds
@@ -394,45 +304,10 @@ try {
         $root = Get-RemoteCopy
     }
 
-    $chosen = Select-Tool -Tools @(Get-ToolSet -Root $root)
-
-    # Read with a pattern rather than Import-PowerShellDataFile, for the same
-    # reason tool.psd1 is.
-    $manifest = Join-Path $root 'src\Office365Tools\Office365Tools.psd1'
-    $version = ''
-    $line = Select-String -LiteralPath $manifest -Pattern "ModuleVersion\s*=\s*.([0-9.]+)" | Select-Object -First 1
-    if ($line) { $version = $line.Matches[0].Groups[1].Value }
-
-    try { $Host.UI.RawUI.WindowTitle = $chosen.Title } catch { Write-Verbose $_ }
-
-    Write-Host ''
-    Write-Host "  $($chosen.Title) $version" -ForegroundColor Cyan
-    Write-Host "  from $root" -ForegroundColor DarkGray
-
-    $entryPath = Join-Path $chosen.Folder $chosen.Entry
-
-    # The settings live beside this file, where the person running it can find
-    # them, and survive the code being fetched afresh. The first run puts the
-    # template there.
-    $settingsName = Split-Path -Leaf $chosen.Settings
-    $settingsPath = Join-Path $here $settingsName
-    if (-not (Test-Path -LiteralPath $settingsPath)) {
-        Copy-Item -LiteralPath (Join-Path $chosen.Folder $chosen.Settings) -Destination $settingsPath
-        Write-Host ''
-        Write-Host "  Created $settingsName beside $(Split-Path -Leaf $launcher). Your settings go in there;" -ForegroundColor Cyan
-        Write-Host '  open it in Notepad to fill them in. Until then, you are asked.' -ForegroundColor Cyan
-    }
-
-    $arguments = @{
-        SettingsPath = $settingsPath
-        ReportFolder = (Join-Path $here $Reports)
-    }
-
-    if ($env:LAUNCHER_DROPPED) {
-        $arguments.Folder = $env:LAUNCHER_DROPPED
-    }
-
-    & $entryPath @arguments
+    # What is passed here is what Start-Tool.ps1 has to accept from every copy
+    # of this file already handed out: add, never rename or remove.
+    $start = Join-Path (Join-Path $root $ToolFolder) $Handover
+    & $start -Root $root -LauncherPath $launcher -Tool $Tool -Dropped "$env:LAUNCHER_DROPPED"
     exit $LASTEXITCODE
 }
 catch {
