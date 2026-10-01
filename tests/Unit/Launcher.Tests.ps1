@@ -1,13 +1,13 @@
 <#
     Tests for packaging/Office365-Tools.cmd, the double-click launcher, and for
-    packaging/tools.psd1, the list of tools it runs.
+    the tools it runs: every folder under packaging/ with a tool.psd1 in it.
 
     The launcher is a batch file and a PowerShell script in one, and it is
     handed out: copies already on other people's machines keep fetching the
-    newest tool list and the newest code from GitHub. So the things that can
-    break it are the things checked here -- the two halves no longer fitting
-    together, the list no longer reading as data, and an entry script no longer
-    taking what every launcher passes it.
+    newest code from GitHub. So the things that can break it are the things
+    checked here -- the two halves no longer fitting together, a tool.psd1 no
+    longer reading as data, and an entry script no longer taking what every
+    launcher passes it.
 #>
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
@@ -16,12 +16,10 @@
 param()
 
 BeforeDiscovery {
-    # Read the way the launcher reads it: as data, never run.
-    $listPath = Join-Path $PSScriptRoot '../../packaging/tools.psd1'
-    $listAst = [System.Management.Automation.Language.Parser]::ParseFile($listPath, [ref]$null, [ref]$null)
-    $listTable = $listAst.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false)
-
-    $toolCases = @($listTable.SafeGetValue().Tools | ForEach-Object { @{ Tool = $_ } })
+    $toolCases = @(
+        Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../../packaging') -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'tool.psd1') } |
+            ForEach-Object { @{ Name = $_.Name; Folder = $_.FullName } })
 }
 
 BeforeAll {
@@ -50,11 +48,24 @@ BeforeAll {
         $script:Setting[$assignment.Left.VariablePath.UserPath] = $assignment.Right.Expression.Value
     }
 
-    $listPath = Join-Path $script:RepoRoot 'packaging/tools.psd1'
-    $listErrors = $null
-    $listAst = [System.Management.Automation.Language.Parser]::ParseFile($listPath, [ref]$null, [ref]$listErrors)
-    $script:ListErrors = $listErrors
-    $script:ToolList = @($listAst.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false).SafeGetValue().Tools)
+    # Read the way the launcher reads it: as data, never run.
+    function Read-ToolManifest {
+        param([string]$Folder)
+
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $Folder 'tool.psd1'), [ref]$null, [ref]$parseErrors)
+
+        [pscustomobject]@{
+            ParseErrors = $parseErrors
+            Data        = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false).SafeGetValue()
+        }
+    }
+
+    $script:AllTools = @(
+        Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'packaging') -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'tool.psd1') } |
+            ForEach-Object { (Read-ToolManifest -Folder $_.FullName).Data })
 }
 
 Describe 'Office365-Tools.cmd' {
@@ -83,54 +94,68 @@ Describe 'Office365-Tools.cmd' {
         $bareLf | Should -Be 0
     }
 
-    It 'has the one unpinned $Tool line that build.ps1 rewrites for a single-tool ZIP' {
-        ([regex]::Matches($script:Text, [regex]::Escape("`$Tool       = ''"))).Count | Should -Be 1
+    It 'has the one unpinned <Line> line that build.ps1 rewrites' -ForEach @(
+        @{ Line = "`$Tool       = ''" }
+        @{ Line = "`$Ref        = 'master'" }
+    ) {
+        ([regex]::Matches($script:Text, [regex]::Escape($Line))).Count | Should -Be 1
     }
 
     It 'fetches from this repository' {
         $script:Setting['Repository'] | Should -Be 'GBJ-ICT/office365_tools'
     }
 
-    It 'names the tool list that exists' {
-        Test-Path -LiteralPath (Join-Path $script:RepoRoot ($script:Setting['ToolList'] -replace '\\', '/')) | Should -BeTrue
+    It 'looks for tools in the folder they are in' {
+        $script:Setting['ToolFolder'] | Should -Be 'packaging'
     }
 }
 
-Describe 'tools.psd1' {
+Describe 'The tools under packaging/' {
 
-    It 'parses' {
-        $script:ListErrors | Should -BeNullOrEmpty
+    It 'has at least one' {
+        $script:AllTools.Count | Should -BeGreaterThan 0
     }
 
-    It 'lists at least one tool' {
-        $script:ToolList.Count | Should -BeGreaterThan 0
-    }
-
-    It 'gives every tool its own name, launcher and settings file' {
+    It 'gives every tool its own launcher and settings file' {
         # Settings and launchers sit side by side in one folder on the
         # recipient's machine; two of the same name overwrite each other.
-        $names = @($script:ToolList | ForEach-Object { $_.Name })
-        $launchers = @($script:ToolList | ForEach-Object { $_.Launcher })
-        $settings = @($script:ToolList | ForEach-Object { Split-Path -Leaf $_.Settings })
+        $launchers = @($script:AllTools | ForEach-Object { $_.Launcher })
+        $settings = @($script:AllTools | ForEach-Object { Split-Path -Leaf $_.Settings })
 
-        @($names | Select-Object -Unique).Count | Should -Be $names.Count
         @($launchers | Select-Object -Unique).Count | Should -Be $launchers.Count
         @($settings | Select-Object -Unique).Count | Should -Be $settings.Count
     }
 }
 
-Describe 'Tool <Tool.Name>' -ForEach $toolCases {
+Describe 'Tool <Name>' -ForEach $toolCases {
 
-    It 'has everything the launcher and the build need' {
-        foreach ($field in 'Name', 'Title', 'Description', 'Entry', 'Settings', 'ReadMe', 'Launcher') {
-            $Tool[$field] | Should -Not -BeNullOrEmpty -Because "$field is required"
-        }
-        $Tool.Launcher | Should -Match '\.cmd$'
+    BeforeAll {
+        $manifest = Read-ToolManifest -Folder $Folder
+        $script:ToolErrors = $manifest.ParseErrors
+        $script:Tool = $manifest.Data
     }
 
-    It 'points at files that exist' {
+    It 'has a folder name that can be its name' {
+        # The launcher keeps its copy of the code in a folder of this name,
+        # beside one called _all; a pinned launcher has it in a quoted string.
+        $Name | Should -Match '^[A-Za-z][A-Za-z0-9-]*$'
+    }
+
+    It 'has a tool.psd1 that parses' {
+        $script:ToolErrors | Should -BeNullOrEmpty
+    }
+
+    It 'has everything the launcher and the build need' {
+        foreach ($field in 'Title', 'Description', 'Entry', 'Settings', 'ReadMe', 'Launcher') {
+            $script:Tool[$field] | Should -Not -BeNullOrEmpty -Because "$field is required"
+        }
+        $script:Tool.Launcher | Should -Match '\.cmd$'
+    }
+
+    It 'points at files in its own folder' {
         foreach ($field in 'Entry', 'Settings', 'ReadMe') {
-            Test-Path -LiteralPath (Join-Path $script:RepoRoot $Tool[$field]) | Should -BeTrue -Because "$field is $($Tool[$field])"
+            Test-Path -LiteralPath (Join-Path $Folder $script:Tool[$field]) -PathType Leaf |
+                Should -BeTrue -Because "$field is $($script:Tool[$field])"
         }
     }
 
@@ -138,7 +163,7 @@ Describe 'Tool <Tool.Name>' -ForEach $toolCases {
         # Every copy already handed out passes these. Renaming one in the entry
         # script breaks all of them at once.
         $entryAst = [System.Management.Automation.Language.Parser]::ParseFile(
-            (Join-Path $script:RepoRoot $Tool.Entry), [ref]$null, [ref]$null)
+            (Join-Path $Folder $script:Tool.Entry), [ref]$null, [ref]$null)
         $accepted = @($entryAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
 
         foreach ($parameter in 'SettingsPath', 'ReportFolder', 'Folder', 'NoPrompt') {
@@ -147,12 +172,12 @@ Describe 'Tool <Tool.Name>' -ForEach $toolCases {
     }
 
     It 'prefills only settings its template has' {
-        if (-not $Tool.ContainsKey('Prefill')) { return }
+        if (-not $script:Tool.ContainsKey('Prefill')) { return }
 
         $template = New-Object System.Xml.XmlDocument
-        $template.Load((Join-Path $script:RepoRoot $Tool.Settings))
+        $template.Load((Join-Path $Folder $script:Tool.Settings))
 
-        foreach ($element in $Tool.Prefill.Keys) {
+        foreach ($element in $script:Tool.Prefill.Keys) {
             $template.DocumentElement.SelectSingleNode($element) | Should -Not -BeNullOrEmpty -Because "<$element> is prefilled"
         }
     }

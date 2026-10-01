@@ -124,9 +124,10 @@
   it is missing.
 - packaging/: a double-click launcher for people who do not use PowerShell.
   One .cmd file, a batch file and a PowerShell script in one, that fetches
-  this repository from GitHub and runs a tool from packaging/tools.psd1.
-  build.ps1 -Task Package -Tool <name> builds the ZIP to hand out;
-  -IncludeCode builds one that needs no GitHub.
+  this repository from GitHub and runs a tool from it. Each tool is a folder
+  under packaging/, and keeps its own downloaded copy on the recipient's
+  machine. build.ps1 -Task Package -Tool <name> builds the ZIP to hand out;
+  -Ref pins it to a tag; -IncludeCode builds one that needs no GitHub.
 - scripts/connect_graph.ps1 is removed. Use Connect-MgGraph.
 
 0.6.0

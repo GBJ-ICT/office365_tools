@@ -92,7 +92,7 @@ function Read-YesNo {
 
     while ($true) {
         Write-Host ''
-        $answer = (Read-Host "  $Question $suffix").Trim().ToLower()
+        $answer = "$(Read-Host "  $Question $suffix")".Trim().ToLower()
 
         if (-not $answer) { return $Default }
         if ('y', 'yes', 'j', 'ja' -contains $answer) { return $true }
@@ -337,10 +337,10 @@ function Select-Folder {
 }
 
 # -- Locate the pieces -------------------------------------------------------
-# This file lives in packaging/ wherever it runs -- the repository, a copy
-# fetched from GitHub, or an offline package, which keeps the same layout -- so
-# the rest is always one level up.
-$root = Split-Path -Parent $PSScriptRoot
+# This file lives in packaging/UploadCheck/ wherever it runs -- the
+# repository, a copy fetched from GitHub, or an offline package, which keeps
+# the same layout -- so the rest is always two levels up.
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $checker = Join-Path $root 'scripts\Test-Upload.ps1'
 
 $module = Join-Path $root 'src\Office365Tools\Office365Tools.psd1'
@@ -555,6 +555,14 @@ Write-Host "  Folder:  $Folder" -ForegroundColor Green
 # -- What to do --------------------------------------------------------------
 $mode = Get-Setting -Name 'Mode'
 
+# How to check the upload later depends on whether this run asked.
+if ($mode) {
+    $nextStep = 'Once it is uploaded, set Mode in upload-check.xml to ask and start this again to check that everything arrived.'
+}
+else {
+    $nextStep = 'Once it is uploaded, start this again and choose 2 to check that everything arrived.'
+}
+
 if (-not $mode -and -not $NoPrompt) {
     Write-Host ''
     Write-Host '  What would you like to do?' -ForegroundColor Cyan
@@ -565,7 +573,7 @@ if (-not $mode -and -not $NoPrompt) {
     $answer = ''
     while ('1', '2', '3' -notcontains $answer) {
         Write-Host ''
-        $answer = (Read-Host '  Number [1]').Trim()
+        $answer = "$(Read-Host '  Number [1]')".Trim()
         if (-not $answer) { $answer = '1' }
     }
 
@@ -704,7 +712,8 @@ $arguments = @(
     '-ExecutionPolicy', 'Bypass'
     '-File', $checker
     '-LocalPath', $Folder
-    '-Mode', $mode)
+    '-Mode', $mode
+    '-NextStep', $nextStep)
 
 if ($ReportFolder) {
     $arguments += @('-OutputPath', (Join-Path $ReportFolder "upload-check-$(Get-Date -Format 'yyyyMMdd_HHmmss')"))

@@ -110,6 +110,10 @@
 .PARAMETER ShowFirst
     How many example files to list per rule on the console. Default 10; the
     reports always contain every one.
+.PARAMETER NextStep
+    What a clean pre-flight tells the person to do once the files are up.
+    Defaults to running this again with -Mode Verify, which means nothing to
+    someone who started it by double-clicking; the launcher passes its own.
 .EXAMPLE
     ./scripts/Test-Upload.ps1 -LocalPath C:\ToUpload
 
@@ -220,7 +224,10 @@ param(
 
     [Parameter()]
     [ValidateRange(0, 1000)]
-    [int]$ShowFirst = 10
+    [int]$ShowFirst = 10,
+
+    [Parameter()]
+    [string]$NextStep = 'Afterwards, run the same command with -Mode Verify to confirm it arrived.'
 )
 
 Set-StrictMode -Version Latest
@@ -1076,7 +1083,9 @@ else {
 if ($Mode -eq 'PreFlight') {
     if ($errorCount -eq 0) {
         Write-Host '  Ready to upload.' -ForegroundColor Green
-        Write-Host '  Afterwards, run the same command with -Mode Verify to confirm it arrived.' -ForegroundColor Gray
+        if ($NextStep) {
+            Write-Host "  $NextStep" -ForegroundColor Gray
+        }
     }
     else {
         Write-Host '  Fix the errors first: SharePoint will refuse or mangle those files.' -ForegroundColor Red

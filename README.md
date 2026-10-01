@@ -414,18 +414,18 @@ LICENSE
 
 The code is not in it. `Check-Upload.cmd` fetches this repository from GitHub
 each time it runs — `github.com/GBJ-ICT/office365_tools/archive/master.zip`,
-a few hundred KB, unpacked into `%LOCALAPPDATA%\office365_tools\master` — and
-hands over to the tool. A fix therefore reaches everyone the next time they
-run it, without anything being sent; when GitHub cannot be reached, the copy
-fetched last time is used. Two consequences:
+a few hundred KB, unpacked into
+`%LOCALAPPDATA%\office365_tools\UploadCheck\master` — and hands over to the
+tool. A fix therefore reaches everyone the next time they run it, without
+anything being sent; when GitHub cannot be reached, the copy fetched last time
+is used. Two consequences:
 
 - **Push before you send.** What the recipient runs is what is on GitHub, not
   what is in your working tree.
 - **Whoever can push to `master` ships code to every machine that runs the
-  launcher.** To pin it instead, set `$Ref` at the top of the launcher's
-  PowerShell half to a tag or a commit. Each ref gets its own folder in the
-  cache, so launchers pinned to different versions never replace each
-  other's copy.
+  launcher.** To pin it instead, build with `-Ref` and a tag or a commit:
+  `-Tool UploadCheck -Ref v0.7.0`. Each ref gets its own folder in the cache,
+  so launchers pinned to different versions never replace each other's copy.
 
 Settings stay beside the launcher, and reports go into `Reports\` beside it —
 never inside the fetched copy, which is replaced on every run. A launcher with
@@ -444,32 +444,29 @@ For a machine that cannot reach GitHub, put the code in the ZIP:
 pwsh ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
 ```
 
-`out/Check-Upload-<version>-offline.zip` adds `packaging/`, `scripts/` and
-`src/` in the repository's own layout. The launcher finds them beside itself
+`out/Check-Upload-<version>-offline.zip` adds `packaging/UploadCheck/`,
+`scripts/` and `src/` in the repository's own layout. The launcher finds them beside itself
 and fetches nothing — as it does in a checkout, or in a ZIP downloaded from
 GitHub by hand, where `packaging/Office365-Tools.cmd` runs the code around it.
 
 #### More than one tool
 
-There is one launcher, `packaging/Office365-Tools.cmd`, and the tools it can
-run are listed in `packaging/tools.psd1`: a name, a title, the entry script,
-the settings template, the read-me, what the launcher is called when handed
-out for that tool alone, and which settings `-ProfileName` fills in.
+There is one launcher, `packaging/Office365-Tools.cmd`, and each tool is a
+folder beside it: `packaging/UploadCheck/` holds the upload checker's
+`tool.psd1`, entry script, settings template and read-me, and nothing else.
+Adding a tool is adding a folder; [packaging/README.md](packaging/README.md)
+says what goes in it.
 
 - `-Tool <Name>` builds a ZIP for that tool alone. Its launcher is renamed
   (`Check-Upload.cmd`) and pinned to it — `$Tool` at the top is set — so it
   goes straight into that tool and never shows the others, including ones
-  added later.
+  added later. It keeps its own copy of the code, in
+  `%LOCALAPPDATA%\office365_tools\<tool>\<ref>`, and reads only its own
+  folder: nothing pushed for another tool can stop it, and `-Ref` pins each
+  tool to its own version.
 - Without `-Tool`, the ZIP holds `Office365-Tools.cmd` and every tool's
-  settings and read-me. It goes straight into the tool when the list has one,
-  and shows a menu when it has several.
-
-Adding a tool is an entry in `tools.psd1` plus its entry script and settings
-template — and a push: launchers already handed out read the list from GitHub
-on their next run. An entry script takes `-SettingsPath`, `-ReportFolder`,
-`-Folder` and `-NoPrompt`, runs under Windows PowerShell 5.1, and exits 0, 1
-or 2. `tests/Unit/Launcher.Tests.ps1` holds every entry in the list to that,
-since changing it would break every launcher already handed out.
+  settings and read-me. It goes straight into the tool when there is one,
+  and shows a menu when there are several.
 
 #### What the upload checker asks
 
@@ -564,7 +561,7 @@ PowerShell machinery, not a hand-rolled `-Force` switch or a `Read-Host` prompt.
 ```
 src/Office365Tools/     The module. Public/ is the command surface, Private/ is helpers.
 scripts/                Task runners for people who do not want to learn the module.
-packaging/              The double-click launcher, its tool list, and each tool's entry script.
+packaging/              The double-click launcher, and one folder per tool it runs.
 config/                 profiles.example.json is tracked; profiles.json is not.
 samples/                Example CSVs for the bulk commands.
 tests/Unit/             Pester tests. No tenant required.

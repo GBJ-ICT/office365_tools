@@ -13,9 +13,11 @@ config/*.json
 !config/*.schema.json
 
 # Script output: reports, logs, exports. Reports/ is where the double-click
-# launcher puts them, beside itself -- in packaging/ when run from a checkout.
+# launcher puts them, beside itself -- in packaging/ when run from a checkout,
+# where it also puts its copy of each tool's settings (packaging/*.xml).
 out/
 Reports/
+/packaging/*.xml
 log/
 logs/
 *.log

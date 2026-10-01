@@ -18,10 +18,16 @@
     ./build.ps1 -Task Test
     Runs only the unit tests.
 .PARAMETER Tool
-    Package only. Build the ZIP for this one tool from packaging/tools.psd1:
-    its launcher is named for it (Check-Upload.cmd for UploadCheck) and runs
-    it alone, so tools added later never appear for this recipient. Omit to
-    ship Office365-Tools.cmd, which offers every tool in the list.
+    Package only. Build the ZIP for this one tool -- the name of its folder
+    under packaging/. Its launcher is named for it (Check-Upload.cmd for
+    UploadCheck), runs it alone and keeps its own copy of the code, so tools
+    added later never appear for this recipient and nothing done to another
+    tool reaches them. Omit to ship Office365-Tools.cmd, which offers every
+    tool under packaging/.
+.PARAMETER Ref
+    Package only. The branch, tag or commit the launcher fetches from GitHub.
+    Defaults to master, so every push reaches the recipient on their next
+    run. A tag pins them to that version until you send them a new ZIP.
 .PARAMETER ProfileName
     Package only. Bakes this connection profile's details into the packaged
     settings files -- whichever settings each tool's Prefill names -- so the
@@ -44,9 +50,13 @@
     Writes out/Check-Upload-<version>-offline.zip, which has everything in it
     and needs no access to GitHub.
 .EXAMPLE
+    ./build.ps1 -Task Package -Tool UploadCheck -Ref v0.7.0
+    Same, pinned to the v0.7.0 tag: pushes to master no longer reach this
+    recipient. The tag has to be on GitHub.
+.EXAMPLE
     ./build.ps1 -Task Package
-    Writes out/Office365-Tools.zip, whose launcher offers every tool in
-    packaging/tools.psd1 -- and every tool added to it later.
+    Writes out/Office365-Tools.zip, whose launcher offers every tool under
+    packaging/ -- and every tool added there later.
 #>
 [CmdletBinding()]
 param(
@@ -56,6 +66,10 @@ param(
 
     [Parameter()]
     [string]$Tool,
+
+    [Parameter()]
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._/-]*$')]
+    [string]$Ref = 'master',
 
     [Parameter()]
     [string]$ProfileName,
@@ -127,24 +141,47 @@ function Invoke-ImportTask {
     $commands | ForEach-Object { Write-Host "      $($_.Name)" -ForegroundColor Gray }
 }
 
-# The launcher's tool list, read as data -- the same way the launcher reads it,
-# so a list the launcher would refuse fails the build too.
-function Read-ToolList {
-    $path = Join-Path $repoRoot 'packaging/tools.psd1'
+# The tools under packaging/, read the way the launcher reads them -- each
+# tool.psd1 as data -- so a tool the launcher would refuse fails the build too.
+# Name is the folder's name; Folder is relative to the repository.
+function Get-ToolSet {
+    $tools = @()
 
-    $parseErrors = $null
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors)
-    if ($parseErrors) {
-        throw "packaging/tools.psd1 does not parse: $($parseErrors[0].Message)"
+    foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packaging') -Directory | Sort-Object Name) {
+        $path = Join-Path $folder.FullName 'tool.psd1'
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+
+        $shown = "packaging/$($folder.Name)/tool.psd1"
+
+        if ($folder.Name -notmatch '^[A-Za-z][A-Za-z0-9-]*$') {
+            throw "packaging/$($folder.Name): a tool's folder name is its name, and has to be letters, digits and hyphens, starting with a letter."
+        }
+
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors)
+        if ($parseErrors) {
+            throw "$shown does not parse: $($parseErrors[0].Message)"
+        }
+
+        $entry = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false).SafeGetValue()
+        foreach ($field in 'Title', 'Entry', 'Settings', 'Launcher') {
+            if (-not $entry[$field]) {
+                throw "$shown has no $field"
+            }
+        }
+
+        $entry.Name = $folder.Name
+        $entry.Folder = "packaging/$($folder.Name)"
+        $tools += $entry
     }
 
-    $table = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false)
-    return @($table.SafeGetValue().Tools)
+    return $tools
 }
 
 function Invoke-PackageTask {
     param(
         [string]$Tool,
+        [string]$Ref,
         [string]$ProfileName,
         [switch]$IncludeCode
     )
@@ -154,12 +191,12 @@ function Invoke-PackageTask {
     $manifest = Import-PowerShellDataFile -Path $manifestPath
     $version = $manifest.ModuleVersion
 
-    $allTools = Read-ToolList
+    $allTools = @(Get-ToolSet)
 
     if ($Tool) {
         $tools = @($allTools | Where-Object { $_.Name -eq $Tool })
         if ($tools.Count -eq 0) {
-            throw "No tool '$Tool' in packaging/tools.psd1. Known: $(($allTools | ForEach-Object { $_.Name }) -join ', ')."
+            throw "No tool '$Tool': there is no packaging/$Tool/tool.psd1. Known: $(($allTools | ForEach-Object { $_.Name }) -join ', ')."
         }
         $launcherName = $tools[0].Launcher
     }
@@ -178,17 +215,20 @@ function Invoke-PackageTask {
     }
     New-Item -Path $staging -ItemType Directory -Force | Out-Null
 
-    # -- The launcher, pinned to the tool when there is one -------------------
-    # Edited as text, on the one line it reserves for this. Kept ASCII with
-    # its CRLF endings, which cmd needs.
+    # -- The launcher, pinned to the tool and the ref -------------------------
+    # Edited as text, on the lines it reserves for this. Kept ASCII with its
+    # CRLF endings, which cmd needs.
     $launcherText = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'packaging/Office365-Tools.cmd'))
 
-    if ($Tool) {
-        $unpinned = "`$Tool       = ''"
-        if (([regex]::Matches($launcherText, [regex]::Escape($unpinned))).Count -ne 1) {
-            throw "packaging/Office365-Tools.cmd no longer has exactly one line reading: $unpinned"
+    $pins = [ordered]@{
+        "`$Tool       = ''"       = "`$Tool       = '$Tool'"
+        "`$Ref        = 'master'" = "`$Ref        = '$Ref'"
+    }
+    foreach ($line in $pins.Keys) {
+        if (([regex]::Matches($launcherText, [regex]::Escape($line))).Count -ne 1) {
+            throw "packaging/Office365-Tools.cmd no longer has exactly one line reading: $line"
         }
-        $launcherText = $launcherText.Replace($unpinned, "`$Tool       = '$Tool'")
+        $launcherText = $launcherText.Replace($line, $pins[$line])
     }
 
     [System.IO.File]::WriteAllText((Join-Path $staging $launcherName), $launcherText, [System.Text.Encoding]::ASCII)
@@ -203,11 +243,11 @@ function Invoke-PackageTask {
         }
         $settingsFiles[$settingsName] = $entry
 
-        Copy-Item -Path (Join-Path $repoRoot $entry.Settings) -Destination (Join-Path $staging $settingsName) -Force
+        Copy-Item -Path (Join-Path $repoRoot "$($entry.Folder)/$($entry.Settings)") -Destination (Join-Path $staging $settingsName) -Force
 
         if ($entry.ReadMe) {
             $readMeName = if ($Tool) { 'READ-ME-FIRST.txt' } else { "READ-ME-FIRST - $($entry.Title).txt" }
-            Copy-Item -Path (Join-Path $repoRoot $entry.ReadMe) -Destination (Join-Path $staging $readMeName) -Force
+            Copy-Item -Path (Join-Path $repoRoot "$($entry.Folder)/$($entry.ReadMe)") -Destination (Join-Path $staging $readMeName) -Force
         }
     }
 
@@ -215,17 +255,15 @@ function Invoke-PackageTask {
 
     # -- The code, for a machine that cannot reach GitHub ---------------------
     # The repository's own layout, so the launcher finds the code beside itself
-    # exactly as it does in a checkout. All of scripts/, because an entry
-    # script is free to call any of them.
+    # exactly as it does in a checkout. Only the packaged tools' folders, and
+    # all of scripts/, because an entry script is free to call any of them.
     if ($IncludeCode) {
         foreach ($folder in 'packaging', 'scripts', 'src') {
             New-Item -Path (Join-Path $staging $folder) -ItemType Directory -Force | Out-Null
         }
 
-        Copy-Item -Path (Join-Path $repoRoot 'packaging/tools.psd1') -Destination (Join-Path $staging 'packaging') -Force
         foreach ($entry in $tools) {
-            Copy-Item -Path (Join-Path $repoRoot $entry.Entry) -Destination (Join-Path $staging $entry.Entry) -Force
-            Copy-Item -Path (Join-Path $repoRoot $entry.Settings) -Destination (Join-Path $staging $entry.Settings) -Force
+            Copy-Item -Path (Join-Path $repoRoot $entry.Folder) -Destination (Join-Path $staging 'packaging') -Recurse -Force
         }
 
         Copy-Item -Path (Join-Path $repoRoot 'scripts/*.ps1') -Destination (Join-Path $staging 'scripts') -Force
@@ -315,7 +353,7 @@ function Invoke-PackageTask {
 
         foreach ($settingsName in $settingsFiles.Keys) {
             $entry = $settingsFiles[$settingsName]
-            $entryPath = Join-Path $staging $entry.Entry
+            $entryPath = Join-Path $staging "$($entry.Folder)/$($entry.Entry)"
             $selfTestReports = Join-Path ([System.IO.Path]::GetTempPath()) "office365-tools-selftest-$([guid]::NewGuid().ToString('N'))"
 
             $selfTestArgs = @{
@@ -358,10 +396,13 @@ function Invoke-PackageTask {
 
     Write-Host "    $archive ($size KB)" -ForegroundColor Green
     Write-Host "    $(($tools | ForEach-Object { $_.Title }) -join ', ')" -ForegroundColor Gray
+    if (-not $IncludeCode) {
+        Write-Host "    fetches $Ref from GitHub" -ForegroundColor Gray
+    }
     Write-Host '    Send the ZIP, or put it where they can download it. They extract it and' -ForegroundColor Gray
     Write-Host "    double-click $launcherName." -ForegroundColor Gray
     if (-not $IncludeCode) {
-        Write-Host '    The code comes from GitHub when they run it: push before you send this.' -ForegroundColor Yellow
+        Write-Host "    The code comes from GitHub when they run it: push $Ref before you send this." -ForegroundColor Yellow
     }
 }
 
@@ -369,6 +410,6 @@ switch ($Task) {
     'Analyze' { Invoke-AnalyzeTask }
     'Test' { Invoke-TestTask }
     'Import' { Invoke-ImportTask }
-    'Package' { Invoke-PackageTask -Tool $Tool -ProfileName $ProfileName -IncludeCode:$IncludeCode }
+    'Package' { Invoke-PackageTask -Tool $Tool -Ref $Ref -ProfileName $ProfileName -IncludeCode:$IncludeCode }
     'All' { Invoke-AnalyzeTask; Invoke-TestTask }
 }

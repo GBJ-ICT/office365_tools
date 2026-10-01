@@ -79,8 +79,6 @@ function Connect-O365 {
         [switch]$PassThru
     )
 
-    Assert-SpoPnPModule
-
     if ($PSCmdlet.ParameterSetName -eq 'Profile') {
         $store = Get-O365ProfileStore
 
@@ -115,6 +113,10 @@ function Connect-O365 {
     else {
         $resolvedProfile = $null
     }
+
+    # After the profile: a mistyped profile name is worth hearing about before
+    # being told to install a module.
+    Assert-SpoPnPModule
 
     Write-O365Log "Connecting to '$SiteUrl' with client ID '$ClientId'." 'Info'
 
