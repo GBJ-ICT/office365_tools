@@ -338,8 +338,8 @@ function Select-Folder {
 
 # -- Locate the pieces -------------------------------------------------------
 # This file lives in packaging/UploadCheck/ wherever it runs -- the
-# repository, a copy fetched from GitHub, or an offline package, which keeps
-# the same layout -- so the rest is always two levels up.
+# repository, or a release fetched from GitHub, which keeps the same layout
+# -- so the rest is always two levels up.
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $checker = Join-Path $root 'scripts\Test-Upload.ps1'
 

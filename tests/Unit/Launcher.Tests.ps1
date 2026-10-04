@@ -94,23 +94,51 @@ Describe 'Office365-Tools.cmd' {
         $bareLf | Should -Be 0
     }
 
-    It 'has the one unpinned <Line> line that build.ps1 rewrites' -ForEach @(
-        @{ Line = "`$Tool       = ''" }
-        @{ Line = "`$Ref        = 'master'" }
-    ) {
-        ([regex]::Matches($script:Text, [regex]::Escape($Line))).Count | Should -Be 1
+    It 'has the one unpinned $Tool line that build.ps1 rewrites' {
+        ([regex]::Matches($script:Text, [regex]::Escape("`$Tool       = ''"))).Count | Should -Be 1
     }
 
     It 'fetches from this repository' {
         $script:Setting['Repository'] | Should -Be 'GBJ-ICT/office365_tools'
     }
 
-    It 'looks for tools in the folder they are in' {
-        $script:Setting['ToolFolder'] | Should -Be 'packaging'
+    It 'hands over to Start-Tool.ps1' {
+        $script:Text | Should -Match ([regex]::Escape("'packaging\Start-Tool.ps1'"))
     }
 
-    It 'hands over to Start-Tool.ps1' {
-        $script:Setting['Handover'] | Should -Be 'Start-Tool.ps1'
+    Context 'choosing a release' {
+
+        BeforeAll {
+            # The launcher's own function, lifted out of it: running the file
+            # would go and download something.
+            $definition = $script:Ast.Find({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Select-Release'
+                }, $false)
+            . ([scriptblock]::Create($definition.Extent.Text))
+        }
+
+        It 'takes the newest vX.Y, comparing the numbers' {
+            Select-Release -Name 'v0.9', 'v0.10', 'v0.2' | Should -Be 'v0.10'
+            Select-Release -Name 'v1.0', 'v0.99' | Should -Be 'v1.0'
+        }
+
+        It 'ignores <Name>, which is not a release' -ForEach @(
+            @{ Name = 'v9.9.9' }
+            @{ Name = 'v9' }
+            @{ Name = '9.9' }
+            @{ Name = 'v9.9-beta' }
+            @{ Name = 'V9.9' }
+            @{ Name = 'master' }
+            @{ Name = 'v9.9.unpacked' }
+        ) {
+            Select-Release -Name 'v0.1', $Name | Should -Be 'v0.1'
+        }
+
+        It 'answers nothing when there is no release' {
+            Select-Release -Name 'master', 'v1.2.3' | Should -BeNullOrEmpty
+            Select-Release -Name @() | Should -BeNullOrEmpty
+        }
     }
 }
 
@@ -164,20 +192,18 @@ Describe 'Start-Tool.ps1' {
         }
     }
 
-    It 'requires nothing a launcher might not pass' {
-        # Only what the first launcher to hand over already passed can be
-        # mandatory: an older launcher does not know about anything added later.
+    It 'requires no parameter, so it starts from a checkout as it is' {
+        # Also what keeps older launchers working: one from before a parameter
+        # was added does not pass it.
         $mandatory = @($script:StartAst.ParamBlock.Parameters | Where-Object {
                 $_.Attributes | Where-Object {
                     $_ -is [System.Management.Automation.Language.AttributeAst] -and
                     $_.TypeName.Name -eq 'Parameter' -and
                     ($_.NamedArguments | Where-Object { $_.ArgumentName -eq 'Mandatory' })
                 }
-            } | ForEach-Object { $_.Name.VariablePath.UserPath })
+            })
 
-        foreach ($parameter in $mandatory) {
-            $parameter | Should -BeIn @('Root', 'LauncherPath')
-        }
+        $mandatory | Should -BeNullOrEmpty
     }
 }
 

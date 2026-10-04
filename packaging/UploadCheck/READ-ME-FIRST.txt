@@ -133,13 +133,11 @@ For whoever set this up
 -----------------------
 Check-Upload.cmd is the repository's packaging\Office365-Tools.cmd, pinned
 to this one tool ($Tool at the top of its PowerShell half). It is a batch
-file and a PowerShell script in one. It fetches the repository from GitHub
-(the branch, tag or commit named by $Ref) into
-%LOCALAPPDATA%\office365_tools\UploadCheck\<ref>, falls back to the copy it
-fetched last time when GitHub cannot be reached, and hands over to
-packaging\UploadCheck\Start-UploadCheck.ps1. If the code is beside it
-instead -- an offline package, or a checkout -- it uses that and fetches
-nothing.
+file and a PowerShell script in one. It fetches the repository's newest
+release from GitHub -- the newest tag named vX.Y -- into
+%LOCALAPPDATA%\office365_tools\vX.Y, falls back to the newest release it
+already has when GitHub cannot be reached, and hands over to
+packaging\UploadCheck\Start-UploadCheck.ps1.
 
 Start-UploadCheck.ps1 reads upload-check.xml, checks the prerequisites and
 runs:

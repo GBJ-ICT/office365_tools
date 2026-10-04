@@ -4,11 +4,14 @@
     which one, and hands over to it.
 .DESCRIPTION
     packaging/Office365-Tools.cmd is handed out, and a copy on someone's
-    machine never changes. So it does as little as it can: it finds a copy of
-    this repository, or fetches one, and hands over to this script, which is
-    fetched afresh with everything else. Whatever happens after that -- the
-    menu, the settings file, how a tool is started -- can change with a push
-    and reaches everyone who already has a launcher.
+    machine never changes. So it does as little as it can: it fetches the
+    newest release of this repository -- the newest tag named vX.Y -- and
+    hands over to this script in it. Whatever happens after that -- the menu,
+    the settings file, how a tool is started -- can change with a release and
+    reaches everyone who already has a launcher.
+
+    The launcher never runs the code of a checkout. To try a change before it
+    is tagged, start this script from the checkout, with no parameters.
 
     The parameters below are what every launcher handed out passes. They are
     the contract: a launcher from before a parameter was added does not pass
@@ -19,10 +22,16 @@
     Runs under Windows PowerShell 5.1 -- no ternaries, no ??, no -Parallel --
     and stays plain ASCII.
 .PARAMETER Root
-    The copy of the repository the launcher found or fetched.
+    The release the launcher fetched. Defaults to the repository this script
+    is in.
 .PARAMETER LauncherPath
     The launcher itself. The settings files and the Reports folder live beside
-    it, where the person running it can find them.
+    it, where the person running it can find them. Defaults to the launcher
+    beside this script.
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File packaging\Start-Tool.ps1
+
+    Runs the tools of this checkout, as the launcher would run a release.
 .PARAMETER Tool
     The tool a launcher is pinned to, the name of its folder under packaging\.
     Empty: every tool there.
@@ -31,11 +40,9 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
-    [string]$Root,
+    [string]$Root = '',
 
-    [Parameter(Mandatory)]
-    [string]$LauncherPath,
+    [string]$LauncherPath = '',
 
     [string]$Tool = '',
 
@@ -43,6 +50,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Started by hand from a checkout: the repository this script is in, and the
+# launcher beside it. Here rather than as parameter defaults, where Windows
+# PowerShell does not know $PSScriptRoot yet.
+if (-not $Root) { $Root = Split-Path -Parent $PSScriptRoot }
+if (-not $LauncherPath) { $LauncherPath = Join-Path $PSScriptRoot 'Office365-Tools.cmd' }
 
 # Every folder in here with a tool.psd1 in it is a tool.
 $ToolFolder = 'packaging'
