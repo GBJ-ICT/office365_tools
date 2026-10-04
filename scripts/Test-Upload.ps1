@@ -1044,6 +1044,13 @@ if ($Mode -in 'Verify', 'Both') {
         'everything arrived'
     }
 
+    # Not a fault of the upload, but the other half of "are the two the same":
+    # said in the heading too, not only in the rows.
+    $extra = [int]$counts['MissingLocal']
+    if ($extra -gt 0) {
+        $verdict += ", $extra file(s) only in SharePoint"
+    }
+
     $summary = [ordered]@{
         'Folder on this computer' = (Resolve-Path -LiteralPath $LocalPath).Path
         'Compared with'           = $scope
@@ -1070,14 +1077,22 @@ Stop-O365Log | Out-Null
 
 $errorCount = @($allFindings | Where-Object Severity -eq 'Error').Count
 $warningCount = @($allFindings | Where-Object Severity -eq 'Warning').Count
+$infoCount = @($allFindings | Where-Object Severity -eq 'Info').Count
 
 Write-Section 'Result'
 
+# Info is counted too: nothing to fix, but it was found, and a result that
+# leaves it out reads as if it had not been.
+$tally = "$errorCount error(s), $warningCount warning(s), $infoCount info"
+
 if ($errorCount -eq 0 -and $warningCount -eq 0) {
     Write-Host '  Nothing to fix.' -ForegroundColor Green
+    if ($infoCount -gt 0) {
+        Write-Host "  $tally" -ForegroundColor Cyan
+    }
 }
 else {
-    Write-Host "  $errorCount error(s), $warningCount warning(s)" -ForegroundColor $(if ($errorCount -gt 0) { 'Red' } else { 'Yellow' })
+    Write-Host "  $tally" -ForegroundColor $(if ($errorCount -gt 0) { 'Red' } else { 'Yellow' })
 }
 
 if ($Mode -eq 'PreFlight') {

@@ -408,12 +408,10 @@ function Select-Tool {
         exit $SETUP_PROBLEM
     }
 
-    if ($Tools.Count -eq 1) {
-        return $Tools[0]
-    }
-
-    # A window if one can be had; the numbered list below if not, or if it
-    # fails to open. Closed without a choice is an answer, not a failure.
+    # Asked even when there is only one tool: a launcher that is not pinned to
+    # a tool is the one that shows what there is. A window if one can be had;
+    # the numbered list below if not, or if it fails to open. Closed without a
+    # choice is an answer, not a failure.
     if (Test-WindowPossible) {
         $form = $null
         $opened = $false

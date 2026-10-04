@@ -10,6 +10,8 @@
       Test    - run the Pester unit tests (no tenant required)
       Import  - import the module into the current session
       Package - build a hand-out ZIP of the double-click tools into out/
+      Release - Analyze, Test, then tag this commit vX.Y and push the tag,
+                which is what every launcher handed out runs from then on
       All     - Analyze then Test (the default, and what CI effectively does)
 .EXAMPLE
     ./build.ps1
@@ -41,18 +43,34 @@
     ./build.ps1 -Task Package
     Writes out/Office365-Tools.zip, whose launcher offers every tool under
     packaging/ -- and every tool added there later.
+.PARAMETER Version
+    Release only. The tag to create, as vX.Y. Omit for the next one: the
+    newest release with its minor number raised, v0.9 to v0.10, or v0.1 when
+    there is none. Give it to start a new major version: -Version v1.0.
+.EXAMPLE
+    ./build.ps1 -Task Release
+    Checks the working tree is committed, runs the analyzer and the tests,
+    tags this commit with the next version and pushes the tag. Nothing is
+    tagged if anything fails.
+.EXAMPLE
+    ./build.ps1 -Task Release -Version v1.0
+    Same, as v1.0.
 #>
 [CmdletBinding()]
 param(
     [Parameter()]
-    [ValidateSet('All', 'Analyze', 'Test', 'Import', 'Package')]
+    [ValidateSet('All', 'Analyze', 'Test', 'Import', 'Package', 'Release')]
     [string]$Task = 'All',
 
     [Parameter()]
     [string]$Tool,
 
     [Parameter()]
-    [string]$ProfileName
+    [string]$ProfileName,
+
+    [Parameter()]
+    [ValidatePattern('^v\d+\.\d+$')]
+    [string]$Version
 )
 
 Set-StrictMode -Version Latest
@@ -312,10 +330,69 @@ function Invoke-PackageTask {
     Write-Host '    The code is the newest vX.Y tag on GitHub when they run it: nothing reaches them until it is tagged.' -ForegroundColor Yellow
 }
 
+# A release is a tag named vX.Y on GitHub: the launcher runs the newest one
+# and nothing else. So this is the whole of releasing -- check, tag, push the
+# tag -- and the order matters: nothing is tagged unless everything passed.
+function Invoke-ReleaseTask {
+    param(
+        [string]$Version
+    )
+
+    Write-Host '==> Release' -ForegroundColor Cyan
+
+    # What is tagged is the commit, not the working tree. With changes lying
+    # about, the checks below would pass or fail on something else.
+    if (git -C $repoRoot status --porcelain) {
+        throw 'There are uncommitted changes. A release is a commit: commit them first.'
+    }
+
+    git -C $repoRoot fetch --tags --quiet
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not fetch the tags from GitHub, so the next version is unknown.'
+    }
+
+    # The launcher's rule: vX.Y exactly, newest by number.
+    $newest = git -C $repoRoot tag --list |
+        Where-Object { $_ -cmatch '^v\d+\.\d+$' } |
+        Sort-Object { [version]$_.Substring(1) } |
+        Select-Object -Last 1
+
+    if (-not $Version) {
+        $Version = 'v0.1'
+        if ($newest) {
+            $number = [version]$newest.Substring(1)
+            $Version = "v$($number.Major).$($number.Minor + 1)"
+        }
+    }
+    elseif ($newest -and [version]$Version.Substring(1) -le [version]$newest.Substring(1)) {
+        throw "$Version is not newer than $newest, so no launcher would run it."
+    }
+
+    Write-Host "    $Version, after $(if ($newest) { $newest } else { 'no release yet' })" -ForegroundColor Gray
+
+    Invoke-AnalyzeTask
+    Invoke-TestTask
+
+    git -C $repoRoot tag $Version
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not create the tag $Version."
+    }
+
+    # The tag alone: it takes its commit with it, whatever branch that is on.
+    git -C $repoRoot push --quiet origin $Version
+    if ($LASTEXITCODE -ne 0) {
+        git -C $repoRoot tag --delete $Version | Out-Null
+        throw "Could not push $Version to GitHub; the tag was removed again, so nothing is released."
+    }
+
+    Write-Host "    $Version is released: every launcher runs it from its next start." -ForegroundColor Green
+}
+
 switch ($Task) {
     'Analyze' { Invoke-AnalyzeTask }
     'Test' { Invoke-TestTask }
     'Import' { Invoke-ImportTask }
     'Package' { Invoke-PackageTask -Tool $Tool -ProfileName $ProfileName }
+    'Release' { Invoke-ReleaseTask -Version $Version }
     'All' { Invoke-AnalyzeTask; Invoke-TestTask }
 }

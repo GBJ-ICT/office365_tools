@@ -32,9 +32,14 @@ The launcher runs the newest **release** on GitHub: the newest tag named
 `v0.9`. A push reaches nobody until it is tagged:
 
 ```bash
-git tag v0.8
-git push origin v0.8
+pwsh ./build.ps1 -Task Release
+pwsh ./build.ps1 -Task Release -Version v1.0
 ```
+
+That refuses a working tree with uncommitted changes, runs the analyzer and
+the tests, and only then tags the commit and pushes the tag. Without
+`-Version` it takes the next one: the newest release with its minor number
+raised.
 
 Each release is downloaded once, into `%LOCALAPPDATA%\office365_tools\vX.Y`,
 and never again: do not move a tag, tag the next version. When GitHub cannot
@@ -68,7 +73,7 @@ keep:
 - **It runs under Windows PowerShell 5.1** and stays plain ASCII, like the
   entry scripts.
 
-With more than one tool, `Start-Tool.ps1` opens a window with a button for
+Unless the launcher is pinned to one tool, `Start-Tool.ps1` opens a window with a button for
 each -- its `Title` in bold, its `Description` under it -- and starts the one
 clicked. Close or Esc runs nothing. Where no window can open (PowerShell 7,
 no desktop), it falls back to a numbered list in the console.

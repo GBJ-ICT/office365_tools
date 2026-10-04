@@ -48,10 +48,9 @@ exit /b %RESULT%
 # ===========================================================================
 
 # Which tool this launcher runs: the name of its folder under packaging\.
-# Empty: every tool there -- straight into it when there is one, a menu when
-# there are several. A ZIP built for one tool has that tool's name here,
-# written in by build.ps1 -Task Package -Tool <name>, which looks for this
-# exact line.
+# Empty: a menu of every tool there. A ZIP built for one tool has that tool's
+# name here and goes straight into it; build.ps1 -Task Package -Tool <name>
+# writes it in, and looks for this exact line.
 $Tool       = ''
 
 # Where the tools come from. A release is a tag named vX.Y -- v1.4, not

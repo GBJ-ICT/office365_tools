@@ -421,9 +421,11 @@ when GitHub cannot be reached, the newest release already there is used.
 So releasing is tagging, and nothing else reaches anyone:
 
 ```bash
-git tag v0.8
-git push origin v0.8
+pwsh ./build.ps1 -Task Release
 ```
+
+That runs the analyzer and the tests, tags the commit with the next version
+— `v0.8` after `v0.7`; `-Version v1.0` to choose — and pushes the tag.
 
 - **A push ships nothing.** What the recipient runs is the newest `vX.Y` tag
   on GitHub, not `master` and not your working tree.
@@ -462,8 +464,8 @@ says what goes in it.
   added later. It reads only its own folder, so a mistake in another tool's
   `tool.psd1` cannot stop it.
 - Without `-Tool`, the ZIP holds `Office365-Tools.cmd` and every tool's
-  settings and read-me. It goes straight into the tool when there is one,
-  and opens a window with a button per tool when there are several.
+  settings and read-me. It opens a window with a button per tool, even when
+  there is only one.
 
 #### What the upload checker asks
 
