@@ -187,10 +187,12 @@ Verify phase, `-CompareSize` only: both copies exist but their byte counts
 disagree. Note that SharePoint legitimately stores a different size for Office
 files it has processed, which is why the check is opt-in.
 
-### `Upload.ExtraRemote` — Info
+### `Upload.MissingLocal` — Error
 
-Verify phase: the library has a file the local folder does not. Left over from
-an earlier upload, or somebody else's.
+Verify phase: the library has a file the local folder does not. Deleted here
+since the upload, left over from an earlier one, or somebody else's. The two
+sides differ either way, so it counts as much as a file that did not arrive.
+(Until v0.3 this was `Upload.ExtraRemote`, an Info.)
 
 ### `Upload.LocalNewer` — Warning
 

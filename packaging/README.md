@@ -6,6 +6,7 @@ asked questions.
 ```
 packaging/
   Office365-Tools.cmd        the launcher -- one file, shared by every tool
+  Start-Tool.ps1             what the launcher hands over to: the menu, the settings, starting the tool
   UploadCheck/               one folder per tool; the folder name is the tool's name
     tool.psd1                what the launcher and build.ps1 need to know
     Start-UploadCheck.ps1    the entry script the launcher hands over to
@@ -17,23 +18,69 @@ packaging/
 
 ```bash
 pwsh ./build.ps1 -Task Package -Tool UploadCheck
-pwsh ./build.ps1 -Task Package -Tool UploadCheck -Ref v0.7.0
-pwsh ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
 ```
 
 The ZIP holds the launcher -- renamed after the tool, `Check-Upload.cmd`, and
-pinned to it -- with the settings template and the read-me. The launcher
-downloads this repository from GitHub (`-Ref`, default `master`) each time it
-runs and starts the tool from it. `-IncludeCode` puts the code in the ZIP
-instead, for machines that cannot reach GitHub.
+pinned to it -- with the settings template and the read-me. A launcher built
+for one tool reads only that tool's folder, so a mistake in another tool's
+`tool.psd1` cannot stop it.
 
-Each tool keeps its own copy of the download, in
-`%LOCALAPPDATA%\office365_tools\<tool>\<ref>`. Tools do not share code on the
-recipient's machine: a push that breaks one tool leaves every other tool on
-the copy it already has. A launcher built for one tool also reads only that
-tool's folder, so a mistake in another tool's `tool.psd1` cannot stop it.
-With `-Ref` set to a tag, a tool stays on that version while the others
-follow `master`.
+## Releasing
+
+The launcher runs the newest **release** on GitHub: the newest tag named
+`vX.Y` -- `v1.4`; not `v1.4.2`, not `v2`, not a branch. `v0.10` is newer than
+`v0.9`. A push reaches nobody until it is tagged:
+
+```bash
+pwsh ./build.ps1 -Task Release
+pwsh ./build.ps1 -Task Release -Version v1.0
+```
+
+That refuses a working tree with uncommitted changes, runs the analyzer and
+the tests, and only then tags the commit and pushes the tag. Without
+`-Version` it takes the next one: the newest release with its minor number
+raised.
+
+Each release is downloaded once, into `%LOCALAPPDATA%\office365_tools\vX.Y`,
+and never again: do not move a tag, tag the next version. When GitHub cannot
+be reached, the newest release already downloaded runs. The launcher does
+this wherever it is started from -- code beside it, as in a checkout, is not
+used.
+
+To try a change before tagging it, start the checkout's own `Start-Tool.ps1`,
+which is what the launcher hands over to:
+
+```bash
+powershell -ExecutionPolicy Bypass -File packaging/Start-Tool.ps1
+```
+
+## Changing the launcher
+
+A launcher on someone's machine never changes, so `Office365-Tools.cmd` does
+as little as it can: it fetches the newest release and hands over to
+`Start-Tool.ps1` in it. Everything after that -- reading the `tool.psd1`
+files, the menu, the settings file beside the launcher, starting the tool --
+is in `Start-Tool.ps1`, and a release reaches everyone who already has a
+launcher.
+
+So change `Start-Tool.ps1`, not the `.cmd`, wherever you can. Two things to
+keep:
+
+- **Its parameters are a contract.** `-Root`, `-LauncherPath`, `-Tool` and
+  `-Dropped` are what every launcher handed out passes. Add parameters with a
+  default that does what an older launcher expects; never rename or remove
+  one. `tests/Unit/Launcher.Tests.ps1` checks this.
+- **It runs under Windows PowerShell 5.1** and stays plain ASCII, like the
+  entry scripts.
+
+Unless the launcher is pinned to one tool, `Start-Tool.ps1` opens a window with a button for
+each -- its `Title` in bold, its `Description` under it -- and starts the one
+clicked. Close or Esc runs nothing. Where no window can open (PowerShell 7,
+no desktop), it falls back to a numbered list in the console.
+
+Setting the environment variable `OFFICE365TOOLS_CONSOLE` to anything gives
+the numbered list instead of the window, so it can be driven with its input
+piped in.
 
 ## Adding a tool
 
@@ -65,7 +112,7 @@ failing to start. It takes:
 | `-SettingsPath` | the settings file beside the launcher |
 | `-ReportFolder` | `Reports\` beside the launcher; one subfolder per run |
 | `-Folder` | a folder dropped onto the launcher, when there was one |
-| `-NoPrompt` | never passed by the launcher; `build.ps1 -IncludeCode` runs every tool with it as a self-test |
+| `-NoPrompt` | never passed by the launcher; for scheduled runs, which must not stop to ask |
 
 It exits 0 (nothing to report), 1 (findings) or 2 (a setup problem). The repository
 root is two levels up from the entry script. `Start-UploadCheck.ps1` is a
@@ -81,3 +128,5 @@ puts all of them side by side.
 launchers already handed out depend on it, and changing it breaks all of
 them at once. A push is all it takes to ship a new tool to people who
 already have `Office365-Tools.cmd`; to anyone else, send them its ZIP.
+The same goes for the menu itself, for launchers that hand over to
+`Start-Tool.ps1`.

@@ -974,7 +974,7 @@ if ($Mode -in 'Verify', 'Both') {
     $categories = @(
         @{ Status = 'Match'; Symbol = '= '; Label = 'Synchronised'; Colour = 'Green' }
         @{ Status = 'MissingRemote'; Symbol = '->'; Label = 'Missing in SharePoint'; Colour = 'Red' }
-        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Cyan' }
+        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Red' }
     )
     if ($CompareDate) {
         $categories += @{ Status = 'LocalNewer'; Symbol = '->'; Label = 'Newer on this computer'; Colour = 'Yellow' }
@@ -1007,8 +1007,10 @@ if ($Mode -in 'Verify', 'Both') {
                             -Detail @{ LocalSize = $row.LocalSize; RemoteSize = $row.RemoteSize; RemoteUrl = $row.RemoteUrl }))
             }
             'MissingLocal' {
-                $findings.Add((New-UploadFinding -RuleId 'Upload.ExtraRemote' -Severity Info -Target $row.RelativePath `
-                            -Message 'In the library but not in the local folder. Left over from an earlier upload, or added by someone else.' `
+                # An error like its mirror image above: the question is whether
+                # the two sides are the same, and they are not.
+                $findings.Add((New-UploadFinding -RuleId 'Upload.MissingLocal' -Severity Error -Target $row.RelativePath `
+                            -Message 'In the library but not in the local folder: deleted here, left over from an earlier upload, or added by someone else.' `
                             -Detail @{ RemoteUrl = $row.RemoteUrl; RemoteSize = $row.RemoteSize }))
             }
             'LocalNewer' {
@@ -1044,6 +1046,13 @@ if ($Mode -in 'Verify', 'Both') {
         'everything arrived'
     }
 
+    # Not a fault of the upload, but the other half of "are the two the same":
+    # said in the heading too, not only in the rows.
+    $extra = [int]$counts['MissingLocal']
+    if ($extra -gt 0) {
+        $verdict += ", $extra file(s) only in SharePoint"
+    }
+
     $summary = [ordered]@{
         'Folder on this computer' = (Resolve-Path -LiteralPath $LocalPath).Path
         'Compared with'           = $scope
@@ -1070,14 +1079,22 @@ Stop-O365Log | Out-Null
 
 $errorCount = @($allFindings | Where-Object Severity -eq 'Error').Count
 $warningCount = @($allFindings | Where-Object Severity -eq 'Warning').Count
+$infoCount = @($allFindings | Where-Object Severity -eq 'Info').Count
 
 Write-Section 'Result'
 
+# Info is counted too: nothing to fix, but it was found, and a result that
+# leaves it out reads as if it had not been.
+$tally = "$errorCount error(s), $warningCount warning(s), $infoCount info"
+
 if ($errorCount -eq 0 -and $warningCount -eq 0) {
     Write-Host '  Nothing to fix.' -ForegroundColor Green
+    if ($infoCount -gt 0) {
+        Write-Host "  $tally" -ForegroundColor Cyan
+    }
 }
 else {
-    Write-Host "  $errorCount error(s), $warningCount warning(s)" -ForegroundColor $(if ($errorCount -gt 0) { 'Red' } else { 'Yellow' })
+    Write-Host "  $tally" -ForegroundColor $(if ($errorCount -gt 0) { 'Red' } else { 'Yellow' })
 }
 
 if ($Mode -eq 'PreFlight') {

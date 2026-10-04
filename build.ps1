@@ -10,6 +10,8 @@
       Test    - run the Pester unit tests (no tenant required)
       Import  - import the module into the current session
       Package - build a hand-out ZIP of the double-click tools into out/
+      Release - Analyze, Test, then tag this commit vX.Y and push the tag,
+                which is what every launcher handed out runs from then on
       All     - Analyze then Test (the default, and what CI effectively does)
 .EXAMPLE
     ./build.ps1
@@ -24,58 +26,51 @@
     added later never appear for this recipient and nothing done to another
     tool reaches them. Omit to ship Office365-Tools.cmd, which offers every
     tool under packaging/.
-.PARAMETER Ref
-    Package only. The branch, tag or commit the launcher fetches from GitHub.
-    Defaults to master, so every push reaches the recipient on their next
-    run. A tag pins them to that version until you send them a new ZIP.
 .PARAMETER ProfileName
     Package only. Bakes this connection profile's details into the packaged
     settings files -- whichever settings each tool's Prefill names -- so the
     recipient is never asked for them. Omit to ship those fields empty.
-.PARAMETER IncludeCode
-    Package only. Put the code in the ZIP as well, for a machine that cannot
-    reach GitHub. Without it the ZIP holds only the launcher, the settings and
-    the read-me, and the launcher fetches the code from GitHub when it runs.
 .EXAMPLE
     ./build.ps1 -Task Package -Tool UploadCheck
     Writes out/Check-Upload.zip: the double-click launcher, its settings file
     and a read-me, for someone who does not use PowerShell. The code itself
-    comes from GitHub when they run it, so it is always current.
+    is the newest vX.Y tag on GitHub when they run it.
 .EXAMPLE
     ./build.ps1 -Task Package -Tool UploadCheck -ProfileName CDS
     Same, with the CDS site and client ID already filled in, so checking that
     an upload arrived works on their machine without them typing anything.
 .EXAMPLE
-    ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
-    Writes out/Check-Upload-<version>-offline.zip, which has everything in it
-    and needs no access to GitHub.
-.EXAMPLE
-    ./build.ps1 -Task Package -Tool UploadCheck -Ref v0.7.0
-    Same, pinned to the v0.7.0 tag: pushes to master no longer reach this
-    recipient. The tag has to be on GitHub.
-.EXAMPLE
     ./build.ps1 -Task Package
     Writes out/Office365-Tools.zip, whose launcher offers every tool under
     packaging/ -- and every tool added there later.
+.PARAMETER Version
+    Release only. The tag to create, as vX.Y. Omit for the next one: the
+    newest release with its minor number raised, v0.9 to v0.10, or v0.1 when
+    there is none. Give it to start a new major version: -Version v1.0.
+.EXAMPLE
+    ./build.ps1 -Task Release
+    Checks the working tree is committed, runs the analyzer and the tests,
+    tags this commit with the next version and pushes the tag. Nothing is
+    tagged if anything fails.
+.EXAMPLE
+    ./build.ps1 -Task Release -Version v1.0
+    Same, as v1.0.
 #>
 [CmdletBinding()]
 param(
     [Parameter()]
-    [ValidateSet('All', 'Analyze', 'Test', 'Import', 'Package')]
+    [ValidateSet('All', 'Analyze', 'Test', 'Import', 'Package', 'Release')]
     [string]$Task = 'All',
 
     [Parameter()]
     [string]$Tool,
 
     [Parameter()]
-    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._/-]*$')]
-    [string]$Ref = 'master',
-
-    [Parameter()]
     [string]$ProfileName,
 
     [Parameter()]
-    [switch]$IncludeCode
+    [ValidatePattern('^v\d+\.\d+$')]
+    [string]$Version
 )
 
 Set-StrictMode -Version Latest
@@ -181,15 +176,10 @@ function Get-ToolSet {
 function Invoke-PackageTask {
     param(
         [string]$Tool,
-        [string]$Ref,
-        [string]$ProfileName,
-        [switch]$IncludeCode
+        [string]$ProfileName
     )
 
     Write-Host '==> Package' -ForegroundColor Cyan
-
-    $manifest = Import-PowerShellDataFile -Path $manifestPath
-    $version = $manifest.ModuleVersion
 
     $allTools = @(Get-ToolSet)
 
@@ -205,8 +195,7 @@ function Invoke-PackageTask {
         $launcherName = 'Office365-Tools.cmd'
     }
 
-    $base = [System.IO.Path]::GetFileNameWithoutExtension($launcherName)
-    $name = if ($IncludeCode) { "$base-$version-offline" } else { $base }
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($launcherName)
     $staging = Join-Path $repoRoot "out/$name"
     $archive = Join-Path $repoRoot "out/$name.zip"
 
@@ -215,21 +204,16 @@ function Invoke-PackageTask {
     }
     New-Item -Path $staging -ItemType Directory -Force | Out-Null
 
-    # -- The launcher, pinned to the tool and the ref -------------------------
-    # Edited as text, on the lines it reserves for this. Kept ASCII with its
+    # -- The launcher, pinned to the tool ------------------------------------
+    # Edited as text, on the line it reserves for this. Kept ASCII with its
     # CRLF endings, which cmd needs.
     $launcherText = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'packaging/Office365-Tools.cmd'))
 
-    $pins = [ordered]@{
-        "`$Tool       = ''"       = "`$Tool       = '$Tool'"
-        "`$Ref        = 'master'" = "`$Ref        = '$Ref'"
+    $line = "`$Tool       = ''"
+    if (([regex]::Matches($launcherText, [regex]::Escape($line))).Count -ne 1) {
+        throw "packaging/Office365-Tools.cmd no longer has exactly one line reading: $line"
     }
-    foreach ($line in $pins.Keys) {
-        if (([regex]::Matches($launcherText, [regex]::Escape($line))).Count -ne 1) {
-            throw "packaging/Office365-Tools.cmd no longer has exactly one line reading: $line"
-        }
-        $launcherText = $launcherText.Replace($line, $pins[$line])
-    }
+    $launcherText = $launcherText.Replace($line, "`$Tool       = '$Tool'")
 
     [System.IO.File]::WriteAllText((Join-Path $staging $launcherName), $launcherText, [System.Text.Encoding]::ASCII)
 
@@ -252,23 +236,6 @@ function Invoke-PackageTask {
     }
 
     Copy-Item -Path (Join-Path $repoRoot 'LICENSE') -Destination $staging -Force
-
-    # -- The code, for a machine that cannot reach GitHub ---------------------
-    # The repository's own layout, so the launcher finds the code beside itself
-    # exactly as it does in a checkout. Only the packaged tools' folders, and
-    # all of scripts/, because an entry script is free to call any of them.
-    if ($IncludeCode) {
-        foreach ($folder in 'packaging', 'scripts', 'src') {
-            New-Item -Path (Join-Path $staging $folder) -ItemType Directory -Force | Out-Null
-        }
-
-        foreach ($entry in $tools) {
-            Copy-Item -Path (Join-Path $repoRoot $entry.Folder) -Destination (Join-Path $staging 'packaging') -Recurse -Force
-        }
-
-        Copy-Item -Path (Join-Path $repoRoot 'scripts/*.ps1') -Destination (Join-Path $staging 'scripts') -Force
-        Copy-Item -Path (Join-Path $repoRoot 'src/Office365Tools') -Destination (Join-Path $staging 'src') -Recurse -Force
-    }
 
     # -- Tenant details -------------------------------------------------------
     # Filling these in here is the difference between a recipient who signs in
@@ -345,44 +312,6 @@ function Invoke-PackageTask {
         }
     }
 
-    # With the code in the ZIP, run each tool: through the entry script the
-    # launcher hands over to, under the same Windows PowerShell, against the
-    # staging folder itself.
-    if ($IncludeCode) {
-        $host51 = Get-Command -Name 'powershell.exe' -ErrorAction SilentlyContinue
-
-        foreach ($settingsName in $settingsFiles.Keys) {
-            $entry = $settingsFiles[$settingsName]
-            $entryPath = Join-Path $staging "$($entry.Folder)/$($entry.Entry)"
-            $selfTestReports = Join-Path ([System.IO.Path]::GetTempPath()) "office365-tools-selftest-$([guid]::NewGuid().ToString('N'))"
-
-            $selfTestArgs = @{
-                SettingsPath = (Join-Path $staging $settingsName)
-                Folder       = $staging
-                ReportFolder = $selfTestReports
-                NoPrompt     = $true
-            }
-
-            if ($host51) {
-                & $host51.Source -NoProfile -ExecutionPolicy Bypass -File $entryPath `
-                    -SettingsPath $selfTestArgs.SettingsPath -Folder $staging -ReportFolder $selfTestReports -NoPrompt | Out-Null
-            }
-            else {
-                Write-Host '    (Windows PowerShell not found; self-testing under this host instead)' -ForegroundColor DarkGray
-                & $entryPath @selfTestArgs | Out-Null
-            }
-            $selfTestExit = $LASTEXITCODE
-
-            Remove-Item -LiteralPath $selfTestReports -Recurse -Force -ErrorAction SilentlyContinue
-
-            # 0 is clean and 1 is "found something in the staging folder",
-            # which is fine. 2 means the package is broken.
-            if ($selfTestExit -gt 1) {
-                throw "$($entry.Title) reported a setup problem (exit $selfTestExit) during the package self-test."
-            }
-        }
-    }
-
     if (Test-Path -LiteralPath $archive) {
         Remove-Item -LiteralPath $archive -Force
     }
@@ -396,20 +325,74 @@ function Invoke-PackageTask {
 
     Write-Host "    $archive ($size KB)" -ForegroundColor Green
     Write-Host "    $(($tools | ForEach-Object { $_.Title }) -join ', ')" -ForegroundColor Gray
-    if (-not $IncludeCode) {
-        Write-Host "    fetches $Ref from GitHub" -ForegroundColor Gray
-    }
     Write-Host '    Send the ZIP, or put it where they can download it. They extract it and' -ForegroundColor Gray
     Write-Host "    double-click $launcherName." -ForegroundColor Gray
-    if (-not $IncludeCode) {
-        Write-Host "    The code comes from GitHub when they run it: push $Ref before you send this." -ForegroundColor Yellow
+    Write-Host '    The code is the newest vX.Y tag on GitHub when they run it: nothing reaches them until it is tagged.' -ForegroundColor Yellow
+}
+
+# A release is a tag named vX.Y on GitHub: the launcher runs the newest one
+# and nothing else. So this is the whole of releasing -- check, tag, push the
+# tag -- and the order matters: nothing is tagged unless everything passed.
+function Invoke-ReleaseTask {
+    param(
+        [string]$Version
+    )
+
+    Write-Host '==> Release' -ForegroundColor Cyan
+
+    # What is tagged is the commit, not the working tree. With changes lying
+    # about, the checks below would pass or fail on something else.
+    if (git -C $repoRoot status --porcelain) {
+        throw 'There are uncommitted changes. A release is a commit: commit them first.'
     }
+
+    git -C $repoRoot fetch --tags --quiet
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not fetch the tags from GitHub, so the next version is unknown.'
+    }
+
+    # The launcher's rule: vX.Y exactly, newest by number.
+    $newest = git -C $repoRoot tag --list |
+        Where-Object { $_ -cmatch '^v\d+\.\d+$' } |
+        Sort-Object { [version]$_.Substring(1) } |
+        Select-Object -Last 1
+
+    if (-not $Version) {
+        $Version = 'v0.1'
+        if ($newest) {
+            $number = [version]$newest.Substring(1)
+            $Version = "v$($number.Major).$($number.Minor + 1)"
+        }
+    }
+    elseif ($newest -and [version]$Version.Substring(1) -le [version]$newest.Substring(1)) {
+        throw "$Version is not newer than $newest, so no launcher would run it."
+    }
+
+    Write-Host "    $Version, after $(if ($newest) { $newest } else { 'no release yet' })" -ForegroundColor Gray
+
+    Invoke-AnalyzeTask
+    Invoke-TestTask
+
+    git -C $repoRoot tag $Version
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not create the tag $Version."
+    }
+
+    # The tag alone: it takes its commit with it, whatever branch that is on.
+    git -C $repoRoot push --quiet origin $Version
+    if ($LASTEXITCODE -ne 0) {
+        git -C $repoRoot tag --delete $Version | Out-Null
+        throw "Could not push $Version to GitHub; the tag was removed again, so nothing is released."
+    }
+
+    Write-Host "    $Version is released: every launcher runs it from its next start." -ForegroundColor Green
 }
 
 switch ($Task) {
     'Analyze' { Invoke-AnalyzeTask }
     'Test' { Invoke-TestTask }
     'Import' { Invoke-ImportTask }
-    'Package' { Invoke-PackageTask -Tool $Tool -Ref $Ref -ProfileName $ProfileName -IncludeCode:$IncludeCode }
+    'Package' { Invoke-PackageTask -Tool $Tool -ProfileName $ProfileName }
+    'Release' { Invoke-ReleaseTask -Version $Version }
     'All' { Invoke-AnalyzeTask; Invoke-TestTask }
 }

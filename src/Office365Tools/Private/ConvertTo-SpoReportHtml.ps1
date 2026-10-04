@@ -141,16 +141,16 @@ td.num { text-align: right; white-space: nowrap; }
 td.date { white-space: nowrap; }
 th.side { text-align: center; }
 .st-Match { background: #def7ec; color: #03543f; border-color: #31c48d; }
-.st-MissingRemote { background: #fde8e8; color: #9b1c1c; border-color: #f05252; }
-.st-MissingLocal, .st-RemoteNewer { background: #e1effe; color: #1e429f; border-color: #3f83f8; }
+.st-MissingRemote, .st-MissingLocal { background: #fde8e8; color: #9b1c1c; border-color: #f05252; }
+.st-RemoteNewer { background: #e1effe; color: #1e429f; border-color: #3f83f8; }
 .st-LocalNewer, .st-SizeDiffers { background: #fdf6b2; color: #8e4b10; border-color: #e3a008; }
 .toggle.st-Match, .toggle.st-MissingRemote, .toggle.st-MissingLocal,
 .toggle.st-RemoteNewer, .toggle.st-LocalNewer, .toggle.st-SizeDiffers { background: transparent; color: inherit; }
 @media (prefers-color-scheme: dark) {
   .hint { color: #999; }
   .st-Match { background: #0f3d2b; color: #84e1bc; }
-  .st-MissingRemote { background: #4a1010; color: #f8b4b4; }
-  .st-MissingLocal, .st-RemoteNewer { background: #102a4a; color: #a4cafe; }
+  .st-MissingRemote, .st-MissingLocal { background: #4a1010; color: #f8b4b4; }
+  .st-RemoteNewer { background: #102a4a; color: #a4cafe; }
   .st-LocalNewer, .st-SizeDiffers { background: #4a3810; color: #fce96a; }
 }
 '@

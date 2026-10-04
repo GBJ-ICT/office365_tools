@@ -48,23 +48,21 @@ exit /b %RESULT%
 # ===========================================================================
 
 # Which tool this launcher runs: the name of its folder under packaging\.
-# Empty: every tool there -- straight into it when there is one, a menu when
-# there are several. A ZIP built for one tool has that tool's name here,
-# written in by build.ps1 -Task Package -Tool <name>, which looks for this
-# exact line.
+# Empty: a menu of every tool there. A ZIP built for one tool has that tool's
+# name here and goes straight into it; build.ps1 -Task Package -Tool <name>
+# writes it in, and looks for this exact line.
 $Tool       = ''
 
-# Where the tools come from. $Ref is a branch, a tag or a commit. A branch
-# means every push reaches everyone the next time they run this -- convenient,
-# and exactly as trustworthy as everyone who can push to it. A tag or a
-# commit pins it; build.ps1 -Task Package -Ref <tag> writes it in, on this
-# exact line.
+# Where the tools come from. A release is a tag named vX.Y -- v1.4, not
+# v1.4.2, not a branch -- and the newest one is what runs. Nothing else is
+# ever downloaded, so a push reaches nobody until it is tagged.
 $Repository = 'GBJ-ICT/office365_tools'
-$Ref        = 'master'
 
-# Every folder in here with a tool.psd1 in it is a tool.
-$ToolFolder = 'packaging'
-$Reports    = 'Reports'
+# This file is handed out and never changes on anyone's machine, so it only
+# fetches the newest release and hands over to packaging\Start-Tool.ps1 in
+# it. It does the same wherever it is started from: code that happens to be
+# beside it is not used. Everything after the hand-over -- the menu, the
+# settings, starting the tool -- arrives with the release.
 
 $ErrorActionPreference = 'Stop'
 
@@ -75,7 +73,6 @@ $ProgressPreference = 'SilentlyContinue'
 $SETUP_PROBLEM = 2
 
 $launcher = $env:LAUNCHER_PATH
-$here = Split-Path -Parent $launcher
 
 function Write-Problem {
     param(
@@ -92,347 +89,105 @@ function Write-Problem {
     Write-Host ''
 }
 
-# A copy of the code next to this file wins over fetching one: this file at the
-# top of an offline package, or in packaging\ of a checkout or of a ZIP
-# downloaded from GitHub by hand. Both pieces must be there -- a folder that
-# happens to hold one of them is not a copy.
-function Find-LocalCopy {
-    foreach ($candidate in @($here, (Split-Path -Parent $here))) {
-        if (-not $candidate) { continue }
-
-        $hasTools  = Test-Path -LiteralPath (Join-Path $candidate $ToolFolder) -PathType Container
-        $hasModule = Test-Path -LiteralPath (Join-Path $candidate 'src\Office365Tools\Office365Tools.psd1')
-
-        if ($hasTools -and $hasModule) { return $candidate }
-    }
-
-    return $null
-}
-
-# Fetches the repository as GitHub's ZIP of $Ref and unpacks it into the
-# user's AppData. Fetched fresh every run -- it is a few hundred KB -- so a fix
-# reaches people without anyone sending anything. The previous copy is kept
-# until the new one is in place, and used when GitHub cannot be reached.
-#
-# Each tool gets a copy of its own: %LOCALAPPDATA%\office365_tools\<tool>\<ref>.
-# A tool is fetched, checked and fallen back on by itself, so a push that
-# breaks or removes one tool leaves the others running from their own copies,
-# and one tool never swaps out a copy another tool is running from. Within a
-# tool, one copy per ref: two launchers pinned to different versions would
-# otherwise replace each other's copy on every run.
-function Get-RemoteCopy {
-    $url    = "https://github.com/$Repository/archive/$Ref.zip"
-    $source = "$Repository@$Ref"
-    $key    = $Ref -replace '[^A-Za-z0-9._-]', '_'
-
-    # What a download must contain to be any use to this launcher. A launcher
-    # with no tool of its own shares one copy across all of them; tool names
-    # start with a letter, so _all is never one of them.
-    if ($Tool) {
-        $owner    = $Tool
-        $required = Join-Path (Join-Path $ToolFolder $Tool) 'tool.psd1'
-    }
-    else {
-        $owner    = '_all'
-        $required = $ToolFolder
-    }
-
-    # For trying a build before it is pushed: a path to a ZIP laid out the way
-    # GitHub lays them out, or another URL. Kept apart from every real ref.
-    if ($env:OFFICE365TOOLS_ARCHIVE) {
-        $url = $env:OFFICE365TOOLS_ARCHIVE
-        $source = $url
-
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        $hash = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($url))
-        $key = 'custom-' + ([System.BitConverter]::ToString($hash, 0, 4) -replace '-', '').ToLower()
-    }
-
-    $cache   = Join-Path (Join-Path $env:LOCALAPPDATA 'office365_tools') $owner
-    $current = Join-Path $cache $key
-    $marker  = Join-Path $cache "$key.source"
-
-    $stamp    = [guid]::NewGuid().ToString('N').Substring(0, 8)
-    $zip      = Join-Path $cache "download-$stamp.zip"
-    $unpacked = Join-Path $cache "unpacked-$stamp"
-    $retired  = Join-Path $cache "retired-$stamp"
-
-    $from = "GitHub ($Repository, $Ref)"
-    if ($env:OFFICE365TOOLS_ARCHIVE) { $from = "$url (OFFICE365TOOLS_ARCHIVE)" }
-
-    Write-Host ''
-    Write-Host "  Fetching the tools from $from..." -ForegroundColor Gray
-
-    # Decided inside, reported after: the leftovers are cleared away before
-    # anything is shown, so a window closed on the message leaves none.
-    $result = $null
-    $reason = $null
-    $downloaded = $false
-
-    try {
-        New-Item -Path $cache -ItemType Directory -Force | Out-Null
-
-        if (Test-Path -LiteralPath $url) {
-            Copy-Item -LiteralPath $url -Destination $zip
-        }
-        else {
-            # GitHub accepts nothing older than TLS 1.2, which Windows
-            # PowerShell does not offer unless asked. A company proxy that
-            # wants a sign-in gets the one the user is already signed in with.
-            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-            try { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials } catch { Write-Verbose $_ }
-
-            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-        }
-
-        $downloaded = $true
-
-        Expand-Archive -LiteralPath $zip -DestinationPath $unpacked -Force
-
-        # GitHub wraps everything in one folder named after the repository and
-        # the ref -- and drops a leading v from a tag -- so it is found rather
-        # than predicted.
-        $top = @(Get-ChildItem -LiteralPath $unpacked -Directory)
-        if ($top.Count -ne 1 -or -not (Test-Path -LiteralPath (Join-Path $top[0].FullName $required))) {
-            throw "what was downloaded does not contain $required"
-        }
-
-        # Renamed out of the way rather than deleted, so a copy that is in use
-        # makes this fail cleanly -- and the copy is still there to fall back to.
-        if (Test-Path -LiteralPath $current) {
-            Move-Item -LiteralPath $current -Destination $retired
-        }
-        Move-Item -LiteralPath $top[0].FullName -Destination $current
-        Set-Content -LiteralPath $marker -Value $source -Encoding ASCII
-
-        $result = $current
-    }
-    catch {
-        $reason = $_.Exception.Message
-
-        # Failed between moving the old copy aside and moving the new one in:
-        # put the old one back before deciding whether there is one.
-        if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $retired)) {
-            Move-Item -LiteralPath $retired -Destination $current -ErrorAction SilentlyContinue
-        }
-
-        $cached = (Test-Path -LiteralPath $marker) -and
-            ((Get-Content -LiteralPath $marker -TotalCount 1) -eq $source) -and
-            (Test-Path -LiteralPath (Join-Path $current $required))
-
-        if ($cached) {
-            $when = (Get-Item -LiteralPath $marker).LastWriteTime.ToString('yyyy-MM-dd HH:mm')
-            Write-Host "  That did not work, so this uses the copy fetched $when." -ForegroundColor Yellow
-            Write-Host "  ($reason)" -ForegroundColor DarkGray
-            $result = $current
-        }
-    }
-    finally {
-        foreach ($leftover in @($zip, $unpacked, $retired)) {
-            if (Test-Path -LiteralPath $leftover) {
-                Remove-Item -LiteralPath $leftover -Recurse -Force -ErrorAction SilentlyContinue
-            }
-        }
-    }
-
-    if ($result) {
-        return $result
-    }
-
-    # Reached GitHub and got something, just not something this launcher can
-    # use: the launcher is newer than what is published there, or older.
-    # Telling someone to check their internet connection would send them the
-    # wrong way.
-    if ($downloaded) {
-        Write-Problem -Title 'What was downloaded is not something this launcher can run.' -Detail @(
-            $reason,
-            '',
-            'It came from',
-            "    $url",
-            '',
-            'This launcher and the version published there do not fit together.',
-            'Show this window to whoever sent you this file.')
-        exit $SETUP_PROBLEM
-    }
-
-    Write-Problem -Title 'The tools could not be fetched.' -Detail @(
-        $reason,
-        '',
-        'They are downloaded from GitHub when this runs, and this computer',
-        'could not get them from',
-        "    $url",
-        '',
-        'Check that you are online and run this again. If your organisation',
-        'blocks GitHub, ask whoever sent you this file for the offline',
-        'package, which has everything in it.')
-    exit $SETUP_PROBLEM
-}
-
-# A tool.psd1 is read as data -- the way Import-PowerShellDataFile reads one,
-# which a Windows PowerShell started from PowerShell 7 can fail to find. Plain
-# values only; anything that would have to run to produce a value is refused.
-function Read-Tool {
+# The newest of the names that are releases: vX.Y exactly, compared as
+# numbers, so v0.10 is newer than v0.9. Nothing if none of them is one.
+function Select-Release {
     param(
-        [string]$Folder
+        [string[]]$Name
     )
 
-    $name = Split-Path -Leaf $Folder
-    $path = Join-Path $Folder 'tool.psd1'
-    $shown = "$ToolFolder\$name\tool.psd1"
-
-    $parseErrors = $null
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$parseErrors)
-    if ($parseErrors) {
-        throw "$shown does not parse: $($parseErrors[0].Message)"
-    }
-
-    $table = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.HashtableAst] }, $false)
-    if (-not $table) {
-        throw "$shown describes no tool"
-    }
-
-    $entry = $table.SafeGetValue()
-    foreach ($field in 'Title', 'Entry', 'Settings') {
-        if (-not $entry[$field]) {
-            throw "$shown has no $field"
-        }
-    }
-
-    $entry.Name = $name
-    $entry.Folder = $Folder
-    return $entry
-}
-
-# A launcher pinned to one tool reads that tool's folder and no other, so a
-# mistake in another tool's tool.psd1 cannot stop it.
-function Get-ToolSet {
-    param(
-        [string]$Root
-    )
-
-    $folder = Join-Path $Root $ToolFolder
-
-    if ($Tool) {
-        $folders = @(Join-Path $folder $Tool)
-    }
-    else {
-        $folders = @(Get-ChildItem -LiteralPath $folder -Directory | Sort-Object Name | ForEach-Object { $_.FullName })
-    }
-
-    $tools = @()
-    foreach ($candidate in $folders) {
-        if (Test-Path -LiteralPath (Join-Path $candidate 'tool.psd1')) {
-            $tools += Read-Tool -Folder $candidate
-        }
-    }
-
-    return $tools
-}
-
-function Select-Tool {
-    param(
-        [object[]]$Tools
-    )
-
-    if ($Tool) {
-        foreach ($entry in $Tools) {
-            if ($entry.Name -eq $Tool) { return $entry }
-        }
-
-        Write-Problem -Title "This launcher runs '$Tool', and the copy it found does not have that." -Detail @(
-            "There is no $ToolFolder\$Tool\tool.psd1 in",
-            "    $root",
-            '',
-            'Show this window to whoever sent you this file.')
-        exit $SETUP_PROBLEM
-    }
-
-    if ($Tools.Count -eq 0) {
-        Write-Problem -Title "There are no tools in $ToolFolder\, so there is nothing to run." -Detail @(
-            'Show this window to whoever sent you this file.')
-        exit $SETUP_PROBLEM
-    }
-
-    if ($Tools.Count -eq 1) {
-        return $Tools[0]
-    }
-
-    Write-Host ''
-    Write-Host '  What would you like to do?' -ForegroundColor Cyan
-    for ($i = 0; $i -lt $Tools.Count; $i++) {
-        Write-Host ('    {0}) {1}' -f ($i + 1), $Tools[$i].Title)
-        if ($Tools[$i].Description) {
-            Write-Host "       $($Tools[$i].Description)" -ForegroundColor Gray
-        }
-    }
-
-    $choice = 0
-    while ($choice -lt 1 -or $choice -gt $Tools.Count) {
-        Write-Host ''
-        $answer = "$(Read-Host '  Number [1]')".Trim()
-        if (-not $answer) { $answer = '1' }
-        $choice = 0
-        [void][int]::TryParse($answer, [ref]$choice)
-    }
-
-    return $Tools[$choice - 1]
+    $Name | Where-Object { $_ -cmatch '^v\d+\.\d+$' } | Sort-Object { [version]$_.Substring(1) } | Select-Object -Last 1
 }
 
 try {
     # Explorer runs a file double-clicked inside a ZIP from a temporary copy,
     # alone: no settings beside it, and reports written where nobody finds
     # them. It names that folder after the ZIP, which is what gives it away.
-    if ($here -match '\\Temp\d*_[^\\]*\.zip(\\|$)') {
+    if ((Split-Path -Parent $launcher) -match '\\Temp\d*_[^\\]*\.zip(\\|$)') {
         Write-Problem -Title 'This was opened straight from the ZIP.' -Detail @(
             'Extract the ZIP first: right-click it, choose "Extract All...", and',
             "run $(Split-Path -Leaf $launcher) from the folder that creates.")
         exit $SETUP_PROBLEM
     }
 
-    $root = Find-LocalCopy
-    if (-not $root) {
-        $root = Get-RemoteCopy
+    # One folder per release, in the user's AppData. A tag does not change,
+    # so a release that is already there is never fetched again.
+    $cache = Join-Path $env:LOCALAPPDATA 'office365_tools'
+    $reason = $null
+
+    try {
+        # GitHub accepts nothing older than TLS 1.2, which Windows PowerShell
+        # does not offer unless asked. A company proxy that wants a sign-in
+        # gets the one the user is already signed in with.
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        try { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials } catch { Write-Verbose $_ }
+
+        $tags = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/tags?per_page=100" -UseBasicParsing
+        $newest = Select-Release -Name @($tags | ForEach-Object { $_.name })
+        if (-not $newest) {
+            throw "$Repository has no release: no tag named vX.Y"
+        }
+
+        $target = Join-Path $cache $newest
+        if (-not (Test-Path -LiteralPath $target)) {
+            Write-Host ''
+            Write-Host "  Fetching $newest from GitHub ($Repository)..." -ForegroundColor Gray
+
+            $zip = "$target.zip"
+            $unpacked = "$target.unpacked"
+            New-Item -Path $cache -ItemType Directory -Force | Out-Null
+
+            Invoke-WebRequest -Uri "https://github.com/$Repository/archive/refs/tags/$newest.zip" -OutFile $zip -UseBasicParsing
+            Expand-Archive -LiteralPath $zip -DestinationPath $unpacked -Force
+
+            # GitHub wraps everything in one folder. It gets the release's
+            # name only once it is complete, so a folder with that name is
+            # always a whole release.
+            $top = Get-ChildItem -LiteralPath $unpacked -Directory | Select-Object -First 1
+            Move-Item -LiteralPath $top.FullName -Destination $target
+
+            Remove-Item -LiteralPath $zip, $unpacked -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    catch {
+        $reason = $_.Exception.Message
     }
 
-    $chosen = Select-Tool -Tools @(Get-ToolSet -Root $root)
+    # Whatever happened above, run the newest release this computer has.
+    $have = $null
+    if (Test-Path -LiteralPath $cache) {
+        $have = Select-Release -Name @(Get-ChildItem -LiteralPath $cache -Directory | ForEach-Object { $_.Name })
+    }
 
-    # Read with a pattern rather than Import-PowerShellDataFile, for the same
-    # reason tool.psd1 is.
-    $manifest = Join-Path $root 'src\Office365Tools\Office365Tools.psd1'
-    $version = ''
-    $line = Select-String -LiteralPath $manifest -Pattern "ModuleVersion\s*=\s*.([0-9.]+)" | Select-Object -First 1
-    if ($line) { $version = $line.Matches[0].Groups[1].Value }
+    if (-not $have) {
+        Write-Problem -Title 'The tools could not be fetched.' -Detail @(
+            $reason,
+            '',
+            'They are downloaded from GitHub, and this computer could not get them.',
+            'Check that you are online and run this again. If that does not help,',
+            'show this window to whoever sent you this file.')
+        exit $SETUP_PROBLEM
+    }
 
-    try { $Host.UI.RawUI.WindowTitle = $chosen.Title } catch { Write-Verbose $_ }
-
-    Write-Host ''
-    Write-Host "  $($chosen.Title) $version" -ForegroundColor Cyan
-    Write-Host "  from $root" -ForegroundColor DarkGray
-
-    $entryPath = Join-Path $chosen.Folder $chosen.Entry
-
-    # The settings live beside this file, where the person running it can find
-    # them, and survive the code being fetched afresh. The first run puts the
-    # template there.
-    $settingsName = Split-Path -Leaf $chosen.Settings
-    $settingsPath = Join-Path $here $settingsName
-    if (-not (Test-Path -LiteralPath $settingsPath)) {
-        Copy-Item -LiteralPath (Join-Path $chosen.Folder $chosen.Settings) -Destination $settingsPath
+    if ($reason) {
         Write-Host ''
-        Write-Host "  Created $settingsName beside $(Split-Path -Leaf $launcher). Your settings go in there;" -ForegroundColor Cyan
-        Write-Host '  open it in Notepad to fill them in. Until then, you are asked.' -ForegroundColor Cyan
+        Write-Host "  Could not look for a newer release, so this uses $have." -ForegroundColor Yellow
+        Write-Host "  ($reason)" -ForegroundColor DarkGray
     }
 
-    $arguments = @{
-        SettingsPath = $settingsPath
-        ReportFolder = (Join-Path $here $Reports)
+    # What is passed here is what Start-Tool.ps1 has to accept from every copy
+    # of this file already handed out: add, never rename or remove.
+    $root = Join-Path $cache $have
+    $start = Join-Path $root 'packaging\Start-Tool.ps1'
+    if (-not (Test-Path -LiteralPath $start)) {
+        Write-Problem -Title "Release $have is not something this launcher can run." -Detail @(
+            'It has no packaging\Start-Tool.ps1.',
+            '',
+            'Show this window to whoever sent you this file.')
+        exit $SETUP_PROBLEM
     }
 
-    if ($env:LAUNCHER_DROPPED) {
-        $arguments.Folder = $env:LAUNCHER_DROPPED
-    }
-
-    & $entryPath @arguments
+    & $start -Root $root -LauncherPath $launcher -Tool $Tool -Dropped "$env:LAUNCHER_DROPPED"
     exit $LASTEXITCODE
 }
 catch {

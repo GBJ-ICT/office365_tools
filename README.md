@@ -412,24 +412,31 @@ READ-ME-FIRST.txt    a page of plain language, no jargon
 LICENSE
 ```
 
-The code is not in it. `Check-Upload.cmd` fetches this repository from GitHub
-each time it runs — `github.com/GBJ-ICT/office365_tools/archive/master.zip`,
-a few hundred KB, unpacked into
-`%LOCALAPPDATA%\office365_tools\UploadCheck\master` — and hands over to the
-tool. A fix therefore reaches everyone the next time they run it, without
-anything being sent; when GitHub cannot be reached, the copy fetched last time
-is used. Two consequences:
+The code is not in it. Each time it runs, `Check-Upload.cmd` asks GitHub for
+this repository's tags and runs the newest **release**: a tag named `vX.Y` —
+`v1.4`, not `v1.4.2`, not a branch. A release it does not have yet is
+downloaded once, a few hundred KB, into `%LOCALAPPDATA%\office365_tools\vX.Y`;
+when GitHub cannot be reached, the newest release already there is used.
 
-- **Push before you send.** What the recipient runs is what is on GitHub, not
-  what is in your working tree.
-- **Whoever can push to `master` ships code to every machine that runs the
-  launcher.** To pin it instead, build with `-Ref` and a tag or a commit:
-  `-Tool UploadCheck -Ref v0.7.0`. Each ref gets its own folder in the cache,
-  so launchers pinned to different versions never replace each other's copy.
+So releasing is tagging, and nothing else reaches anyone:
+
+```bash
+pwsh ./build.ps1 -Task Release
+```
+
+That runs the analyzer and the tests, tags the commit with the next version
+— `v0.8` after `v0.7`; `-Version v1.0` to choose — and pushes the tag.
+
+- **A push ships nothing.** What the recipient runs is the newest `vX.Y` tag
+  on GitHub, not `master` and not your working tree.
+- **A tag is final.** A release already downloaded is never fetched again, so
+  moving a tag changes nothing for those who have it. Fix forward: tag `v0.9`.
+- **The launcher does the same wherever it is started**, a checkout included:
+  code that happens to be beside it is not used.
 
 Settings stay beside the launcher, and reports go into `Reports\` beside it —
-never inside the fetched copy, which is replaced on every run. A launcher with
-no settings beside it puts the template there on its first run.
+never inside the downloaded release. A launcher with no settings beside it
+puts the template there on its first run.
 
 The launcher is a batch file and a PowerShell script in one. Its first line is
 a label to cmd and opens a comment to PowerShell, so cmd runs the dozen batch
@@ -438,16 +445,10 @@ PowerShell skips them. Windows only lets you double-click a batch file; this
 is how a double-click runs PowerShell, with no second file, no execution
 policy change and no shortcut that breaks when the folder moves.
 
-For a machine that cannot reach GitHub, put the code in the ZIP:
-
-```bash
-pwsh ./build.ps1 -Task Package -Tool UploadCheck -IncludeCode
-```
-
-`out/Check-Upload-<version>-offline.zip` adds `packaging/UploadCheck/`,
-`scripts/` and `src/` in the repository's own layout. The launcher finds them beside itself
-and fetches nothing — as it does in a checkout, or in a ZIP downloaded from
-GitHub by hand, where `packaging/Office365-Tools.cmd` runs the code around it.
+The launcher itself only fetches the release and hands over to
+`packaging/Start-Tool.ps1` in it, which shows the menu and starts the tool. A
+launcher handed out never changes; `Start-Tool.ps1` arrives with every
+release, so changes to the menu reach everyone with the next tag.
 
 #### More than one tool
 
@@ -460,13 +461,11 @@ says what goes in it.
 - `-Tool <Name>` builds a ZIP for that tool alone. Its launcher is renamed
   (`Check-Upload.cmd`) and pinned to it — `$Tool` at the top is set — so it
   goes straight into that tool and never shows the others, including ones
-  added later. It keeps its own copy of the code, in
-  `%LOCALAPPDATA%\office365_tools\<tool>\<ref>`, and reads only its own
-  folder: nothing pushed for another tool can stop it, and `-Ref` pins each
-  tool to its own version.
+  added later. It reads only its own folder, so a mistake in another tool's
+  `tool.psd1` cannot stop it.
 - Without `-Tool`, the ZIP holds `Office365-Tools.cmd` and every tool's
-  settings and read-me. It goes straight into the tool when there is one,
-  and shows a menu when there are several.
+  settings and read-me. It opens a window with a button per tool, even when
+  there is only one.
 
 #### What the upload checker asks
 
@@ -509,8 +508,7 @@ PowerShell 5.1, which every Windows machine already has, so they are able to
 
 Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem. Before zipping,
 the packaging task checks the launcher — CRLF line endings, which cmd needs;
-that it parses; that the settings load — and with `-IncludeCode` runs each
-packaged tool against the package itself, so a broken package fails on your
+that it parses; that the settings load — so a broken package fails on your
 machine rather than theirs.
 
 ## Command reference

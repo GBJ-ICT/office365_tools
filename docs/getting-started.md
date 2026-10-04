@@ -358,8 +358,8 @@ part that depends on nothing:
 That writes `out/Check-Upload.zip` -- a `Check-Upload.cmd` the recipient
 double-clicks or drags a folder onto, an `upload-check.xml` holding the
 arguments so nobody has to type any, and a plain-language read-me. The
-launcher fetches the checker itself from GitHub when it runs, so push before
-you send; `-IncludeCode` builds an offline ZIP with everything in it instead.
+launcher fetches the checker itself from GitHub when it runs -- the newest tag
+named `vX.Y` -- so tag a release before you send.
 PowerShell 7 is the only prerequisite for the pre-flight phase; PnP.PowerShell
 is not needed, because nothing in it connects to anything.
 
