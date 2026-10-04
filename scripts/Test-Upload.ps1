@@ -974,7 +974,7 @@ if ($Mode -in 'Verify', 'Both') {
     $categories = @(
         @{ Status = 'Match'; Symbol = '= '; Label = 'Synchronised'; Colour = 'Green' }
         @{ Status = 'MissingRemote'; Symbol = '->'; Label = 'Missing in SharePoint'; Colour = 'Red' }
-        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Cyan' }
+        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Red' }
     )
     if ($CompareDate) {
         $categories += @{ Status = 'LocalNewer'; Symbol = '->'; Label = 'Newer on this computer'; Colour = 'Yellow' }
@@ -1007,8 +1007,10 @@ if ($Mode -in 'Verify', 'Both') {
                             -Detail @{ LocalSize = $row.LocalSize; RemoteSize = $row.RemoteSize; RemoteUrl = $row.RemoteUrl }))
             }
             'MissingLocal' {
-                $findings.Add((New-UploadFinding -RuleId 'Upload.ExtraRemote' -Severity Info -Target $row.RelativePath `
-                            -Message 'In the library but not in the local folder. Left over from an earlier upload, or added by someone else.' `
+                # An error like its mirror image above: the question is whether
+                # the two sides are the same, and they are not.
+                $findings.Add((New-UploadFinding -RuleId 'Upload.MissingLocal' -Severity Error -Target $row.RelativePath `
+                            -Message 'In the library but not in the local folder: deleted here, left over from an earlier upload, or added by someone else.' `
                             -Detail @{ RemoteUrl = $row.RemoteUrl; RemoteSize = $row.RemoteSize }))
             }
             'LocalNewer' {
