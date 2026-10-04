@@ -468,14 +468,12 @@ function Select-Tool {
 try {
     $chosen = Select-Tool -Tools @(Get-ToolSet -Pinned $Tool) -Pinned $Tool
 
-    # Read with a pattern rather than Import-PowerShellDataFile, for the same
-    # reason tool.psd1 is.
-    $manifest = Join-Path $Root 'src\Office365Tools\Office365Tools.psd1'
-    $version = ''
-    $line = Select-String -LiteralPath $manifest -Pattern "ModuleVersion\s*=\s*.([0-9.]+)" | Select-Object -First 1
-    if ($line) { $version = $line.Matches[0].Groups[1].Value }
+    # The launcher keeps each release in a folder named for its tag, so that
+    # name is the version. A checkout is not a release and has none.
+    $version = Split-Path -Leaf $Root
+    if ($version -cnotmatch '^v\d+\.\d+$') { $version = '(not a release)' }
 
-    try { $Host.UI.RawUI.WindowTitle = $chosen.Title } catch { Write-Verbose $_ }
+    try { $Host.UI.RawUI.WindowTitle = "$($chosen.Title) $version" } catch { Write-Verbose $_ }
 
     Write-Host ''
     Write-Host "  $($chosen.Title) $version" -ForegroundColor Cyan
