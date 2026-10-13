@@ -357,3 +357,69 @@ function Format-O365String {
 
     return ($text -f $FormatArguments)
 }
+
+function Get-O365LanguageLine {
+    <#
+    .SYNOPSIS
+        Internal: the line that says which language is in use, and how to change it.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Table,
+
+        [Parameter(Mandatory)]
+        [string]$Language
+    )
+
+    # The names are written in their own language in both tables, and the hint
+    # after them is in both languages, so someone who cannot read the language
+    # in use can still find the key.
+    $name = Format-O365String -Table $Table -Key 'Language.Name.en'
+    if ($Language -eq 'de') {
+        $name = Format-O365String -Table $Table -Key 'Language.Name.de'
+    }
+
+    return (Format-O365String -Table $Table -Key 'Language.Picker.Line' -FormatArguments $name)
+}
+
+function Read-O365LanguageChoice {
+    <#
+    .SYNOPSIS
+        Internal: asks which language, and remembers the answer.
+    .DESCRIPTION
+        Shows English, Deutsch and Follow Windows, and reads a number. Enter or
+        anything else keeps things as they are and returns nothing. Otherwise the
+        choice is written to the saved setting, shared by every tool, and
+        returned with whether it could be saved. A choice that could not be saved
+        is still the caller's to apply for the rest of the run.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Table,
+
+        [Parameter()]
+        [string]$Path = (Get-O365SettingsPath)
+    )
+
+    Write-Host ''
+    Write-Host ('  ' + (Format-O365String -Table $Table -Key 'Language.Picker.Title')) -ForegroundColor Cyan
+    Write-Host (Format-O365String -Table $Table -Key 'Language.Picker.Option1')
+    Write-Host (Format-O365String -Table $Table -Key 'Language.Picker.Option2')
+    Write-Host (Format-O365String -Table $Table -Key 'Language.Picker.Option3')
+    Write-Host ''
+
+    $answer = "$(Read-Host ('  ' + (Format-O365String -Table $Table -Key 'Language.Picker.Prompt')))".Trim()
+    $choice = @{ '1' = 'en'; '2' = 'de'; '3' = 'auto' }[$answer]
+
+    if (-not $choice) {
+        return $null
+    }
+
+    $saved = Write-O365Setting -Name 'language' -Value $choice -Path $Path
+
+    return [pscustomobject]@{ Choice = $choice; Saved = $saved }
+}
