@@ -16,11 +16,11 @@
 
 BeforeAll {
     $script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-    $script:SharedFile = Join-Path $script:RepoRoot 'src/Office365Tools/Private/Shared/Language.ps1'
-    $script:Resources  = Join-Path $script:RepoRoot 'src/Office365Tools/Resources'
+    $script:SharedFiles = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'src/Office365Tools/Private/Shared') -Filter '*.ps1' -File)
+    $script:Resources   = Join-Path $script:RepoRoot 'src/Office365Tools/Resources'
 
-    # The shared loader, as the launcher uses it: dot-sourced, no module.
-    . $script:SharedFile
+    # The shared files, as the launcher uses them: dot-sourced, no module.
+    foreach ($file in $script:SharedFiles) { . $file.FullName }
 
     Import-Module (Join-Path $script:RepoRoot 'src/Office365Tools/Office365Tools.psd1') -Force
 
@@ -40,61 +40,93 @@ BeforeAll {
         Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'src'), (Join-Path $script:RepoRoot 'scripts'), (Join-Path $script:RepoRoot 'packaging') `
             -Filter '*.ps1' -Recurse -File)
 
-    $script:EnglishStrings = Import-PowerShellDataFile -LiteralPath (Join-Path $script:Resources 'en/Strings.psd1')
-    $script:GermanStrings  = Import-PowerShellDataFile -LiteralPath (Join-Path $script:Resources 'de/Strings.psd1')
+    # Every folder of string tables: the module's, and one per packaged tool.
+    $roots = @($script:Resources) + @(
+        Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'packaging') -Directory |
+            ForEach-Object { Join-Path $_.FullName 'Resources' } |
+            Where-Object { Test-Path -LiteralPath $_ })
+
+    $script:Tables = @($roots | ForEach-Object {
+            [pscustomobject]@{
+                Name    = $_.Substring($script:RepoRoot.Length + 1)
+                Root    = $_
+                English = Import-PowerShellDataFile -LiteralPath (Join-Path $_ 'en/Strings.psd1')
+                German  = Import-PowerShellDataFile -LiteralPath (Join-Path $_ 'de/Strings.psd1')
+            }
+        })
+
+    # What a key may be looked up in: English, all folders together.
+    $script:EnglishStrings = @{}
+    foreach ($table in $script:Tables) {
+        foreach ($key in $table.English.Keys) { $script:EnglishStrings[$key] = $table.English[$key] }
+    }
 }
 
 AfterAll {
     Remove-Module Office365Tools -Force -ErrorAction SilentlyContinue
 }
 
-Describe 'The shared loader file' {
+Describe 'The shared files' {
 
-    It 'is plain ASCII, because Windows PowerShell 5.1 reads a file without a BOM as ANSI' {
-        $bytes = [System.IO.File]::ReadAllBytes($script:SharedFile)
+    # Language.ps1 and ClientId.ps1 are dot-sourced by the module and by the
+    # double-click launcher, which runs under Windows PowerShell 5.1. Whatever is
+    # in this folder is held to the same two rules.
 
-        @($bytes | Where-Object { $_ -gt 127 }).Count | Should -Be 0
+    It 'are plain ASCII, because Windows PowerShell 5.1 reads a file without a BOM as ANSI' {
+        $bad = foreach ($file in $script:SharedFiles) {
+            if (@([System.IO.File]::ReadAllBytes($file.FullName) | Where-Object { $_ -gt 127 }).Count -gt 0) { $file.Name }
+        }
+
+        $bad | Should -BeNullOrEmpty -Because "these contain a non-ASCII character: $($bad -join ', ')"
     }
 
-    It 'parses without errors' {
-        $errors = $null
-        [System.Management.Automation.Language.Parser]::ParseFile($script:SharedFile, [ref]$null, [ref]$errors) | Out-Null
+    It 'parse without errors' {
+        $bad = foreach ($file in $script:SharedFiles) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if (@($errors).Count -gt 0) { $file.Name }
+        }
 
-        @($errors).Count | Should -Be 0
+        $bad | Should -BeNullOrEmpty
     }
 
-    It 'uses no syntax that Windows PowerShell 5.1 does not have' {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:SharedFile, [ref]$null, [ref]$null)
+    It 'use no syntax that Windows PowerShell 5.1 does not have' {
         $found = [System.Collections.Generic.List[string]]::new()
 
-        foreach ($node in $ast.FindAll({ $true }, $true)) {
-            $type = $node.GetType().Name
-            $line = $node.Extent.StartLineNumber
+        foreach ($file in $script:SharedFiles) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
 
-            if ($type -eq 'TernaryExpressionAst') { $found.Add("ternary on line $line") }
-            if ($type -eq 'PipelineChainAst') { $found.Add("&& or || on line $line") }
+            foreach ($node in $ast.FindAll({ $true }, $true)) {
+                $type = $node.GetType().Name
+                $where = "$($file.Name) line $($node.Extent.StartLineNumber)"
 
-            if ($type -eq 'BinaryExpressionAst' -and "$($node.Operator)" -eq 'QuestionQuestion') {
-                $found.Add("?? on line $line")
-            }
-            if ($type -eq 'AssignmentStatementAst' -and "$($node.Operator)" -eq 'QuestionQuestionEquals') {
-                $found.Add("??= on line $line")
-            }
-            if ($type -eq 'MemberExpressionAst' -and $node.PSObject.Properties['NullConditional'] -and $node.NullConditional) {
-                $found.Add("?. on line $line")
-            }
-            if ($type -eq 'CommandParameterAst' -and $node.ParameterName -eq 'Parallel') {
-                $found.Add("-Parallel on line $line")
+                if ($type -eq 'TernaryExpressionAst') { $found.Add("ternary, $where") }
+                if ($type -eq 'PipelineChainAst') { $found.Add("&& or ||, $where") }
+
+                if ($type -eq 'BinaryExpressionAst' -and "$($node.Operator)" -eq 'QuestionQuestion') {
+                    $found.Add("??, $where")
+                }
+                if ($type -eq 'AssignmentStatementAst' -and "$($node.Operator)" -eq 'QuestionQuestionEquals') {
+                    $found.Add("??=, $where")
+                }
+                if ($type -eq 'MemberExpressionAst' -and $node.PSObject.Properties['NullConditional'] -and $node.NullConditional) {
+                    $found.Add("?., $where")
+                }
+                if ($type -eq 'CommandParameterAst' -and $node.ParameterName -eq 'Parallel') {
+                    $found.Add("-Parallel, $where")
+                }
             }
         }
 
-        $found | Should -BeNullOrEmpty -Because 'the launcher dot-sources this file under Windows PowerShell 5.1'
+        $found | Should -BeNullOrEmpty -Because 'the launcher dot-sources these files under Windows PowerShell 5.1'
     }
 
-    It 'reads no module state, so it works without the module' {
-        $text = Get-Content -LiteralPath $script:SharedFile -Raw
+    It 'read no module state, so they work without the module' {
+        $bad = foreach ($file in $script:SharedFiles) {
+            if ((Get-Content -LiteralPath $file.FullName -Raw) -match '\$script:O365') { $file.Name }
+        }
 
-        $text | Should -Not -Match '\$script:O365'
+        $bad | Should -BeNullOrEmpty
     }
 }
 
@@ -429,39 +461,46 @@ Describe 'Looking a message up' {
     }
 }
 
-Describe 'The string tables of the module' {
+Describe 'The string tables' {
 
-    It 'have a byte order mark, so Windows PowerShell 5.1 reads them as UTF-8' -ForEach @(
-        @{ Code = 'en' }
-        @{ Code = 'de' }
-    ) {
-        $bytes = [System.IO.File]::ReadAllBytes((Join-Path $script:Resources "$Code/Strings.psd1"))
+    # One folder for the module, and one for each packaged tool. Each has an
+    # English and a German table, and the same rules apply to all of them.
 
-        $bytes[0] | Should -Be 0xEF
-        $bytes[1] | Should -Be 0xBB
-        $bytes[2] | Should -Be 0xBF
+    It 'have a byte order mark, so Windows PowerShell 5.1 reads them as UTF-8' {
+        $bad = foreach ($table in $script:Tables) {
+            foreach ($code in 'en', 'de') {
+                $bytes = [System.IO.File]::ReadAllBytes((Join-Path $table.Root "$code/Strings.psd1"))
+                if (-not ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)) { "$($table.Name)/$code" }
+            }
+        }
+
+        $bad | Should -BeNullOrEmpty -Because "these have no byte order mark: $($bad -join ', ')"
     }
 
     It 'have the same keys in English and German' {
-        $english = @($script:EnglishStrings.Keys | Sort-Object)
-        $german  = @($script:GermanStrings.Keys | Sort-Object)
+        $problems = foreach ($table in $script:Tables) {
+            foreach ($key in $table.English.Keys) {
+                if (-not $table.German.ContainsKey($key)) { "$($table.Name): '$key' has no German text" }
+            }
+            foreach ($key in $table.German.Keys) {
+                if (-not $table.English.ContainsKey($key)) { "$($table.Name): '$key' has no English text" }
+            }
+        }
 
-        $missingInGerman  = @($english | Where-Object { $_ -notin $german })
-        $missingInEnglish = @($german | Where-Object { $_ -notin $english })
-
-        $missingInGerman | Should -BeNullOrEmpty -Because "these have no German text: $($missingInGerman -join ', ')"
-        $missingInEnglish | Should -BeNullOrEmpty -Because "these have no English text: $($missingInEnglish -join ', ')"
+        $problems | Should -BeNullOrEmpty -Because ($problems -join '; ')
     }
 
     It 'use the same placeholders in both languages' {
-        $problems = foreach ($key in $script:EnglishStrings.Keys) {
-            if (-not $script:GermanStrings.ContainsKey($key)) { continue }
+        $problems = foreach ($table in $script:Tables) {
+            foreach ($key in $table.English.Keys) {
+                if (-not $table.German.ContainsKey($key)) { continue }
 
-            $english = (Get-PlaceholderSet $script:EnglishStrings[$key]) -join ','
-            $german  = (Get-PlaceholderSet $script:GermanStrings[$key]) -join ','
+                $english = (Get-PlaceholderSet $table.English[$key]) -join ','
+                $german  = (Get-PlaceholderSet $table.German[$key]) -join ','
 
-            if ($english -ne $german) {
-                "${key}: English has {$english}, German has {$german}"
+                if ($english -ne $german) {
+                    "${key}: English has {$english}, German has {$german}"
+                }
             }
         }
 
@@ -469,24 +508,45 @@ Describe 'The string tables of the module' {
     }
 
     It 'have no empty text' {
-        $empty = @($script:EnglishStrings.Keys + $script:GermanStrings.Keys | Where-Object {
-                $text = if ($script:EnglishStrings.ContainsKey($_)) { $script:EnglishStrings[$_] } else { $script:GermanStrings[$_] }
-                -not "$text".Trim()
-            })
+        $empty = foreach ($table in $script:Tables) {
+            foreach ($language in 'English', 'German') {
+                foreach ($key in $table.$language.Keys) {
+                    if (-not "$($table.$language[$key])".Trim()) { "$($table.Name)/$language/$key" }
+                }
+            }
+        }
 
         $empty | Should -BeNullOrEmpty
     }
 
     It 'have keys written as Area.Name' {
-        $bad = @(($script:EnglishStrings.Keys + $script:GermanStrings.Keys) |
-                Sort-Object -Unique |
-                Where-Object { $_ -notmatch '^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)+$' })
+        $bad = foreach ($table in $script:Tables) {
+            foreach ($key in ($table.English.Keys + $table.German.Keys | Sort-Object -Unique)) {
+                if ($key -notmatch '^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)+$') { "$($table.Name): $key" }
+            }
+        }
 
         $bad | Should -BeNullOrEmpty -Because "these do not follow Area.Name: $($bad -join ', ')"
     }
 
+    It 'have no key defined in two folders, where one would silently win' {
+        $seen = @{}
+        $twice = foreach ($table in $script:Tables) {
+            foreach ($key in $table.English.Keys) {
+                if ($seen.ContainsKey($key)) { "$key (in $($seen[$key]) and $($table.Name))" } else { $seen[$key] = $table.Name }
+            }
+        }
+
+        $twice | Should -BeNullOrEmpty -Because ($twice -join '; ')
+    }
+
     It 'use informal German, not Sie' {
-        $formal = @($script:GermanStrings.GetEnumerator() | Where-Object { $_.Value -match '\b(Sie|Ihnen|Ihre|Ihr|Ihrem|Ihren)\b' } | ForEach-Object Key)
+        $formal = foreach ($table in $script:Tables) {
+            foreach ($entry in $table.German.GetEnumerator()) {
+                # Case-sensitive: lower case "sie" is an ordinary word.
+                if ($entry.Value -cmatch '\b(Sie|Ihnen|Ihre|Ihr|Ihrem|Ihren)\b') { "$($table.Name): $($entry.Key)" }
+            }
+        }
 
         $formal | Should -BeNullOrEmpty -Because "the tools address people with du: $($formal -join ', ')"
     }
@@ -503,7 +563,7 @@ Describe 'Every message the code asks for' {
             $calls = $ast.FindAll({
                     param($node)
                     $node -is [System.Management.Automation.Language.CommandAst] -and
-                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString'
+                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines'
                 }, $true)
 
             foreach ($call in $calls) {

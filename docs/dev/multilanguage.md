@@ -226,7 +226,7 @@ The merged table is cached for the session.
 | `Get-O365SettingsPath` | private, shared | `%APPDATA%\office365_tools\settings.json`; `$env:O365_SETTINGS_PATH` overrides it, for tests |
 | `Read-O365Setting`, `Write-O365Setting` | private, shared | The saved setting. `Write-O365Setting` returns `$true` or `$false` and never throws |
 
-"Shared" means defined in `src/Office365Tools/Private/Shared/Language.ps1`, the
+"Shared" means defined in `src/Office365Tools/Private/Shared/` (`Language.ps1`, and `ClientId.ps1` for the sign-in application ID), the
 one file the launcher dot-sources as well (see below).
 
 `Get-O365Language` returns `Language`, `Source` and `SettingsPath`.
@@ -350,7 +350,7 @@ screen a user sees.
 ### Console encoding
 
 The `.cmd` already runs `chcp 65001`. The launcher also sets
-`[Console]::OutputEncoding` to UTF-8 so umlauts render, and restores it on exit.
+`[Console]::OutputEncoding` to UTF-8 so umlauts render. It is not set back: the process ends when the tool does.
 
 ## Reports
 
@@ -442,7 +442,14 @@ yet converted keep their English text until their turn.
 2. Tool menu and `Start-UploadCheck.ps1`: picker, optional `<Language>`, all
    their messages in both languages. The `ClientId` fallback (environment
    variable, then profile) lands in this step so its new messages are born
-   translated.
+   translated. It is done in three parts:
+   - **2a, done:** the launcher script loads the shared files, resolves the
+     language (`-Language` or `<Language>` in `upload-check.xml`, then the
+     shared order), reads its texts from `packaging/UploadCheck/Resources/`, and
+     looks for the application ID in `<ClientId>`, then `gbj_client_id`, then the
+     default profile. Only the messages about signing in are translated so far.
+   - **2b:** every other message of `Start-UploadCheck.ps1`, and the **L** picker.
+   - **2c:** the tool menu window in `Start-Tool.ps1`.
 3. `scripts/Test-Upload.ps1` console output and `-Language`.
 4. Module commands, by group: connection, library, permissions, content types,
    document sets, reports.
