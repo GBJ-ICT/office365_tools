@@ -20,6 +20,13 @@ param()
 BeforeDiscovery {
     $canRunWindowsPowerShell = [bool](Get-Command powershell.exe -ErrorAction SilentlyContinue)
 
+    # The menu test ends at the point where the application ID is missing. If
+    # this machine has one in its environment or a profile, the launcher would
+    # carry on and sign in, so that test is skipped there.
+    $idElsewhere = [bool](
+        ('Process', 'User', 'Machine' | ForEach-Object { [Environment]::GetEnvironmentVariable('gbj_client_id', $_) } | Where-Object { $_ }) -or
+        (Test-Path -LiteralPath (Join-Path $PSScriptRoot '../../config/profiles.json')))
+
     # What each wrong settings file says, in each language. Fragments are ASCII
     # so the comparison does not depend on how the console encodes umlauts.
     $cases = @(
@@ -77,16 +84,31 @@ BeforeAll {
     New-Item -Path $script:Upload -ItemType Directory -Force | Out-Null
 
     function Invoke-Launcher {
-        param([string]$Xml, [string]$Language)
+        param(
+            [string]$Xml,
+            [string]$Language,
+            [string]$Folder = $script:Upload,
+            [string[]]$Answer
+        )
 
         $settings = Join-Path $script:Folder 'upload-check.xml'
         [System.IO.File]::WriteAllText($settings, $Xml, (New-Object System.Text.UTF8Encoding($false)))
 
+        # Without answers it never asks (-NoPrompt); with answers, they are typed
+        # for it, as a person would.
+        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script:Script, '-SettingsPath', $settings)
+        if ($Folder) { $arguments += @('-Folder', $Folder) }
+        if (-not $Answer) { $arguments += '-NoPrompt' }
+
         $saved = $env:O365_LANGUAGE
         try {
             $env:O365_LANGUAGE = $Language
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script:Script `
-                -Folder $script:Upload -SettingsPath $settings -NoPrompt 2>&1
+            if ($Answer) {
+                $output = $Answer | & powershell.exe @arguments 2>&1
+            }
+            else {
+                $output = & powershell.exe @arguments 2>&1
+            }
             [pscustomobject]@{ Text = ($output | Out-String); Code = $LASTEXITCODE }
         }
         finally {
@@ -119,5 +141,86 @@ Describe 'The upload checker launcher, given a settings file that is wrong' -Ski
         $result = Invoke-Launcher -Xml $Xml -Language 'en'
 
         $result.Text | Should -Not -BeLike "*$German*"
+    }
+}
+
+Describe 'The upload checker launcher, asking its questions' -Skip:(-not $canRunWindowsPowerShell) {
+
+    BeforeAll {
+        $script:Plain = '<UploadCheck><Folder>ask</Folder></UploadCheck>'
+
+        # Names a destination but no application ID, so a run that chooses to
+        # check what arrived stops at the message about the missing ID.
+        $script:WithDestination = '<UploadCheck><Destination>https://contoso.sharepoint.com/sites/team/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FTest</Destination></UploadCheck>'
+    }
+
+    It 'says in English that no folder was chosen' {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'en' -Folder ''
+
+        $result.Code | Should -Be 2
+        $result.Text | Should -BeLike '*No folder was chosen*'
+    }
+
+    It 'says in German that no folder was chosen' {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'de' -Folder ''
+
+        $result.Code | Should -Be 2
+        $result.Text | Should -BeLike '*kein Ordner gew*'
+    }
+
+    It 'says in English that the folder does not exist, and names it' {
+        $missing = Join-Path $script:Folder 'not-there'
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'en' -Folder $missing
+
+        $result.Code | Should -Be 2
+        $result.Text | Should -BeLike '*That folder does not exist*'
+        $result.Text | Should -BeLike "*$missing*"
+    }
+
+    It 'says in German that the folder does not exist, and names it' {
+        $missing = Join-Path $script:Folder 'not-there'
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'de' -Folder $missing
+
+        $result.Code | Should -Be 2
+        $result.Text | Should -BeLike '*Diesen Ordner gibt es nicht*'
+        $result.Text | Should -BeLike "*$missing*"
+    }
+
+    It 'shows the folder it will check, in English' {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer '2'
+
+        $result.Text | Should -BeLike '*Folder:  *to-upload*'
+    }
+
+    It 'shows the folder it will check, in German' {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'de' -Answer '2'
+
+        $result.Text | Should -BeLike '*Ordner:  *to-upload*'
+    }
+
+    It 'offers the three choices in English' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer '2'
+
+        $result.Text | Should -BeLike '*What would you like to do?*'
+        $result.Text | Should -BeLike '*1) Check this folder before I upload it*'
+        $result.Text | Should -BeLike '*2) I uploaded it already*'
+        $result.Text | Should -BeLike '*3) Both*'
+    }
+
+    It 'offers the three choices in German, and does not mix in English' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'de' -Answer '2'
+
+        $result.Text | Should -BeLike '*Was m*chtest du tun?*'
+        $result.Text | Should -BeLike '*1) Diesen Ordner pr*'
+        $result.Text | Should -BeLike '*2) Ich habe ihn schon hochgeladen*'
+        $result.Text | Should -BeLike '*3) Beides*'
+        $result.Text | Should -Not -BeLike '*What would you like to do*'
+    }
+
+    It 'goes on to the question about signing in, which needs the application ID' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'de' -Answer '2'
+
+        $result.Code | Should -Be 2
+        $result.Text | Should -BeLike '*Anwendungs-ID*'
     }
 }

@@ -85,4 +85,60 @@ Check the spelling - the names are case-sensitive.'
 It was given with -Language.'
     'Settings.Language.File'            = 'It currently says: {0}
 It is set by <Language> in upload-check.xml.'
+
+    'Prompt.YesNo.DefaultYes'           = '[Y/n]'
+    'Prompt.YesNo.DefaultNo'            = '[y/N]'
+
+    'Upload.Heading'                    = 'Upload checker'
+    'Upload.Folder.Intro'               = 'A window will open. Pick the folder you are uploading.'
+    'Upload.Folder.Question'            = 'Which folder are you uploading to SharePoint?'
+    'Upload.Folder.Shown'               = 'Folder:  {0}'
+    'Upload.Folder.None.Title'          = 'No folder was chosen, so there is nothing to check.'
+    'Upload.Folder.None.Body'           = 'Start it again and pick a folder, or drag a folder onto it.'
+    'Upload.Folder.Missing.Title'       = 'That folder does not exist.'
+    'Upload.Folder.Missing.Body'        = 'Looked for: {0}
+
+If you typed it, check for a typo. If you pasted it, make sure the
+whole path came along.'
+
+    'Upload.Menu.Title'                 = 'What would you like to do?'
+    'Upload.Menu.Option1'               = '    1) Check this folder before I upload it        (no sign-in)'
+    'Upload.Menu.Option2'               = '    2) I uploaded it already - did everything arrive?  (sign-in)'
+    'Upload.Menu.Option3'               = '    3) Both'
+    'Upload.Menu.Prompt'                = 'Number [1]'
+
+    'Upload.NextStep.FromFile'          = 'Once it is uploaded, set Mode in upload-check.xml to ask and start this again to check that everything arrived.'
+    'Upload.NextStep.FromMenu'          = 'Once it is uploaded, start this again and choose 2 to check that everything arrived.'
+
+    'Upload.Destination.Shown'          = 'Destination: {0}'
+
+    'Upload.Pwsh.Missing.Title'         = 'PowerShell 7 is not installed on this computer.'
+    'Upload.Pwsh.Missing.Body'          = 'It is a free Microsoft download, and it is the only thing missing.
+
+Install it once: open the Start menu, type cmd, press Enter, and paste
+
+    winget install --id Microsoft.PowerShell
+
+or download it from https://aka.ms/powershell-release
+Then start this again.'
+
+    'Upload.Pnp.Title'                  = 'Signing in needs one more component: PnP.PowerShell.'
+    'Upload.Pnp.Body'                   = 'It is a Microsoft-published PowerShell module, about 100 MB,
+installed once for your account only. It needs internet access.'
+    'Upload.Pnp.Question'               = 'Install it now? (takes a few minutes)'
+    'Upload.Pnp.Declined.Title'         = 'Cannot check what arrived without signing in.'
+    'Upload.Pnp.Declined.Body'          = 'Option 1 - checking the folder before you upload - still works,
+and needs nothing extra. Start this again and pick it.
+
+To install the component later, from PowerShell 7:
+
+    Install-Module PnP.PowerShell -Scope CurrentUser'
+    'Upload.Pnp.Installing'             = 'Installing. This takes a few minutes and says nothing while it works...'
+    'Upload.Pnp.Failed.Title'           = 'The component could not be installed.'
+    'Upload.Pnp.Failed.Body'            = 'This is usually no internet access, or a company policy that
+blocks installing PowerShell modules. Show this to whoever sent
+you the package.
+
+Option 1 - checking the folder before you upload - still works.'
+    'Upload.Pnp.Installed'              = 'Installed.'
 }
