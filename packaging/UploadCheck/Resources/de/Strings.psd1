@@ -87,4 +87,61 @@ Prüfe die Schreibweise - Gross- und Kleinschreibung zählt.'
 Angegeben wurde sie mit -Language.'
     'Settings.Language.File'            = 'Aktuell steht dort: {0}
 Festgelegt wird sie durch <Language> in upload-check.xml.'
+
+    'Prompt.YesNo.DefaultYes'           = '[J/n]'
+    'Prompt.YesNo.DefaultNo'            = '[j/N]'
+
+    'Upload.Heading'                    = 'Upload-Prüfung'
+    'Upload.Folder.Intro'               = 'Es öffnet sich ein Fenster. Wähle den Ordner, den du hochlädst.'
+    'Upload.Folder.Question'            = 'Welchen Ordner lädst du nach SharePoint hoch?'
+    'Upload.Folder.Shown'               = 'Ordner:  {0}'
+    'Upload.Folder.None.Title'          = 'Es wurde kein Ordner gewählt, also gibt es nichts zu prüfen.'
+    'Upload.Folder.None.Body'           = 'Starte die Prüfung nochmals und wähle einen Ordner, oder ziehe einen Ordner darauf.'
+    'Upload.Folder.Missing.Title'       = 'Diesen Ordner gibt es nicht.'
+    'Upload.Folder.Missing.Body'        = 'Gesucht wurde: {0}
+
+Wenn du den Pfad getippt hast, prüfe ihn auf Tippfehler. Wenn du ihn
+eingefügt hast, stelle sicher, dass der ganze Pfad mitgekommen ist.'
+
+    'Upload.Menu.Title'                 = 'Was möchtest du tun?'
+    'Upload.Menu.Option1'               = '    1) Diesen Ordner prüfen, bevor ich ihn hochlade     (ohne Anmeldung)'
+    'Upload.Menu.Option2'               = '    2) Ich habe ihn schon hochgeladen - ist alles angekommen?  (mit Anmeldung)'
+    'Upload.Menu.Option3'               = '    3) Beides'
+    'Upload.Menu.Prompt'                = 'Nummer [1]'
+
+    'Upload.NextStep.FromFile'          = 'Sobald alles hochgeladen ist, setze Mode in upload-check.xml auf ask und starte die Prüfung nochmals, um zu prüfen, ob alles angekommen ist.'
+    'Upload.NextStep.FromMenu'          = 'Sobald alles hochgeladen ist, starte die Prüfung nochmals und wähle 2, um zu prüfen, ob alles angekommen ist.'
+
+    'Upload.Destination.Shown'          = 'Ziel: {0}'
+
+    'Upload.Pwsh.Missing.Title'         = 'PowerShell 7 ist auf diesem Computer nicht installiert.'
+    'Upload.Pwsh.Missing.Body'          = 'Es ist ein kostenloser Download von Microsoft und das Einzige, was fehlt.
+
+Installiere es einmalig: Öffne das Startmenü, tippe cmd, drücke die
+Eingabetaste und füge Folgendes ein:
+
+    winget install --id Microsoft.PowerShell
+
+oder lade es von https://aka.ms/powershell-release herunter.
+Starte danach die Prüfung nochmals.'
+
+    'Upload.Pnp.Title'                  = 'Für die Anmeldung fehlt noch eine Komponente: PnP.PowerShell.'
+    'Upload.Pnp.Body'                   = 'Es ist ein von Microsoft veröffentlichtes PowerShell-Modul, rund 100 MB gross,
+das einmalig nur für dein Konto installiert wird. Es braucht Internet.'
+    'Upload.Pnp.Question'               = 'Jetzt installieren? (dauert ein paar Minuten)'
+    'Upload.Pnp.Declined.Title'         = 'Ohne Anmeldung kann nicht geprüft werden, was angekommen ist.'
+    'Upload.Pnp.Declined.Body'          = 'Option 1 - den Ordner vor dem Hochladen prüfen - funktioniert weiterhin
+und braucht nichts zusätzlich. Starte die Prüfung nochmals und wähle sie.
+
+Um die Komponente später zu installieren, in PowerShell 7:
+
+    Install-Module PnP.PowerShell -Scope CurrentUser'
+    'Upload.Pnp.Installing'             = 'Wird installiert. Das dauert ein paar Minuten und zeigt währenddessen nichts an...'
+    'Upload.Pnp.Failed.Title'           = 'Die Komponente konnte nicht installiert werden.'
+    'Upload.Pnp.Failed.Body'            = 'Meistens fehlt der Internetzugang, oder eine Firmenrichtlinie verhindert das
+Installieren von PowerShell-Modulen. Zeige diese Meldung der Person, die dir
+das Paket geschickt hat.
+
+Option 1 - den Ordner vor dem Hochladen prüfen - funktioniert weiterhin.'
+    'Upload.Pnp.Installed'              = 'Installiert.'
 }

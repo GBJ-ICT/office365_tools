@@ -90,8 +90,8 @@ function Read-YesNo {
         [bool]$Default = $true
     )
 
-    $suffix = '[Y/n]'
-    if (-not $Default) { $suffix = '[y/N]' }
+    $suffix = Get-LauncherString 'Prompt.YesNo.DefaultYes'
+    if (-not $Default) { $suffix = Get-LauncherString 'Prompt.YesNo.DefaultNo' }
 
     while ($true) {
         Write-Host ''
@@ -599,9 +599,9 @@ if (-not $Folder) {
 
 if (-not $Folder -and -not $NoPrompt) {
     Write-Host ''
-    Write-Host '  Upload checker' -ForegroundColor Cyan
-    Write-Host '  A window will open. Pick the folder you are uploading.' -ForegroundColor Gray
-    $Folder = Select-Folder -Description 'Which folder are you uploading to SharePoint?'
+    Write-Host ('  ' + (Get-LauncherString 'Upload.Heading')) -ForegroundColor Cyan
+    Write-Host ('  ' + (Get-LauncherString 'Upload.Folder.Intro')) -ForegroundColor Gray
+    $Folder = Select-Folder -Description (Get-LauncherString 'Upload.Folder.Question')
 }
 
 # A path pasted from Explorer arrives wrapped in quotes, and a trailing
@@ -609,45 +609,40 @@ if (-not $Folder -and -not $NoPrompt) {
 $Folder = $Folder.Trim().Trim('"').TrimEnd('\')
 
 if (-not $Folder) {
-    Write-Problem -Title 'No folder was chosen, so there is nothing to check.' -Detail @(
-        'Start it again and pick a folder, or drag a folder onto it.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Folder.None.Title') -Detail (Get-LauncherLines 'Upload.Folder.None.Body')
     exit $SETUP_PROBLEM
 }
 
 if (-not (Test-Path -LiteralPath $Folder -PathType Container)) {
-    Write-Problem -Title 'That folder does not exist.' -Detail @(
-        "Looked for: $Folder",
-        '',
-        'If you typed it, check for a typo. If you pasted it, make sure the',
-        'whole path came along.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Folder.Missing.Title') -Detail (Get-LauncherLines 'Upload.Folder.Missing.Body' $Folder)
     exit $SETUP_PROBLEM
 }
 
 Write-Host ''
-Write-Host "  Folder:  $Folder" -ForegroundColor Green
+Write-Host ('  ' + (Get-LauncherString 'Upload.Folder.Shown' $Folder)) -ForegroundColor Green
 
 # -- What to do --------------------------------------------------------------
 $mode = Get-Setting -Name 'Mode'
 
 # How to check the upload later depends on whether this run asked.
 if ($mode) {
-    $nextStep = 'Once it is uploaded, set Mode in upload-check.xml to ask and start this again to check that everything arrived.'
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromFile'
 }
 else {
-    $nextStep = 'Once it is uploaded, start this again and choose 2 to check that everything arrived.'
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromMenu'
 }
 
 if (-not $mode -and -not $NoPrompt) {
     Write-Host ''
-    Write-Host '  What would you like to do?' -ForegroundColor Cyan
-    Write-Host '    1) Check this folder before I upload it        (no sign-in)'
-    Write-Host '    2) I uploaded it already - did everything arrive?  (sign-in)'
-    Write-Host '    3) Both'
+    Write-Host ('  ' + (Get-LauncherString 'Upload.Menu.Title')) -ForegroundColor Cyan
+    Write-Host (Get-LauncherString 'Upload.Menu.Option1')
+    Write-Host (Get-LauncherString 'Upload.Menu.Option2')
+    Write-Host (Get-LauncherString 'Upload.Menu.Option3')
 
     $answer = ''
     while ('1', '2', '3' -notcontains $answer) {
         Write-Host ''
-        $answer = "$(Read-Host '  Number [1]')".Trim()
+        $answer = "$(Read-Host ('  ' + (Get-LauncherString 'Upload.Menu.Prompt')))".Trim()
         if (-not $answer) { $answer = '1' }
     }
 
@@ -693,15 +688,7 @@ if (-not $pwsh) {
 }
 
 if (-not $pwsh) {
-    Write-Problem -Title 'PowerShell 7 is not installed on this computer.' -Detail @(
-        'It is a free Microsoft download, and it is the only thing missing.',
-        '',
-        'Install it once: open the Start menu, type cmd, press Enter, and paste',
-        '',
-        '    winget install --id Microsoft.PowerShell',
-        '',
-        'or download it from https://aka.ms/powershell-release',
-        'Then start this again.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Pwsh.Missing.Title') -Detail (Get-LauncherLines 'Upload.Pwsh.Missing.Body')
     exit $SETUP_PROBLEM
 }
 
@@ -721,7 +708,7 @@ if ($needsSignIn) {
 
         if ($destination) {
             Write-Host ''
-            Write-Host "  Destination: $destination" -ForegroundColor Gray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.Destination.Shown' $destination)) -ForegroundColor Gray
         }
     }
 
@@ -748,44 +735,34 @@ if ($needsSignIn) {
 
     if ($installed -ne 'yes') {
         Write-Host ''
-        Write-Host '  Signing in needs one more component: PnP.PowerShell.' -ForegroundColor Yellow
-        Write-Host '  It is a Microsoft-published PowerShell module, about 100 MB,' -ForegroundColor Gray
-        Write-Host '  installed once for your account only. It needs internet access.' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Title')) -ForegroundColor Yellow
+        foreach ($line in (Get-LauncherLines 'Upload.Pnp.Body')) {
+            Write-Host "  $line" -ForegroundColor Gray
+        }
 
         $install = $false
         if (-not $NoPrompt) {
-            $install = Read-YesNo -Question 'Install it now? (takes a few minutes)' -Default $true
+            $install = Read-YesNo -Question (Get-LauncherString 'Upload.Pnp.Question') -Default $true
         }
 
         if (-not $install) {
-            Write-Problem -Title 'Cannot check what arrived without signing in.' -Detail @(
-                'Option 1 - checking the folder before you upload - still works,',
-                'and needs nothing extra. Start this again and pick it.',
-                '',
-                'To install the component later, from PowerShell 7:',
-                '',
-                '    Install-Module PnP.PowerShell -Scope CurrentUser')
+            Write-Problem -Title (Get-LauncherString 'Upload.Pnp.Declined.Title') -Detail (Get-LauncherLines 'Upload.Pnp.Declined.Body')
             exit $SETUP_PROBLEM
         }
 
         Write-Host ''
-        Write-Host '  Installing. This takes a few minutes and says nothing while it works...' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Installing')) -ForegroundColor Gray
 
         & $pwsh -NoProfile -Command "Install-Module PnP.PowerShell -Scope CurrentUser -Force -AllowClobber"
 
         $installed = & $pwsh -NoProfile -Command "if (Get-Module -ListAvailable -Name PnP.PowerShell) { 'yes' } else { 'no' }"
 
         if ($installed -ne 'yes') {
-            Write-Problem -Title 'The component could not be installed.' -Detail @(
-                'This is usually no internet access, or a company policy that',
-                'blocks installing PowerShell modules. Show this to whoever sent',
-                'you the package.',
-                '',
-                'Option 1 - checking the folder before you upload - still works.')
+            Write-Problem -Title (Get-LauncherString 'Upload.Pnp.Failed.Title') -Detail (Get-LauncherLines 'Upload.Pnp.Failed.Body')
             exit $SETUP_PROBLEM
         }
 
-        Write-Host '  Installed.' -ForegroundColor Green
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Installed')) -ForegroundColor Green
     }
 }
 
