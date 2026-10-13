@@ -229,5 +229,5 @@ if ($allDrift.Count -gt 0) {
 }
 
 if ($allFindings.Count -gt 0) {
-    Write-Host 'Fix the configuration too, or the drift comes back. See docs/document-sets.md.' -ForegroundColor Gray
+    Write-Host 'Fix the configuration too, or the drift comes back. See docs/user/document-sets.md.' -ForegroundColor Gray
 }

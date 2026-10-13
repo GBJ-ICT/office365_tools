@@ -25,7 +25,7 @@
     Full site collection URL, e.g. https://contoso.sharepoint.com/sites/team.
 .PARAMETER ClientId
     Entra ID application (client) ID registered for interactive login. See
-    docs/authentication.md for how to create one.
+    docs/user/authentication.md for how to create one.
 .PARAMETER Interactive
     Force an interactive browser sign-in even if a cached token exists.
 .PARAMETER PassThru
@@ -135,7 +135,7 @@ function Connect-O365 {
         throw [System.InvalidOperationException]::new(
             "Failed to connect to '$SiteUrl': $($_.Exception.Message) " +
             "Check that the client ID is registered in this tenant and that you have access to the site. " +
-            "See docs/authentication.md.",
+            "See docs/user/authentication.md.",
             $_.Exception
         )
     }

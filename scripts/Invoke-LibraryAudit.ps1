@@ -166,4 +166,4 @@ $allFindings | Group-Object Severity | Sort-Object Name | ForEach-Object {
 Write-Host ''
 Write-Host "Reports written to: $((Resolve-Path $OutputPath).Path)" -ForegroundColor Green
 Write-Host ''
-Write-Host 'Nothing was changed. To act on these findings, see docs/getting-started.md.' -ForegroundColor Gray
+Write-Host 'Nothing was changed. To act on these findings, see docs/user/getting-started.md.' -ForegroundColor Gray
