@@ -418,6 +418,31 @@ function Select-LauncherLanguage {
     $script:Strings = Import-O365StringTable -Language $script:Chosen.Language -Path $resources
 }
 
+# What the L key does: asks which language, remembers the answer for every tool
+# (the settings file is the user's, shared with the module), and carries on in
+# it. Enter keeps the language as it is. If the choice cannot be saved it still
+# holds for the rest of this run, and one line says it was not kept.
+function Read-LanguageChoice {
+    Write-Host ''
+    Write-Host ('  ' + (Get-LauncherString 'Language.Picker.Title')) -ForegroundColor Cyan
+    Write-Host (Get-LauncherString 'Language.Picker.Option1')
+    Write-Host (Get-LauncherString 'Language.Picker.Option2')
+    Write-Host (Get-LauncherString 'Language.Picker.Option3')
+    Write-Host ''
+
+    $answer = "$(Read-Host ('  ' + (Get-LauncherString 'Language.Picker.Prompt')))".Trim()
+    $choice = @{ '1' = 'en'; '2' = 'de'; '3' = 'auto' }[$answer]
+
+    if (-not $choice) { return }
+
+    $saved = Write-O365Setting -Name 'language' -Value $choice
+    Select-LauncherLanguage -Requested $choice
+
+    if (-not $saved) {
+        Write-Host ('  ' + (Get-LauncherString 'Language.NotSaved' (Get-O365SettingsPath))) -ForegroundColor Yellow
+    }
+}
+
 $badLanguage = $null
 try {
     Select-LauncherLanguage -Requested $Language
@@ -623,32 +648,46 @@ Write-Host ('  ' + (Get-LauncherString 'Upload.Folder.Shown' $Folder)) -Foregrou
 # -- What to do --------------------------------------------------------------
 $mode = Get-Setting -Name 'Mode'
 
-# How to check the upload later depends on whether this run asked.
-if ($mode) {
-    $nextStep = Get-LauncherString 'Upload.NextStep.FromFile'
-}
-else {
-    $nextStep = Get-LauncherString 'Upload.NextStep.FromMenu'
-}
+$modeFromFile = [bool]$mode
 
 if (-not $mode -and -not $NoPrompt) {
-    Write-Host ''
-    Write-Host ('  ' + (Get-LauncherString 'Upload.Menu.Title')) -ForegroundColor Cyan
-    Write-Host (Get-LauncherString 'Upload.Menu.Option1')
-    Write-Host (Get-LauncherString 'Upload.Menu.Option2')
-    Write-Host (Get-LauncherString 'Upload.Menu.Option3')
-
     $answer = ''
     while ('1', '2', '3' -notcontains $answer) {
+        # Printed again after L, so it is in the language just chosen.
+        Write-Host ''
+        $languageName = Get-LauncherString 'Language.Name.en'
+        if ($script:Chosen.Language -eq 'de') { $languageName = Get-LauncherString 'Language.Name.de' }
+        Write-Host ('  ' + (Get-LauncherString 'Language.Picker.Line' $languageName)) -ForegroundColor DarkGray
+
+        Write-Host ''
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Menu.Title')) -ForegroundColor Cyan
+        Write-Host (Get-LauncherString 'Upload.Menu.Option1')
+        Write-Host (Get-LauncherString 'Upload.Menu.Option2')
+        Write-Host (Get-LauncherString 'Upload.Menu.Option3')
+
         Write-Host ''
         $answer = "$(Read-Host ('  ' + (Get-LauncherString 'Upload.Menu.Prompt')))".Trim()
         if (-not $answer) { $answer = '1' }
+
+        if ($answer -eq 'l') {
+            Read-LanguageChoice
+            $answer = ''
+        }
     }
 
     $mode = @{ '1' = 'PreFlight'; '2' = 'Verify'; '3' = 'Both' }[$answer]
 }
 
 if (-not $mode) { $mode = 'PreFlight' }
+
+# How to check the upload later depends on whether this run asked. Worked out
+# here, after the menu, so it is in the language the menu ended in.
+if (-not $modeFromFile) {
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromMenu'
+}
+else {
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromFile'
+}
 
 if ('PreFlight', 'Verify', 'Both' -notcontains $mode) {
     Write-Problem -Title (Get-LauncherString 'Settings.Mode.Title') `
