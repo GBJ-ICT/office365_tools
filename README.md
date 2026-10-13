@@ -597,9 +597,11 @@ Start at [docs/README.md](docs/README.md). In short:
 - [Document Sets](docs/user/document-sets.md) — why the metadata sync breaks, and the two fixes
 - [Printing](docs/user/printing.md) — why a browser print of a list is unreliable, and what this does instead
 - [Health rules](docs/user/health-rules.md) — what every `RuleId` means and what to do about it
+- [Language](docs/user/language.md) — using the tools in English or German (planned)
 
 **For people changing the tools** (`docs/dev/`)
 
+- [Multi-language design](docs/dev/multilanguage.md) — how translation works and how to add a language (planned)
 - [Migration](docs/dev/migration.md) — mapping from the old loose scripts
 
 ## Licence
