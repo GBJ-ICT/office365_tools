@@ -42,6 +42,7 @@ plugins:
           name: Deutsch
           build: true
           nav_translations:
+            Home: Startseite
             User guide: Benutzerhandbuch
             Developer docs: Entwicklerdokumentation
             Getting started: Erste Schritte

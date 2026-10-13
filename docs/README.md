@@ -1,6 +1,6 @@
 # Documentation
 
-## For people using the tools — [user/](user/)
+## For people using the tools
 
 | Guide | Read it when |
 |---|---|
@@ -11,7 +11,7 @@
 | [Printing](user/printing.md) | You want a list as a verified PDF |
 | [Language](user/language.md) | You want the tools in English or German *(planned)* |
 
-## For people changing the tools — [dev/](dev/)
+## For people changing the tools
 
 | Document | Read it when |
 |---|---|
