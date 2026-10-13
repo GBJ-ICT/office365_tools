@@ -1,22 +1,36 @@
 # Documentation
 
-## For people using the tools
+## User guide — [Tools at a glance](user/tools.md)
+
+For people who use the tools. Start with the overview of what exists and how to
+start each tool.
 
 | Guide | Read it when |
 |---|---|
-| [Getting started](user/getting-started.md) | You want the common workflows end to end |
-| [Authentication](user/authentication.md) | You need to connect to a tenant, or a connection fails |
-| [Health rules](user/health-rules.md) | A report shows a `RuleId` and you want to know what to do |
-| [Document Sets](user/document-sets.md) | Metadata on a Document Set and its files has drifted apart |
-| [Printing](user/printing.md) | You want a list as a verified PDF |
+| [Tools at a glance](user/tools.md) | You want to know which tool does what, and how to start it |
 | [Language](user/language.md) | You want the tools in English or German *(planned)* |
 
-## For people changing the tools
+## Developer docs
+
+For people who change the tools.
 
 | Document | Read it when |
 |---|---|
 | [Multi-language design](dev/multilanguage.md) | You add a message, a command, or a language *(planned)* |
-| [Migration](dev/migration.md) | You are looking for what became of an old script |
+
+## Sandbox — [overview](sandbox/README.md)
+
+The detailed guides from before the split, kept unchanged until they are
+cleaned up and moved into the user guide or the developer docs.
+
+| Guide | About |
+|---|---|
+| [Getting started](sandbox/getting-started.md) | The common workflows, end to end |
+| [Authentication](sandbox/authentication.md) | App registration, permissions, troubleshooting |
+| [Health rules](sandbox/health-rules.md) | What each `RuleId` means |
+| [Document Sets](sandbox/document-sets.md) | Metadata that drifted apart |
+| [Printing](sandbox/printing.md) | A list as a verified PDF |
+| [Migration](sandbox/migration.md) | What became of the old scripts |
 
 Documents marked *planned* describe a design that is agreed but not yet
 implemented. They are written first so the behaviour can be checked before any

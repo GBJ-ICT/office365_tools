@@ -24,7 +24,7 @@
     when it found something that blocks the upload (tune with -FailOn), so it
     can also sit in a scheduled job.
 
-    Rule reference: docs/user/health-rules.md.
+    Rule reference: docs/sandbox/health-rules.md.
 .PARAMETER LocalPath
     The folder you are about to upload, or just uploaded. Scanned with its
     subfolders unless -TopLevelOnly.

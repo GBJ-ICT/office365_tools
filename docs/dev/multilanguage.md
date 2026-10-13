@@ -337,7 +337,7 @@ The report sets `<html lang="…">` from the resolved language code, not the raw
 culture: `de-CH` gives `lang="de"`. The language is also shown in the header.
 CSV output never changes.
 
-[health-rules.md](../user/health-rules.md) stays English for now and is the
+[health-rules.md](../sandbox/health-rules.md) stays English for now and is the
 source of the English `Rule.*` strings. The coverage test keeps the two in step.
 
 ## Packaging

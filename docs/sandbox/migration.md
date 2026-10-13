@@ -153,5 +153,5 @@ rm -rf log/
 
 ## Related
 
-- [Getting started](../user/getting-started.md)
-- [Authentication](../user/authentication.md)
+- [Getting started](getting-started.md)
+- [Authentication](authentication.md)
