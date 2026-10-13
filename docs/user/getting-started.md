@@ -425,4 +425,4 @@ not results — for results, use `Export-SpoReport` or `Export-Csv`.
 
 - [Authentication](authentication.md)
 - [Health rules](health-rules.md)
-- [Migration from the old scripts](migration.md)
+- [Migration from the old scripts](../dev/migration.md)
