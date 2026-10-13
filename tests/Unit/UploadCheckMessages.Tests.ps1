@@ -88,7 +88,8 @@ BeforeAll {
             [string]$Xml,
             [string]$Language,
             [string]$Folder = $script:Upload,
-            [string[]]$Answer
+            [string[]]$Answer,
+            [switch]$NoWindow
         )
 
         $settings = Join-Path $script:Folder 'upload-check.xml'
@@ -96,7 +97,11 @@ BeforeAll {
 
         # Without answers it never asks (-NoPrompt); with answers, they are typed
         # for it, as a person would.
-        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script:Script, '-SettingsPath', $settings)
+        # -NoWindow starts it in a multi-threaded apartment, where a window
+        # cannot be drawn, so the questions come up in the console instead.
+        $arguments = @('-NoProfile')
+        if ($NoWindow) { $arguments += '-MTA' }
+        $arguments += @('-ExecutionPolicy', 'Bypass', '-File', $script:Script, '-SettingsPath', $settings)
         if ($Folder) { $arguments += @('-Folder', $Folder) }
         if (-not $Answer) { $arguments += '-NoPrompt' }
 
@@ -222,5 +227,44 @@ Describe 'The upload checker launcher, asking its questions' -Skip:(-not $canRun
 
         $result.Code | Should -Be 2
         $result.Text | Should -BeLike '*Anwendungs-ID*'
+    }
+}
+
+Describe 'The upload checker launcher, asking in the console where a window cannot open' -Skip:(-not $canRunWindowsPowerShell) {
+
+    BeforeAll {
+        $script:Plain = '<UploadCheck><Folder>ask</Folder></UploadCheck>'
+        $script:Address = 'https://contoso.sharepoint.com/sites/team/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FTest'
+    }
+
+    It 'asks for the folder in English' {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'en' -Folder '' -NoWindow -Answer $script:Upload, '1'
+
+        $result.Text | Should -BeLike '*Which folder are you uploading to SharePoint?*'
+        $result.Text | Should -BeLike '*Folder:*'
+    }
+
+    It 'asks for the folder in German' {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'de' -Folder '' -NoWindow -Answer $script:Upload, '1'
+
+        $result.Text | Should -BeLike '*Welchen Ordner l*dst du nach SharePoint hoch?*'
+        $result.Text | Should -BeLike '*Ordner:*'
+    }
+
+    It 'asks for the address in English' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'en' -Folder '' -NoWindow -Answer $script:Upload, '2', $script:Address
+
+        $result.Text | Should -BeLike '*Copy the address out of your browser and paste it here.*'
+        $result.Text | Should -BeLike '*Right-click pastes into this window.*'
+        $result.Text | Should -BeLike '*Destination: https://contoso*'
+    }
+
+    It 'asks for the address in German' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:Plain -Language 'de' -Folder '' -NoWindow -Answer $script:Upload, '2', $script:Address
+
+        $result.Text | Should -BeLike '*Kopiere die Adresse aus deinem Browser*'
+        $result.Text | Should -BeLike '*Ein Rechtsklick f*gt in dieses Fenster ein.*'
+        $result.Text | Should -BeLike '*Ziel: https://contoso*'
+        $result.Text | Should -Not -BeLike '*Right-click pastes*'
     }
 }

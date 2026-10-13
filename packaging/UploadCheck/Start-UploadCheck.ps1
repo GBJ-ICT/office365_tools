@@ -171,7 +171,7 @@ function Read-Address {
         no desktop to draw on.
     #>
     param(
-        [string]$Title = 'Where in SharePoint did the files go?'
+        [string]$Title = (Get-LauncherString 'Upload.Address.Title')
     )
 
     $apartment = [System.Threading.Thread]::CurrentThread.GetApartmentState()
@@ -185,7 +185,7 @@ function Read-Address {
             [System.Windows.Forms.Application]::EnableVisualStyles()
 
             $form = New-Object System.Windows.Forms.Form
-            $form.Text = 'Upload checker'
+            $form.Text = Get-LauncherString 'Upload.Heading'
             $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
             $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             $form.MaximizeBox = $false
@@ -201,9 +201,7 @@ function Read-Address {
             $heading.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 16), (ConvertTo-Pixel 16))
 
             $explain = New-Object System.Windows.Forms.Label
-            $explain.Text = "Open that folder in SharePoint, copy the address out of your browser's" + [Environment]::NewLine +
-            'address bar, and paste it here. Not the "Copy link" button: that link' + [Environment]::NewLine +
-            'names no folder.'
+            $explain.Text = (Get-LauncherLines 'Upload.Address.Explain') -join [Environment]::NewLine
             $explain.AutoSize = $true
             $explain.ForeColor = [System.Drawing.SystemColors]::GrayText
             $explain.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 18), (ConvertTo-Pixel 48))
@@ -218,12 +216,12 @@ function Read-Address {
             $problem.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 18), (ConvertTo-Pixel 142))
 
             $ok = New-Object System.Windows.Forms.Button
-            $ok.Text = 'OK'
+            $ok.Text = Get-LauncherString 'Common.Ok'
             $ok.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
             $ok.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 428), (ConvertTo-Pixel 160))
 
             $cancel = New-Object System.Windows.Forms.Button
-            $cancel.Text = 'Cancel'
+            $cancel.Text = Get-LauncherString 'Common.Cancel'
             $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
             $cancel.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
             $cancel.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 532), (ConvertTo-Pixel 160))
@@ -237,17 +235,17 @@ function Read-Address {
                     $value = $box.Text.Trim().Trim('"')
 
                     if (-not $value) {
-                        $problem.Text = 'Paste the address first. Cancel stops the run; nothing is checked and nothing is changed.'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.Empty'
                         return
                     }
 
                     if ($value -notmatch '^https?://') {
-                        $problem.Text = 'That does not look like a web address. It has to start with https://'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.NotAddress'
                         return
                     }
 
                     if ($value -match '^https?://[^/]+/:[a-z]:/') {
-                        $problem.Text = 'That is a sharing link, and it names no folder. Use the browser address bar.'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.SharingLink'
                         return
                     }
 
@@ -284,15 +282,16 @@ function Read-Address {
             return ''
         }
         catch {
-            Write-Host "  (Could not open a window: $($_.Exception.Message))" -ForegroundColor DarkGray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.Window.Failed' $_.Exception.Message)) -ForegroundColor DarkGray
         }
     }
 
     Write-Host ''
     Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host '  Copy the address out of your browser and paste it here.' -ForegroundColor Gray
-    Write-Host '  Right-click pastes into this window.' -ForegroundColor Gray
-    return (Read-Host '  Address')
+    foreach ($line in (Get-LauncherLines 'Upload.Address.Console.Help')) {
+        Write-Host "  $line" -ForegroundColor Gray
+    }
+    return (Read-Host ('  ' + (Get-LauncherString 'Upload.Address.Console.Prompt')))
 }
 
 function Select-Folder {
@@ -330,13 +329,13 @@ function Select-Folder {
             return ''
         }
         catch {
-            Write-Host "  (Could not open a folder window: $($_.Exception.Message))" -ForegroundColor DarkGray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.FolderWindow.Failed' $_.Exception.Message)) -ForegroundColor DarkGray
         }
     }
 
     Write-Host ''
     Write-Host "  $Description" -ForegroundColor Cyan
-    return (Read-Host '  Folder')
+    return (Read-Host ('  ' + (Get-LauncherString 'Upload.Folder.Console.Prompt')))
 }
 
 # -- Locate the pieces -------------------------------------------------------
