@@ -185,6 +185,6 @@ Describe 'The upload checker launcher, run as a person runs it' -Skip:(-not $can
         $result = Invoke-Launcher -Language 'fr'
 
         $result.Code | Should -Be 2
-        $result.Text | Should -BeLike '*en, de or auto*'
+        $result.Text | Should -BeLike '*en, de*auto*' -Because 'it is said in whichever language is in use, English or German'
     }
 }

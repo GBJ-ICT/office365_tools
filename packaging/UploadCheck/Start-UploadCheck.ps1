@@ -353,18 +353,20 @@ if (-not $SettingsPath) {
 }
 
 $shared = Join-Path $root 'src\Office365Tools\Private\Shared'
+$resources = @(
+    (Join-Path $root 'src\Office365Tools\Resources'),
+    (Join-Path $PSScriptRoot 'Resources'))
 
-$missing = @()
-if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
-if (-not (Test-Path -LiteralPath $module)) { $missing += 'src\Office365Tools\' }
-foreach ($file in 'Language.ps1', 'ClientId.ps1') {
-    if (-not (Test-Path -LiteralPath (Join-Path $shared $file))) { $missing += "src\Office365Tools\Private\Shared\$file" }
-}
-if (-not (Test-Path -LiteralPath $SettingsPath)) { $missing += (Split-Path -Leaf $SettingsPath) }
+# Nothing can be said in a language until the shared files and the English
+# texts are there, so this one message is English only.
+$needed = @('Language.ps1', 'ClientId.ps1') | ForEach-Object { Join-Path $shared $_ }
+$needed += $resources | ForEach-Object { Join-Path $_ 'en\Strings.psd1' }
+$absent = @($needed | Where-Object { -not (Test-Path -LiteralPath $_) })
 
-if ($missing.Count -gt 0) {
+if ($absent.Count -gt 0) {
+    $names = $absent | ForEach-Object { $_.Substring($root.Length).TrimStart('\') }
     Write-Problem -Title 'Part of the upload checker is missing.' -Detail @(
-        "Not found: $($missing -join ', ')",
+        "Not found: $($names -join ', ')",
         '',
         'If you were sent a ZIP with everything in it, it was probably opened',
         'rather than extracted: extract the whole folder and start it from',
@@ -376,6 +378,74 @@ if ($missing.Count -gt 0) {
 # same files, so the two cannot drift. They need no module and no PowerShell 7.
 . (Join-Path $shared 'Language.ps1')
 . (Join-Path $shared 'ClientId.ps1')
+
+function Get-LauncherString {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
+}
+
+# A text of several lines, for Write-Problem: one line per line of the text.
+function Get-LauncherLines {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    $text = Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments
+
+    return @($text -split "`r?`n")
+}
+
+# One language per run, chosen the same way for every tool: -Language, then the
+# environment, the language saved for the user, and the Windows display
+# language. The texts live in Resources\, one table per language, with English
+# underneath. Throws for a language it does not know.
+function Select-LauncherLanguage {
+    param(
+        [string]$Requested
+    )
+
+    $script:Chosen = Resolve-O365Language -Language $Requested
+    $script:Strings = Import-O365StringTable -Language $script:Chosen.Language -Path $resources
+}
+
+$badLanguage = $null
+try {
+    Select-LauncherLanguage -Requested $Language
+}
+catch {
+    $badLanguage = $Language
+    Select-LauncherLanguage -Requested ''
+}
+
+# German umlauts need a console that decodes UTF-8. The .cmd launcher already
+# switched the code page; this covers a start from anywhere else.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
+
+if ($badLanguage) {
+    Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.Argument' $badLanguage)
+    exit $SETUP_PROBLEM
+}
+
+$missing = @()
+if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
+if (-not (Test-Path -LiteralPath $module)) { $missing += 'src\Office365Tools\' }
+if (-not (Test-Path -LiteralPath $SettingsPath)) { $missing += (Split-Path -Leaf $SettingsPath) }
+
+if ($missing.Count -gt 0) {
+    Write-Problem -Title (Get-LauncherString 'Setup.Missing.Title') -Detail (Get-LauncherLines 'Setup.Missing.Body' ($missing -join ', '))
+    exit $SETUP_PROBLEM
+}
 
 # -- Read the settings -------------------------------------------------------
 $known = @(
@@ -407,21 +477,16 @@ try {
     $document.LoadXml($text)
 }
 catch {
-    Write-Problem -Title "$(Split-Path -Leaf $SettingsPath) could not be read." -Detail @(
-        $_.Exception.Message,
-        '',
-        'Something in the file is malformed - usually a missing angle bracket,',
-        'or a setting whose closing tag does not match its opening tag.',
-        'Open it in Notepad and look for that, or delete the file: the next',
-        'run puts a fresh one in its place.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Unreadable.Title' (Split-Path -Leaf $SettingsPath)) `
+        -Detail (Get-LauncherLines 'Settings.Unreadable.Body' $_.Exception.Message)
     exit $SETUP_PROBLEM
 }
 
 $rootNode = $document.DocumentElement
 
 if (-not $rootNode -or $rootNode.Name -ne 'UploadCheck') {
-    Write-Problem -Title "$(Split-Path -Leaf $SettingsPath) is not an upload checker settings file." -Detail @(
-        'It has to start with <UploadCheck> and end with </UploadCheck>.')
+    Write-Problem -Title (Get-LauncherString 'Settings.WrongFile.Title' (Split-Path -Leaf $SettingsPath)) `
+        -Detail (Get-LauncherLines 'Settings.WrongFile.Body')
     exit $SETUP_PROBLEM
 }
 
@@ -435,7 +500,7 @@ foreach ($node in $rootNode.ChildNodes) {
     if ($node.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
 
     if ($retired -contains $node.Name) {
-        Write-Host "  $($node.Name) in $(Split-Path -Leaf $SettingsPath) does nothing any more; you can delete that line." -ForegroundColor DarkGray
+        Write-Host ('  ' + (Get-LauncherString 'Settings.Retired' $node.Name (Split-Path -Leaf $SettingsPath))) -ForegroundColor DarkGray
         continue
     }
 
@@ -453,31 +518,14 @@ foreach ($node in $rootNode.ChildNodes) {
 }
 
 if ($obsolete.Count -gt 0) {
-    Write-Problem -Title 'This settings file names the target the old way.' -Detail @(
-        "No longer used: $($obsolete -join ', ')",
-        '',
-        'All three have been replaced by one setting, which you fill in by',
-        'copying rather than by typing:',
-        '',
-        '    <Destination>  open the folder in SharePoint, copy the whole',
-        '                   address out of your browser, paste it in',
-        '',
-        'The address says the site, the library and the folder together, so',
-        'they cannot disagree with each other -- and it carries the channel',
-        'folder a Teams site hides, which is what typing gets wrong.',
-        '',
-        'Delete those lines, add a <Destination> line, and run this again.',
-        'A fresh upload-check.xml shows the shape of it: rename yours, and',
-        'the next run puts a new one beside it.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Obsolete.Title') `
+        -Detail (Get-LauncherLines 'Settings.Obsolete.Body' ($obsolete -join ', '))
     exit $SETUP_PROBLEM
 }
 
 if ($unknown.Count -gt 0) {
-    Write-Problem -Title 'There is a setting in the file that I do not recognise.' -Detail @(
-        "Unknown: $($unknown -join ', ')",
-        '',
-        "Known settings: $($known -join ', ')",
-        'Check the spelling - the names are case-sensitive.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Unknown.Title') `
+        -Detail (Get-LauncherLines 'Settings.Unknown.Body' ($unknown -join ', ') ($known -join ', '))
     exit $SETUP_PROBLEM
 }
 
@@ -506,8 +554,8 @@ function Read-Number {
 
     $value = 0
     if (-not [int]::TryParse($raw, [ref]$value)) {
-        Write-Problem -Title "The setting <$Name> has to be a whole number." -Detail @(
-            "It currently says: $raw")
+        Write-Problem -Title (Get-LauncherString 'Settings.NotNumber.Title' $Name) `
+            -Detail (Get-LauncherLines 'Settings.CurrentValue' $raw)
         exit $SETUP_PROBLEM
     }
 
@@ -526,65 +574,24 @@ function Read-Boolean {
     if ('true', 'yes', '1' -contains $raw.ToLower()) { return $true }
     if ('false', 'no', '0' -contains $raw.ToLower()) { return $false }
 
-    Write-Problem -Title "The setting <$Name> has to be true or false." -Detail @(
-        "It currently says: $raw")
+    Write-Problem -Title (Get-LauncherString 'Settings.NotBoolean.Title' $Name) `
+        -Detail (Get-LauncherLines 'Settings.CurrentValue' $raw)
     exit $SETUP_PROBLEM
 }
 
-# -- Language ----------------------------------------------------------------
-# One language per run, chosen the same way for every tool: -Language (what the
-# launcher passes), then this file's <Language>, then the choice saved for the
-# user, then the Windows display language. The texts live in Resources\, one
-# table per language, with English underneath.
-if (-not $Language) {
-    $Language = Get-Setting -Name 'Language'
+# -- Language, once the settings are read ------------------------------------
+# <Language> in this file can name one for the file. -Language still wins, as it
+# does everywhere.
+$fromFile = Get-Setting -Name 'Language'
+if (-not $Language -and $fromFile) {
+    try {
+        Select-LauncherLanguage -Requested $fromFile
+    }
+    catch {
+        Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.File' $fromFile)
+        exit $SETUP_PROBLEM
+    }
 }
-
-try {
-    $chosen = Resolve-O365Language -Language $Language
-}
-catch {
-    Write-Problem -Title 'The language has to be en, de or auto.' -Detail @(
-        "It currently says: $Language",
-        'It is set by <Language> in upload-check.xml.')
-    exit $SETUP_PROBLEM
-}
-
-$script:Strings = Import-O365StringTable -Language $chosen.Language -Path @(
-    (Join-Path $root 'src\Office365Tools\Resources'),
-    (Join-Path $PSScriptRoot 'Resources'))
-
-# German umlauts need a console that decodes UTF-8. The .cmd launcher already
-# switched the code page; this covers a start from anywhere else.
-try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
-
-function Get-LauncherString {
-    param(
-        [Parameter(Mandatory, Position = 0)]
-        [string]$Key,
-
-        [Parameter(Position = 1, ValueFromRemainingArguments)]
-        [object[]]$FormatArguments = @()
-    )
-
-    return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
-}
-
-# A text of several lines, for Write-Problem: one line per line of the text.
-function Get-LauncherLines {
-    param(
-        [Parameter(Mandatory, Position = 0)]
-        [string]$Key,
-
-        [Parameter(Position = 1, ValueFromRemainingArguments)]
-        [object[]]$FormatArguments = @()
-    )
-
-    $text = Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments
-
-    return @($text -split "`r?`n")
-}
-
 # -- Source: which folder ----------------------------------------------------
 if (-not $Folder) {
     $Folder = Get-Setting -Name 'Folder'
@@ -650,8 +657,8 @@ if (-not $mode -and -not $NoPrompt) {
 if (-not $mode) { $mode = 'PreFlight' }
 
 if ('PreFlight', 'Verify', 'Both' -notcontains $mode) {
-    Write-Problem -Title "The setting <Mode> has to be PreFlight, Verify, Both or ask." -Detail @(
-        "It currently says: $mode")
+    Write-Problem -Title (Get-LauncherString 'Settings.Mode.Title') `
+        -Detail (Get-LauncherLines 'Settings.CurrentValue' $mode)
     exit $SETUP_PROBLEM
 }
 
