@@ -27,6 +27,8 @@ $script:O365State = [pscustomobject]@{
     ClientId    = $null
     LogPath     = $null   # Active transcript-style log file, if Start-O365Log ran
     ConnectedAt = $null
+    Language    = $null   # Language code in use this session, resolved on first use
+    Strings     = $null   # Merged string table for that language, cached
 }
 
 # Document Set templates are read once per site and content type. Resolving one

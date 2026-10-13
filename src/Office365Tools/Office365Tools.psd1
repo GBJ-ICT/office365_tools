@@ -31,6 +31,10 @@
         'Start-O365Log'
         'Stop-O365Log'
 
+        # --- Language -------------------------------------------------------
+        'Get-O365Language'
+        'Set-O365Language'
+
         # --- Permissions ----------------------------------------------------
         'Get-SpoPermissionMismatch'
         'Repair-SpoPermissionInheritance'
