@@ -51,6 +51,9 @@ plugins:
             Document Sets: Dokumentsätze
             Printing: Drucken
             Language: Sprache
+            Tools at a glance: Werkzeuge im Überblick
+            Sandbox: Sandbox
+            Overview: Überblick
             Multi-language design: Mehrsprachigkeit (Design)
             Migration: Migration
 
@@ -68,12 +71,15 @@ markdown_extensions:
 nav:
   - Home: README.md
   - User guide:
-      - Getting started: user/getting-started.md
-      - Authentication: user/authentication.md
-      - Health rules: user/health-rules.md
-      - Document Sets: user/document-sets.md
-      - Printing: user/printing.md
+      - Tools at a glance: user/tools.md
       - Language: user/language.md
   - Developer docs:
       - Multi-language design: dev/multilanguage.md
-      - Migration: dev/migration.md
+  - Sandbox:
+      - Overview: sandbox/README.md
+      - Getting started: sandbox/getting-started.md
+      - Authentication: sandbox/authentication.md
+      - Health rules: sandbox/health-rules.md
+      - Document Sets: sandbox/document-sets.md
+      - Printing: sandbox/printing.md
+      - Migration: sandbox/migration.md
