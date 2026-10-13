@@ -27,6 +27,13 @@
        Default: ask -->
   <Mode>ask</Mode>
 
+  <!-- Language of the messages: en (English), de (Deutsch) or auto.
+       Leave it empty or "auto" and the language you chose for the tools is
+       used, or failing that the language of your Windows. Fill it in only to
+       make this one file always use a language, whatever is chosen elsewhere.
+       Default: auto -->
+  <Language></Language>
+
   <!-- Include the files in subfolders, or only those directly in the folder.
        true or false. Default: true -->
   <Subfolders>true</Subfolders>
@@ -55,7 +62,11 @@
                  button. That one names no folder. Use the address bar.
 
        ClientId  the application your organisation signs in with. Whoever set
-                 this up has it; it is not a password and not a secret. -->
+                 this up has it; it is not a password and not a secret.
+                 Leave it empty and the checker looks elsewhere: first the
+                 environment variable gbj_client_id, which the old scripts
+                 set, then the default profile in config\profiles.json. -->
+
   <Destination></Destination>
   <ClientId></ClientId>
 

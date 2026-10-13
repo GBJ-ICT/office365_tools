@@ -57,6 +57,9 @@ param(
     [string]$ReportFolder,
 
     [Parameter()]
+    [string]$Language,
+
+    [Parameter()]
     [switch]$NoPrompt
 )
 
@@ -349,9 +352,14 @@ if (-not $SettingsPath) {
     $SettingsPath = Join-Path $PSScriptRoot 'upload-check.xml'
 }
 
+$shared = Join-Path $root 'src\Office365Tools\Private\Shared'
+
 $missing = @()
 if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
 if (-not (Test-Path -LiteralPath $module)) { $missing += 'src\Office365Tools\' }
+foreach ($file in 'Language.ps1', 'ClientId.ps1') {
+    if (-not (Test-Path -LiteralPath (Join-Path $shared $file))) { $missing += "src\Office365Tools\Private\Shared\$file" }
+}
 if (-not (Test-Path -LiteralPath $SettingsPath)) { $missing += (Split-Path -Leaf $SettingsPath) }
 
 if ($missing.Count -gt 0) {
@@ -364,9 +372,14 @@ if ($missing.Count -gt 0) {
     exit $SETUP_PROBLEM
 }
 
+# The language and application ID lookups are shared with the module: the very
+# same files, so the two cannot drift. They need no module and no PowerShell 7.
+. (Join-Path $shared 'Language.ps1')
+. (Join-Path $shared 'ClientId.ps1')
+
 # -- Read the settings -------------------------------------------------------
 $known = @(
-    'Folder', 'Mode', 'Destination', 'ClientId', 'Subfolders',
+    'Folder', 'Mode', 'Language', 'Destination', 'ClientId', 'Subfolders',
     'IgnoreDates', 'CompareSize', 'TargetPathPrefix', 'LargeFileMb',
     'PathLimit', 'WarnAt', 'BlockedExtension', 'IncludeRisky')
 
@@ -518,6 +531,60 @@ function Read-Boolean {
     exit $SETUP_PROBLEM
 }
 
+# -- Language ----------------------------------------------------------------
+# One language per run, chosen the same way for every tool: -Language (what the
+# launcher passes), then this file's <Language>, then the choice saved for the
+# user, then the Windows display language. The texts live in Resources\, one
+# table per language, with English underneath.
+if (-not $Language) {
+    $Language = Get-Setting -Name 'Language'
+}
+
+try {
+    $chosen = Resolve-O365Language -Language $Language
+}
+catch {
+    Write-Problem -Title 'The language has to be en, de or auto.' -Detail @(
+        "It currently says: $Language",
+        'It is set by <Language> in upload-check.xml.')
+    exit $SETUP_PROBLEM
+}
+
+$script:Strings = Import-O365StringTable -Language $chosen.Language -Path @(
+    (Join-Path $root 'src\Office365Tools\Resources'),
+    (Join-Path $PSScriptRoot 'Resources'))
+
+# German umlauts need a console that decodes UTF-8. The .cmd launcher already
+# switched the code page; this covers a start from anywhere else.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
+
+function Get-LauncherString {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
+}
+
+# A text of several lines, for Write-Problem: one line per line of the text.
+function Get-LauncherLines {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    $text = Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments
+
+    return @($text -split "`r?`n")
+}
+
 # -- Source: which folder ----------------------------------------------------
 if (-not $Folder) {
     $Folder = Get-Setting -Name 'Folder'
@@ -635,7 +702,12 @@ if (-not $pwsh) {
 # Ask PowerShell 7, do not look here: 5.1 and 7 read different module folders,
 # so what this process can see is not what the checker will be able to load.
 if ($needsSignIn) {
-    $clientId = Get-Setting -Name 'ClientId'
+    # The settings file first; failing that, where an earlier setup left it: the
+    # environment variable the old scripts used, then the default profile.
+    $clientInfo = Resolve-O365ClientId -Configured (Get-Setting -Name 'ClientId') `
+        -ProfilePath (Join-Path $root 'config\profiles.json')
+    $clientId = $null
+    if ($clientInfo) { $clientId = $clientInfo.ClientId }
 
     if (-not $destination -and -not $NoPrompt) {
         $destination = (Read-Address).Trim()
@@ -647,19 +719,23 @@ if ($needsSignIn) {
     }
 
     if (-not $destination -or -not $clientId) {
-        Write-Problem -Title 'Checking what arrived means signing in, and I am missing the details for that.' -Detail @(
-            'Needed in upload-check.xml:',
-            '',
-            '    <Destination>  the address of the folder in SharePoint, copied',
-            '                   from your browser',
-            '    <ClientId>     the application ID your organisation uses to sign in',
-            '',
-            'The address you can fetch yourself: open the folder in SharePoint',
-            'and copy what is in the address bar. The ClientId is one line that',
-            'whoever sent you this package has. Until then, option 1 (checking',
-            'the folder before uploading) works without any of it.')
+        $detail = @()
+        $detail += Get-LauncherLines 'Upload.SignIn.Missing.Needed'
+        if (-not $destination) { $detail += Get-LauncherLines 'Upload.SignIn.Missing.Destination' }
+        if (-not $clientId) { $detail += Get-LauncherLines 'Upload.SignIn.Missing.ClientId' }
+        $detail += Get-LauncherLines 'Upload.SignIn.Missing.Footer'
+
+        Write-Problem -Title (Get-LauncherString 'Upload.SignIn.Missing.Title') -Detail $detail
         exit $SETUP_PROBLEM
     }
+
+    # Said out loud, so nobody has to wonder which of the three was used.
+    $from = Get-LauncherString 'Upload.ClientId.From.Settings'
+    if ($clientInfo.Source -eq 'Environment') { $from = Get-LauncherString 'Upload.ClientId.From.Environment' }
+    if ($clientInfo.Source -eq 'Profile') { $from = Get-LauncherString 'Upload.ClientId.From.Profile' }
+
+    Write-Host ''
+    Write-Host ('  ' + (Get-LauncherString 'Upload.ClientId.Found' $from)) -ForegroundColor Gray
 
     $installed = & $pwsh -NoProfile -Command "if (Get-Module -ListAvailable -Name PnP.PowerShell) { 'yes' } else { 'no' }"
 
