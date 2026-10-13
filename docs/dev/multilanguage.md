@@ -1,8 +1,9 @@
 # Multi-language design
 
-> **Status: planned.** This is the agreed design, written before the code so it
-> can be reviewed. Where the implementation differs, this document is updated in
-> the same commit. The user-facing view is [language.md](../user/language.md).
+> **Status: step 1 of 6 is built** (the loader, the saved setting, the language
+> commands and their tests); the rest is planned. Where the implementation
+> differs from the design, this document is updated in the same commit. See
+> [Rollout](#rollout). The user-facing view is [language.md](../user/language.md).
 
 Every tool in the repository supports **English (`en`) and German (`de`)**. The
 language is resolved once per run, before anything is printed, and every
@@ -144,9 +145,9 @@ packaging/UploadCheck/Resources/
 ```
 
 Each tool owns the strings only it uses. Folders are named `en` and `de`, not
-`en-US` and `de-DE`: `Import-LocalizedData` searches the full culture first
-(`de-CH`), then the neutral language (`de`), so a Swiss user finds the German
-table without a `de-CH` folder.
+`en-US` and `de-DE`: the Windows culture is first reduced to a language code
+(`de-CH` gives `de`, see above), so a Swiss user finds the German table without
+a `de-CH` folder.
 
 ### Format
 
@@ -180,8 +181,8 @@ Rules:
 - **Files are UTF-8 with BOM.** Windows PowerShell 5.1 reads a BOM-less file as
   the ANSI code page and turns `ö` into `Ã¶`. `.editorconfig` /
   `.gitattributes` enforce it and a test checks it.
-- **No logic** in the files. `Import-LocalizedData` runs them in restricted
-  language mode, so only literals are allowed.
+- **No logic** in the files. `Import-PowerShellDataFile` reads them in
+  restricted language mode, so only literals are allowed.
 
 ### Informal German
 
@@ -190,14 +191,19 @@ imperatives ("Wähle", not "Wählen Sie"). Do not mix in "Sie".
 
 ### Loading and merging
 
-`Import-LocalizedData` imports one table; it does not merge. The loader
-therefore does three steps:
+`Import-O365StringTable` reads the files with `Import-PowerShellDataFile`
+(available on Windows PowerShell 5.1 and PowerShell 7). It was chosen over
+`Import-LocalizedData`, which searches culture folders itself and reports an
+error for a missing one: here the language is already a plain code, and the
+lookup needs to be exact and quiet. It does three steps:
 
-1. Load `en/Strings.psd1` explicitly (`-UICulture en`). This is the base.
-2. Load the chosen language with `-ErrorAction SilentlyContinue`, so a missing
-   file for that language is not an error.
+1. Load `en/Strings.psd1`. This is the base.
+2. Load the chosen language if its file exists. A missing file is not an error.
 3. Merge: start from the English hashtable and overwrite each key present in the
    chosen one.
+
+With several Resources folders (the module's, a tool's) each folder gets the same
+treatment in the order given, so a later folder can override an earlier one.
 
 English is therefore always complete underneath. A key that exists only in
 English still resolves, and a missing German file falls back cleanly to English.
@@ -212,8 +218,18 @@ The merged table is cached for the session.
 | `Get-O365String -Key <k> [-FormatArguments <object[]>]` | private | Text for the active language, formatted. See [Missing text](#missing-text) |
 | `Get-O365Language` | public | The active language and where it came from. `Source` is one of `Parameter`, `Environment`, `SavedSetting`, `Windows`, `Default` |
 | `Set-O365Language -Language en\|de\|auto` | public | Writes the saved setting; supports `-WhatIf` |
-| `Get-O365SupportedLanguage` | private | The list of language codes |
-| `Resolve-O365Language` | private | Implements the order above |
+| `Get-O365SupportedLanguage` | private, shared | The list of language codes |
+| `Resolve-O365Language` | private, shared | Implements the order above. Takes every input as a parameter, so tests can feed it any combination |
+| `ConvertTo-O365LanguageCode` | private, shared | Windows culture name to `en` or `de` |
+| `Import-O365StringTable` | private, shared | Loads and merges the tables |
+| `Format-O365String` | private, shared | Looks a key up in a table and fills in the placeholders |
+| `Get-O365SettingsPath` | private, shared | `%APPDATA%\office365_tools\settings.json`; `$env:O365_SETTINGS_PATH` overrides it, for tests |
+| `Read-O365Setting`, `Write-O365Setting` | private, shared | The saved setting. `Write-O365Setting` returns `$true` or `$false` and never throws |
+
+"Shared" means defined in `src/Office365Tools/Private/Shared/Language.ps1`, the
+one file the launcher dot-sources as well (see below).
+
+`Get-O365Language` returns `Language`, `Source` and `SettingsPath`.
 
 `Source` values are plain identifiers, so scripts can compare them; the console
 display may show a friendlier label (`Saved setting`).
@@ -272,16 +288,27 @@ script (see [packaging/README.md](https://github.com/GBJ-ICT/office365_tools/blo
 under Windows PowerShell 5.1 before the module or PowerShell 7 is involved, so it
 cannot call `Get-O365String` from the module.
 
-**Preferred: one shared loader.** The string lookup is a small file with no
-dependency on the module (`Get-O365StringTable.ps1`: resolve language, load,
-merge, format). It is dot-sourced by `Start-Tool.ps1`, by the tool entry scripts
-and by the module. A release is the whole repository, so the file is always
-there. One implementation means nothing can drift.
+**Decided in step 1: one shared loader, no duplication.** The language and string
+lookup is one file, `src/Office365Tools/Private/Shared/Language.ps1`. It reads no
+module state and takes everything as parameters, so the module dot-sources it
+with the rest of `Private/` and the launcher scripts dot-source the same file by
+path (`$Root\src\Office365Tools\Private\Shared\Language.ps1`). A release is the
+whole repository, so the file is always there, and one implementation means
+nothing can drift. The launcher scripts start using it in step 2.
 
-**Fallback if that proves awkward:** keep a small, deliberately duplicated lookup
-in the launcher scripts and prove it equal to the module's with a parity test
-(see Testing). This decision is made in step 1 of the rollout, when the file
-layout is concrete, and this document is updated to say which was chosen.
+The price is two rules for that one file, both enforced by
+`tests/Unit/Language.Tests.ps1`:
+
+- **Windows PowerShell 5.1 syntax only:** no ternary, `??`, `?.`, `&&`, `||` or
+  `-Parallel`. The test parses the file and fails on any of them.
+- **ASCII only:** 5.1 reads a file without a byte order mark as ANSI, so one
+  umlaut in a comment would be read wrongly. The test fails on any byte over 127.
+
+The file was also run by hand under Windows PowerShell 5.1 and PowerShell 7,
+including reading the German table with its umlauts.
+
+Messages that the shared file itself raises, such as the error for an unsupported
+`-Language`, are English: the file has no table to look them up in.
 
 The `.cmd` itself contains no user-visible text beyond what Windows prints, and
 a launcher on someone's machine never changes, so nothing in it is translated.
@@ -371,7 +398,6 @@ All of these run without a tenant, in `build.ps1 -Task Test` and in CI.
 | Saved setting round-trips, preserves unknown keys, and an unwritable path does not fail the run | Broken persistence |
 | Every `RuleId` in the code has `Rule.<id>.Title` and `.Fix` in both languages | A new rule shipped untranslated |
 | PSScriptAnalyzer custom rule: no bare string literal passed to `Write-Host`, `Write-Warning` or `throw` in localised files | New hard-coded English creeping back |
-| If the duplicated-loader fallback was chosen: both loaders return identical results for one fixture | The duplication drifting |
 | Report renders `lang` from the resolved code and identical `RuleId`s in both languages | Translation altering identifiers |
 
 ## Adding a string
@@ -410,9 +436,9 @@ No other code changes.
 Each step is its own commit and leaves the repository working. Call sites not
 yet converted keep their English text until their turn.
 
-1. Loader and saved setting, resolution, `Get-O365Language` /
-   `Set-O365Language`, tests including key coverage. Decide here: shared loader
-   or duplicated-with-parity.
+1. **Done.** Loader and saved setting, resolution, `Get-O365Language` /
+   `Set-O365Language`, tests including key coverage. The shared loader was
+   chosen over a duplicated one.
 2. Tool menu and `Start-UploadCheck.ps1`: picker, optional `<Language>`, all
    their messages in both languages. The `ClientId` fallback (environment
    variable, then profile) lands in this step so its new messages are born
@@ -432,7 +458,7 @@ yet converted keep their English text until their turn.
 | Fallback | English merged underneath | Error on a missing key: worse for a hand-out tool |
 | Saved setting | **One** per-user file, `%APPDATA%\office365_tools\settings.json`, used by launcher and module | A setting per tool (`upload-check.xml`, `config/settings.json`): two sources of truth, and a package update could reset it |
 | Picker | The choice is remembered | Per run only, or two choices: more keystrokes, or more UI |
-| Launcher strings | One shared loader, parity-tested duplication if impossible | Loading the module on 5.1: defeats its purpose |
+| Launcher strings | One shared loader file, held to 5.1 syntax and ASCII by a test | A duplicated copy in the launcher, kept equal by a parity test: more code and a drift risk; loading the module on 5.1 defeats its purpose |
 | Findings | Language-neutral objects, text added at render | Translating at creation: saved findings could not be re-rendered |
 | Missing text | Fail the build; neutral line plus log warning at runtime | Showing the raw key: exposes internal names to users |
 | Culture mapping | `CultureInfo.TwoLetterISOLanguageName`, validated against the supported list | Splitting the culture name on `-` |
