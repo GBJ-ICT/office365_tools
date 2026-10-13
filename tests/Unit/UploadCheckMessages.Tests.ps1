@@ -89,7 +89,8 @@ BeforeAll {
             [string]$Language,
             [string]$Folder = $script:Upload,
             [string[]]$Answer,
-            [switch]$NoWindow
+            [switch]$NoWindow,
+            [string]$SettingsFile
         )
 
         $settings = Join-Path $script:Folder 'upload-check.xml'
@@ -105,9 +106,16 @@ BeforeAll {
         if ($Folder) { $arguments += @('-Folder', $Folder) }
         if (-not $Answer) { $arguments += '-NoPrompt' }
 
+        # The saved language is the person's own file. These runs write to a file
+        # of their own unless the test says otherwise, so a test never changes
+        # the real one.
+        if (-not $SettingsFile) { $SettingsFile = Join-Path $script:Folder 'saved-settings.json' }
+
         $saved = $env:O365_LANGUAGE
+        $savedPath = $env:O365_SETTINGS_PATH
         try {
             $env:O365_LANGUAGE = $Language
+            $env:O365_SETTINGS_PATH = $SettingsFile
             if ($Answer) {
                 $output = $Answer | & powershell.exe @arguments 2>&1
             }
@@ -118,6 +126,7 @@ BeforeAll {
         }
         finally {
             $env:O365_LANGUAGE = $saved
+            $env:O365_SETTINGS_PATH = $savedPath
         }
     }
 }
@@ -266,5 +275,87 @@ Describe 'The upload checker launcher, asking in the console where a window cann
         $result.Text | Should -BeLike '*Ein Rechtsklick f*gt in dieses Fenster ein.*'
         $result.Text | Should -BeLike '*Ziel: https://contoso*'
         $result.Text | Should -Not -BeLike '*Right-click pastes*'
+    }
+}
+
+Describe 'The upload checker launcher, offering a language' -Skip:(-not $canRunWindowsPowerShell) {
+
+    BeforeAll {
+        $script:WithDestination = '<UploadCheck><Destination>https://contoso.sharepoint.com/sites/team/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FTest</Destination></UploadCheck>'
+    }
+
+    BeforeEach {
+        $script:Saved = Join-Path $script:Folder "saved-$([guid]::NewGuid().ToString('N')).json"
+    }
+
+    It 'shows the language in use, in English' {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer '2' -SettingsFile $script:Saved
+
+        $result.Text | Should -BeLike '*Language: English*L = change*'
+    }
+
+    It 'shows the language in use, in German' {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'de' -Answer '2' -SettingsFile $script:Saved
+
+        $result.Text | Should -BeLike '*Sprache: Deutsch*L = *ndern*'
+    }
+
+    It 'switches to German on L and 2, shows the menu again in German, and remembers it' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer 'l', '2', '2' -SettingsFile $script:Saved
+
+        $result.Text | Should -BeLike '*Which language?*'
+        $result.Text | Should -BeLike '*What would you like to do?*Was m*chtest du tun?*'
+        $result.Text | Should -BeLike '*Anwendungs-ID*'
+        (Get-Content -LiteralPath $script:Saved -Raw | ConvertFrom-Json).language | Should -Be 'de'
+    }
+
+    It 'switches to English on L and 1, and remembers it' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'de' -Answer 'l', '1', '2' -SettingsFile $script:Saved
+
+        $result.Text | Should -BeLike '*Welche Sprache?*'
+        $result.Text | Should -BeLike '*Was m*chtest du tun?*What would you like to do?*'
+        $result.Text | Should -BeLike '*Application ID*'
+        (Get-Content -LiteralPath $script:Saved -Raw | ConvertFrom-Json).language | Should -Be 'en'
+    }
+
+    It 'remembers following Windows as auto' -Skip:$idElsewhere {
+        Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer 'l', '3', '2' -SettingsFile $script:Saved | Out-Null
+
+        (Get-Content -LiteralPath $script:Saved -Raw | ConvertFrom-Json).language | Should -Be 'auto'
+    }
+
+    It 'keeps the language, and saves nothing, when Enter is pressed at the question' -Skip:$idElsewhere {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer 'l', '', '2' -SettingsFile $script:Saved
+
+        $result.Text | Should -BeLike '*Which language?*'
+        $result.Text | Should -Not -BeLike '*Was m*chtest du tun?*'
+        Test-Path -LiteralPath $script:Saved | Should -BeFalse
+    }
+
+    It 'carries on in the new language, and says so, when the choice cannot be saved' -Skip:$idElsewhere {
+        $blocker = Join-Path $script:Folder 'blocker'
+        Set-Content -LiteralPath $blocker -Value 'a file'
+
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -Answer 'l', '2', '2' `
+            -SettingsFile (Join-Path $blocker 'settings.json')
+
+        # Said in the language just chosen, which is the one the rest of the run uses.
+        $result.Text | Should -BeLike '*konnte aber nicht in*gespeichert werden*'
+        $result.Text | Should -BeLike '*Was m*chtest du tun?*'
+    }
+
+    It 'does not offer it when the settings file already says what to do' -Skip:$idElsewhere {
+        $xml = '<UploadCheck><Mode>Verify</Mode><Destination>https://contoso.sharepoint.com/sites/team/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fteam%2FShared%20Documents%2FTest</Destination></UploadCheck>'
+
+        $result = Invoke-Launcher -Xml $xml -Language 'en' -Answer 'l' -SettingsFile $script:Saved
+
+        $result.Text | Should -Not -BeLike '*L = change*'
+        $result.Text | Should -Not -BeLike '*Which language?*'
+    }
+
+    It 'does not offer it when it is told not to ask' {
+        $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -SettingsFile $script:Saved
+
+        $result.Text | Should -Not -BeLike '*L = change*'
     }
 }

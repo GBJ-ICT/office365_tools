@@ -1,7 +1,7 @@
 # Multi-language design
 
-> **Status: step 1 of 6 is built** (the loader, the saved setting, the language
-> commands and their tests); the rest is planned. Where the implementation
+> **Status: step 1 and the upload checker's launcher (step 2, parts a and b) are
+> built**; the tool menu and everything after it is planned. Where the implementation
 > differs from the design, this document is updated in the same commit. See
 > [Rollout](#rollout). The user-facing view is [language.md](../user/language.md).
 
@@ -187,7 +187,8 @@ Rules:
 ### Informal German
 
 German text uses the informal address (**du**) throughout, including
-imperatives ("Wähle", not "Wählen Sie"). Do not mix in "Sie".
+imperatives ("Wähle", not "Wählen Sie"). Do not mix in "Sie". The spelling is
+Swiss: **ss** instead of **ß** ("Gross- und Kleinschreibung", "schliessend").
 
 ### Loading and merging
 
@@ -335,15 +336,23 @@ screen a user sees.
 ### The picker
 
 - Screens that ask a question (the tool menu and "What would you like to do?")
-  show `Language: <name>` and an extra choice **L**.
+  show `Language: <name>` and an extra choice **L**. The first of those is built
+  (the upload checker's menu); the tool menu window follows in part 2c.
 - **L** shows `1) English  2) Deutsch  3) Follow Windows`, then returns to the
-  screen in the new language.
+  screen in the new language. **Enter** at that question keeps the language as
+  it is and saves nothing.
 - **The choice is remembered.** It is written to the saved setting, so the next
   run, and every other tool, uses it. To try the other language once, press **L**
   again afterwards, or pass `-Language` on the command line.
 - If the setting cannot be written, the choice still applies to this run and a
-  one-line note says it was not saved. That note appears only on failure.
-- Dragging a folder onto the launcher and `-NoPrompt` never show the picker.
+  one-line note says it was not saved, in the language just chosen. That note
+  appears only on failure.
+- Dragging a folder onto the launcher and `-NoPrompt` never show the picker. Nor
+  does a settings file that already fixes what to do (`<Mode>`): the menu does
+  not appear, so there is no **L**. The language is then changed with the saved
+  setting, `-Language`, or `<Language>` in the file.
+- **Follow Windows** is saved as `auto`, so a language chosen once can be given up
+  again. `O365_LANGUAGE` still outranks it for that run.
 - The hint next to the language is always bilingual (`L = change / ändern`), so a
   user who cannot read the current language can still find it.
 
@@ -448,7 +457,11 @@ yet converted keep their English text until their turn.
      shared order), reads its texts from `packaging/UploadCheck/Resources/`, and
      looks for the application ID in `<ClientId>`, then `gbj_client_id`, then the
      default profile. Only the messages about signing in are translated so far.
-   - **2b:** every other message of `Start-UploadCheck.ps1`, and the **L** picker.
+   - **2b, done:** every other message of `Start-UploadCheck.ps1` -- setup and
+     settings problems, the questions, the install flow, and the address
+     window and folder picker -- and the **L** picker. Only the message about
+     the shared files themselves stays English. Four commits, because each had
+     to pass the pipelines on its own.
    - **2c:** the tool menu window in `Start-Tool.ps1`.
 3. `scripts/Test-Upload.ps1` console output and `-Language`.
 4. Module commands, by group: connection, library, permissions, content types,

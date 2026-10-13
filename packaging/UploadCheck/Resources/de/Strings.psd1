@@ -162,4 +162,13 @@ Link nennt keinen Ordner.'
     'Upload.Address.Console.Help'        = 'Kopiere die Adresse aus deinem Browser und füge sie hier ein.
 Ein Rechtsklick fügt in dieses Fenster ein.'
     'Upload.Address.Console.Prompt'      = 'Adresse'
+
+    'Language.Name.en'                   = 'English'
+    'Language.Name.de'                   = 'Deutsch'
+    'Language.Picker.Line'               = 'Sprache: {0}   (L = ändern / change)'
+    'Language.Picker.Title'              = 'Welche Sprache?'
+    'Language.Picker.Option1'            = '    1) English'
+    'Language.Picker.Option2'            = '    2) Deutsch'
+    'Language.Picker.Option3'            = '    3) Windows folgen'
+    'Language.Picker.Prompt'             = 'Nummer, oder Enter zum Beibehalten'
 }
