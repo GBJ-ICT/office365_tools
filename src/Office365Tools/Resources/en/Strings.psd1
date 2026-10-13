@@ -10,4 +10,13 @@
 
     'Language.Save.Action'      = 'Save the language "{0}"'
     'Language.NotSaved'         = 'The language applies to this session but could not be saved to {0}.'
+
+    'Language.Name.en'          = 'English'
+    'Language.Name.de'          = 'Deutsch'
+    'Language.Picker.Line'      = 'Language: {0}   (L = change / ändern)'
+    'Language.Picker.Title'     = 'Which language?'
+    'Language.Picker.Option1'   = '    1) English'
+    'Language.Picker.Option2'   = '    2) Deutsch'
+    'Language.Picker.Option3'   = '    3) Follow Windows'
+    'Language.Picker.Prompt'    = 'Number, or Enter to keep it'
 }

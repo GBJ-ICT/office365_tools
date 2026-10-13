@@ -555,7 +555,21 @@ Describe 'The string tables' {
 Describe 'Every message the code asks for' {
 
     BeforeAll {
+        # The helpers that look a key up for everyone else. Their own calls pass
+        # the key on as a variable, which is the point of them.
+        $helpers = 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Format-O365String'
+
+        function Find-Enclosing {
+            param($Node)
+            while ($Node) {
+                if ($Node -is [System.Management.Automation.Language.FunctionDefinitionAst]) { return $Node.Name }
+                $Node = $Node.Parent
+            }
+            return ''
+        }
+
         # Calls such as: Get-O365String 'Language.NotSaved' $path
+        #                Format-O365String -Table $t -Key 'Language.Picker.Title'
         # The key has to be a literal, which is also what lets this test see it.
         $script:Asked = foreach ($file in $script:Sources) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
@@ -563,27 +577,47 @@ Describe 'Every message the code asks for' {
             $calls = $ast.FindAll({
                     param($node)
                     $node -is [System.Management.Automation.Language.CommandAst] -and
-                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines'
+                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Format-O365String'
                 }, $true)
 
             foreach ($call in $calls) {
                 $elements = @($call.CommandElements | Select-Object -Skip 1)
-                $first = $elements | Where-Object { $_ -isnot [System.Management.Automation.Language.CommandParameterAst] } | Select-Object -First 1
+                $first = $null
+
+                if ($call.GetCommandName() -eq 'Format-O365String') {
+                    # The key is the argument of -Key.
+                    for ($i = 0; $i -lt $elements.Count; $i++) {
+                        $element = $elements[$i]
+                        if ($element -is [System.Management.Automation.Language.CommandParameterAst] -and $element.ParameterName -eq 'Key') {
+                            if ($element.Argument) { $first = $element.Argument }
+                            elseif ($i + 1 -lt $elements.Count) { $first = $elements[$i + 1] }
+                        }
+                    }
+                }
+                else {
+                    $first = $elements | Where-Object { $_ -isnot [System.Management.Automation.Language.CommandParameterAst] } | Select-Object -First 1
+                }
+
+                $isLiteral = $first -is [System.Management.Automation.Language.StringConstantExpressionAst]
 
                 [pscustomobject]@{
                     File     = $file.FullName.Substring($script:RepoRoot.Length + 1)
                     Line     = $call.Extent.StartLineNumber
-                    Literal  = ($first -is [System.Management.Automation.Language.StringConstantExpressionAst])
-                    Key      = if ($first -is [System.Management.Automation.Language.StringConstantExpressionAst]) { $first.Value } else { $null }
-                    Original = $call.Extent.Text
+                    Literal  = $isLiteral
+                    Key      = if ($isLiteral) { $first.Value } else { $null }
+                    InHelper = ((Find-Enclosing $call) -in $helpers)
                 }
             }
         }
         $script:Asked = @($script:Asked)
     }
 
+    It 'finds the calls at all' {
+        @($script:Asked | Where-Object Literal).Count | Should -BeGreaterThan 20
+    }
+
     It 'passes its key as a literal, so it can be checked' {
-        $dynamic = @($script:Asked | Where-Object { -not $_.Literal })
+        $dynamic = @($script:Asked | Where-Object { -not $_.Literal -and -not $_.InHelper })
 
         $dynamic | Should -BeNullOrEmpty -Because (
             "a computed key cannot be checked: $(($dynamic | ForEach-Object { "$($_.File):$($_.Line)" }) -join ', ')")
@@ -606,6 +640,103 @@ Describe 'Every message the code asks for' {
         }
 
         $true | Should -BeTrue
+    }
+}
+
+Describe 'The language picker' {
+
+    BeforeAll {
+        $script:Table = @{
+            'Language.Name.en'        = 'English'
+            'Language.Name.de'        = 'Deutsch'
+            'Language.Picker.Line'    = 'Language: {0}   (L = change)'
+            'Language.Picker.Title'   = 'Which language?'
+            'Language.Picker.Option1' = '    1) English'
+            'Language.Picker.Option2' = '    2) Deutsch'
+            'Language.Picker.Option3' = '    3) Follow Windows'
+            'Language.Picker.Prompt'  = 'Number'
+        }
+    }
+
+    BeforeEach {
+        $script:Folder = Get-ScratchFolder
+        $script:Settings = Join-Path $script:Folder 'settings.json'
+        Mock Write-Host { }
+    }
+
+    AfterEach {
+        Remove-Item -LiteralPath $script:Folder -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Context 'the line that says which language is in use' {
+
+        It 'names English' {
+            Get-O365LanguageLine -Table $script:Table -Language 'en' | Should -Be 'Language: English   (L = change)'
+        }
+
+        It 'names Deutsch' {
+            Get-O365LanguageLine -Table $script:Table -Language 'de' | Should -Be 'Language: Deutsch   (L = change)'
+        }
+    }
+
+    Context 'asking' {
+
+        It 'returns English for 1, and saves it' {
+            Mock Read-Host { '1' }
+
+            $result = Read-O365LanguageChoice -Table $script:Table -Path $script:Settings
+
+            $result.Choice | Should -Be 'en'
+            $result.Saved | Should -BeTrue
+            Read-O365Setting -Name 'language' -Path $script:Settings | Should -Be 'en'
+        }
+
+        It 'returns Deutsch for 2, and saves it' {
+            Mock Read-Host { '2' }
+
+            (Read-O365LanguageChoice -Table $script:Table -Path $script:Settings).Choice | Should -Be 'de'
+            Read-O365Setting -Name 'language' -Path $script:Settings | Should -Be 'de'
+        }
+
+        It 'returns auto for 3, so Windows decides again' {
+            Mock Read-Host { '3' }
+
+            (Read-O365LanguageChoice -Table $script:Table -Path $script:Settings).Choice | Should -Be 'auto'
+            Read-O365Setting -Name 'language' -Path $script:Settings | Should -Be 'auto'
+        }
+
+        It 'returns nothing, and saves nothing, for Enter' {
+            Mock Read-Host { '' }
+
+            Read-O365LanguageChoice -Table $script:Table -Path $script:Settings | Should -BeNullOrEmpty
+            Test-Path -LiteralPath $script:Settings | Should -BeFalse
+        }
+
+        It 'returns nothing for an answer that is not on the list' {
+            Mock Read-Host { 'banana' }
+
+            Read-O365LanguageChoice -Table $script:Table -Path $script:Settings | Should -BeNullOrEmpty
+        }
+
+        It 'still returns the choice, saying it was not saved, when the file cannot be written' {
+            Mock Read-Host { '2' }
+            $blocker = Join-Path $script:Folder 'blocker'
+            Set-Content -LiteralPath $blocker -Value 'a file'
+
+            $result = Read-O365LanguageChoice -Table $script:Table -Path (Join-Path $blocker 'settings.json')
+
+            $result.Choice | Should -Be 'de'
+            $result.Saved | Should -BeFalse
+        }
+
+        It 'keeps a setting it does not know about' {
+            Mock Read-Host { '2' }
+            Set-Content -LiteralPath $script:Settings -Value '{ "outputFolder": "D:\\reports" }'
+
+            Read-O365LanguageChoice -Table $script:Table -Path $script:Settings | Out-Null
+
+            Read-O365Setting -Name 'outputFolder' -Path $script:Settings | Should -Be 'D:\reports'
+        }
     }
 }
 

@@ -159,13 +159,4 @@ names no folder.'
     'Upload.Address.Console.Help'        = 'Copy the address out of your browser and paste it here.
 Right-click pastes into this window.'
     'Upload.Address.Console.Prompt'      = 'Address'
-
-    'Language.Name.en'                   = 'English'
-    'Language.Name.de'                   = 'Deutsch'
-    'Language.Picker.Line'               = 'Language: {0}   (L = change / ändern)'
-    'Language.Picker.Title'              = 'Which language?'
-    'Language.Picker.Option1'            = '    1) English'
-    'Language.Picker.Option2'            = '    2) Deutsch'
-    'Language.Picker.Option3'            = '    3) Follow Windows'
-    'Language.Picker.Prompt'             = 'Number, or Enter to keep it'
 }

@@ -423,22 +423,13 @@ function Select-LauncherLanguage {
 # it. Enter keeps the language as it is. If the choice cannot be saved it still
 # holds for the rest of this run, and one line says it was not kept.
 function Read-LanguageChoice {
-    Write-Host ''
-    Write-Host ('  ' + (Get-LauncherString 'Language.Picker.Title')) -ForegroundColor Cyan
-    Write-Host (Get-LauncherString 'Language.Picker.Option1')
-    Write-Host (Get-LauncherString 'Language.Picker.Option2')
-    Write-Host (Get-LauncherString 'Language.Picker.Option3')
-    Write-Host ''
+    $result = Read-O365LanguageChoice -Table $script:Strings
 
-    $answer = "$(Read-Host ('  ' + (Get-LauncherString 'Language.Picker.Prompt')))".Trim()
-    $choice = @{ '1' = 'en'; '2' = 'de'; '3' = 'auto' }[$answer]
+    if (-not $result) { return }
 
-    if (-not $choice) { return }
+    Select-LauncherLanguage -Requested $result.Choice
 
-    $saved = Write-O365Setting -Name 'language' -Value $choice
-    Select-LauncherLanguage -Requested $choice
-
-    if (-not $saved) {
+    if (-not $result.Saved) {
         Write-Host ('  ' + (Get-LauncherString 'Language.NotSaved' (Get-O365SettingsPath))) -ForegroundColor Yellow
     }
 }
@@ -655,9 +646,7 @@ if (-not $mode -and -not $NoPrompt) {
     while ('1', '2', '3' -notcontains $answer) {
         # Printed again after L, so it is in the language just chosen.
         Write-Host ''
-        $languageName = Get-LauncherString 'Language.Name.en'
-        if ($script:Chosen.Language -eq 'de') { $languageName = Get-LauncherString 'Language.Name.de' }
-        Write-Host ('  ' + (Get-LauncherString 'Language.Picker.Line' $languageName)) -ForegroundColor DarkGray
+        Write-Host ('  ' + (Get-O365LanguageLine -Table $script:Strings -Language $script:Chosen.Language)) -ForegroundColor DarkGray
 
         Write-Host ''
         Write-Host ('  ' + (Get-LauncherString 'Upload.Menu.Title')) -ForegroundColor Cyan
