@@ -65,7 +65,7 @@ function ConvertTo-SpoPortableFieldXml {
     }
     catch {
         throw [System.ArgumentException]::new(
-            "SchemaXml is not well-formed XML: $($_.Exception.Message)",
+            (Get-O365String 'Helper.FieldXml.NotWellFormed' $_.Exception.Message),
             $_.Exception
         )
     }
@@ -78,7 +78,7 @@ function ConvertTo-SpoPortableFieldXml {
     # string and rejects valid input.
     if ($field.LocalName -ne 'Field') {
         throw [System.ArgumentException]::new(
-            "Expected a <Field> element, got <$($field.LocalName)>."
+            (Get-O365String 'Helper.FieldXml.NotField' $field.LocalName)
         )
     }
 

@@ -36,8 +36,6 @@ function Find-SpoChromiumBrowser {
     }
 
     throw [System.IO.FileNotFoundException]::new(
-        'No Chromium-based browser was found, and one is what renders the PDF. Looked for msedge.exe and chrome.exe under ' +
-        "'$env:ProgramFiles', '${env:ProgramFiles(x86)}' and '$env:LOCALAPPDATA', then on PATH. " +
-        'Pass -BrowserPath with the full path to msedge.exe or chrome.exe.'
+        (Get-O365String 'Helper.Browser.NotFound' $env:ProgramFiles ${env:ProgramFiles(x86)} $env:LOCALAPPDATA)
     )
 }

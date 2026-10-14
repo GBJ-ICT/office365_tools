@@ -46,11 +46,11 @@ function Get-SpoDocumentSetMap {
     $rootFolder = Get-PnPProperty -ClientObject $List -Property RootFolder
     $rootUrl    = $rootFolder.ServerRelativeUrl.TrimEnd('/')
 
-    Write-O365Log "Reading items of '$($List.Title)'." 'Info'
+    Write-O365Log (Get-O365String 'Helper.DocSetMap.Reading' $List.Title) 'Info'
 
     $items = @(Get-PnPListItem -List $List -PageSize $PageSize)
 
-    Write-O365Log "Read $($items.Count) item(s) from '$($List.Title)'." 'Info'
+    Write-O365Log (Get-O365String 'Helper.DocSetMap.Read' $items.Count $List.Title) 'Info'
 
     $documentSets = [System.Collections.Generic.List[object]]::new()
     $index        = @{}
@@ -96,7 +96,7 @@ function Get-SpoDocumentSetMap {
         $index[$url.ToLowerInvariant()] = $entry
     }
 
-    Write-O365Log "Found $($documentSets.Count) Document Set(s) in '$($List.Title)'." 'Info'
+    Write-O365Log (Get-O365String 'Helper.DocSetMap.Found' $documentSets.Count $List.Title) 'Info'
 
     if ($documentSets.Count -gt 0) {
         foreach ($item in $items) {

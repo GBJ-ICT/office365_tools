@@ -593,4 +593,38 @@
     'Pdf.Test.Checked'                                         = '{0} Wert(e) gegen ''{1}'' geprüft: {2} fehlend, {3} umbrochen{4}'
 
     'Pdf.Test.LinksMissing'                                    = ', {0} Link(s) fehlen.'
+
+    'Helper.FieldXml.NotWellFormed'                            = 'SchemaXml ist kein wohlgeformtes XML: {0}'
+
+    'Helper.FieldXml.NotField'                                 = 'Erwartet wurde ein <Field>-Element, gefunden wurde <{0}>.'
+
+    'Helper.Browser.NotFound'                                  = 'Es wurde kein Chromium-basierter Browser gefunden, und einen braucht es, um das PDF zu erzeugen. Gesucht wurde nach msedge.exe und chrome.exe unter ''{0}'', ''{1}'' und ''{2}'', dann im PATH. Gib -BrowserPath mit dem vollständigen Pfad zu msedge.exe oder chrome.exe an.'
+
+    'Helper.ProfileStore.NotJson'                              = 'Die Profildatei ''{0}'' ist kein gültiges JSON: {1}. Vergleiche sie mit config/profiles.example.json.'
+
+    'Helper.ProfileStore.Saved'                                = 'Die Profildatei wurde nach ''{0}'' gespeichert.'
+
+    'Helper.Pdf.PdftotextFailed'                               = 'pdftotext ist fehlgeschlagen, es wird auf den eingebauten Leser zurückgegriffen: {0}'
+
+    'Helper.Print.NoBrowserAt'                                 = 'Unter ''{0}'' liegt kein Browser. Gib bei -BrowserPath msedge.exe oder chrome.exe an, oder lass es weg, um an den üblichen Orten zu suchen.'
+
+    'Helper.Print.Printing'                                    = 'Es wird mit {0} gedruckt ({1}).'
+
+    'Helper.Print.Timeout'                                     = 'Der Browser wurde mit dem Drucken innerhalb von {0} Sekunden nicht fertig. Erhöhe -TimeoutSecond, oder drucke weniger Zeilen pro Datei.'
+
+    'Helper.Print.NoPdf'                                       = '{0} hat kein PDF erzeugt (Exitcode {1}). {2}'
+
+    'Helper.Print.Failed'                                      = '''{0}'' wurde in keinem der beiden Headless-Modi beendet, ohne ''{1}'' zu schreiben. Führe denselben Befehl von Hand ohne --headless aus, um zu sehen, was er meldet, oder gib -KeepHtml an und drucke das HTML aus einem Browser.'
+
+    'Helper.DocSetMap.Reading'                                 = 'Die Elemente von ''{0}'' werden gelesen.'
+
+    'Helper.DocSetMap.Read'                                    = '{0} Element(e) aus ''{1}'' gelesen.'
+
+    'Helper.DocSetMap.Found'                                   = '{0} Dokumentsatz/-sätze in ''{1}'' gefunden.'
+
+    'Helper.DocSetTemplate.ColumnsFailed'                      = 'Die Spalten des Inhaltstyps ''{0}'' konnten nicht gelesen werden: {1}'
+
+    'Helper.DocSetTemplate.PropertyFailed'                     = '{0} der Dokumentsatzvorlage ''{1}'' konnte nicht gelesen werden: {2}'
+
+    'Helper.DocSetTemplate.NotResolved'                        = 'Für den Inhaltstyp ''{0}'' wurde keine Dokumentsatzvorlage gefunden. Versucht wurde: {1}.'
 }
