@@ -41,10 +41,13 @@ BeforeAll {
             -Filter '*.ps1' -Recurse -File)
 
     # Every folder of string tables: the module's, and one per packaged tool.
-    $roots = @($script:Resources) + @(
+    # The module's, the tool menu's (packaging\Resources), and one per tool
+    # (packaging\<Tool>\Resources).
+    $roots = @($script:Resources, (Join-Path $script:RepoRoot 'packaging/Resources')) + @(
         Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'packaging') -Directory |
             ForEach-Object { Join-Path $_.FullName 'Resources' } |
             Where-Object { Test-Path -LiteralPath $_ })
+    $roots = @($roots | ForEach-Object { (Resolve-Path -LiteralPath $_).Path } | Select-Object -Unique)
 
     $script:Tables = @($roots | ForEach-Object {
             [pscustomobject]@{
@@ -552,6 +555,25 @@ Describe 'The string tables' {
     }
 }
 
+Describe 'The packaged tools' {
+
+    It 'have a title and a description in English and in German, for the tool menu' {
+        $tools = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'packaging') -Directory |
+                Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'tool.psd1') })
+
+        $tools.Count | Should -BeGreaterThan 0
+
+        $missing = foreach ($tool in $tools) {
+            $table = $script:Tables | Where-Object { $_.Root -eq (Join-Path $tool.FullName 'Resources') }
+            foreach ($key in "Tool.$($tool.Name).Title", "Tool.$($tool.Name).Description") {
+                if (-not $table -or -not $table.English.ContainsKey($key)) { "$key (English)" }
+                if (-not $table -or -not $table.German.ContainsKey($key)) { "$key (German)" }
+            }
+        }
+
+        $missing | Should -BeNullOrEmpty -Because "the tool menu looks these up; missing: $($missing -join ', ')"
+    }
+}
 Describe 'Every message the code asks for' {
 
     BeforeAll {

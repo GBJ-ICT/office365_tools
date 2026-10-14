@@ -159,4 +159,7 @@ names no folder.'
     'Upload.Address.Console.Help'        = 'Copy the address out of your browser and paste it here.
 Right-click pastes into this window.'
     'Upload.Address.Console.Prompt'      = 'Address'
+
+    'Tool.UploadCheck.Title'             = 'Upload checker'
+    'Tool.UploadCheck.Description'       = 'Check a folder before uploading it to SharePoint, or check that an upload arrived.'
 }

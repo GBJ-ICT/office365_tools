@@ -112,7 +112,17 @@ failing to start. It takes:
 | `-SettingsPath` | the settings file beside the launcher |
 | `-ReportFolder` | `Reports\` beside the launcher; one subfolder per run |
 | `-Folder` | a folder dropped onto the launcher, when there was one |
+| `-Language` | `en` or `de`, only when the person changed the language in the menu; otherwise nothing, and the tool works it out itself |
 | `-NoPrompt` | never passed by the launcher; for scheduled runs, which must not stop to ask |
+
+**Language.** A tool speaks English or German, chosen the same way as everywhere
+(`-Language`, then the environment, the language saved for the user, then
+Windows). Its texts live in its own `Resources\en\Strings.psd1` and
+`Resources\de\Strings.psd1`, and the menu looks up its title and description there
+as `Tool.<Name>.Title` and `Tool.<Name>.Description`. The menu's own texts are in
+`packaging\Resources\`. Both are checked by `tests/Unit/Language.Tests.ps1`;
+[docs/dev/multilanguage.md](../docs/dev/multilanguage.md) says how it works and how
+to add a text or a language.
 
 It exits 0 (nothing to report), 1 (findings) or 2 (a setup problem). The repository
 root is two levels up from the entry script. `Start-UploadCheck.ps1` is a

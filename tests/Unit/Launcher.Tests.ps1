@@ -263,7 +263,7 @@ Describe 'Tool <Name>' -ForEach $toolCases {
             (Join-Path $Folder $script:Tool.Entry), [ref]$null, [ref]$null)
         $accepted = @($entryAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
 
-        foreach ($parameter in 'SettingsPath', 'ReportFolder', 'Folder', 'NoPrompt') {
+        foreach ($parameter in 'SettingsPath', 'ReportFolder', 'Folder', 'NoPrompt', 'Language') {
             $accepted | Should -Contain $parameter
         }
     }
@@ -296,6 +296,14 @@ Describe 'The menu window' -Skip:(-not $IsWindows) {
         $script:DpiAware = $false
         $script:UiScale = 1.0
 
+        # The window is drawn from the string tables, as it is when it runs.
+        . (Join-Path $script:RepoRoot 'src/Office365Tools/Private/Shared/Language.ps1')
+        $menuResources = @(
+            (Join-Path $script:RepoRoot 'src/Office365Tools/Resources'),
+            (Join-Path $script:RepoRoot 'packaging/Resources'))
+        $script:LanguageInUse = Resolve-O365Language -Language 'en'
+        $script:Strings = Import-O365StringTable -Language 'en' -Path $menuResources
+
         $script:MenuTools = @(
             @{ Title = 'First'; Description = 'The first tool.' }
             @{ Title = 'Second'; Description = ('A description long enough to wrap onto a second line, ' * 3) }
@@ -326,6 +334,37 @@ Describe 'The menu window' -Skip:(-not $IsWindows) {
 
     It 'gives a longer description a taller button' {
         $script:List.Controls[1].Height | Should -BeGreaterThan $script:List.Controls[0].Height
+    }
+
+    It 'has a box to change the language, with English, Deutsch and Follow Windows' {
+        $box = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.ComboBox] }
+
+        $box | Should -Not -BeNullOrEmpty
+        @($box.Items) | Should -Be @('English', 'Deutsch', 'Follow Windows')
+        $box.DropDownStyle | Should -Be ([System.Windows.Forms.ComboBoxStyle]::DropDownList)
+    }
+
+    It 'labels the language box in both languages, so it can be found in either' {
+        $label = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.Label] -and $_.Text -like '*Language*' }
+
+        $label.Text | Should -BeLike '*Language*Sprache*'
+    }
+
+    It 'is drawn in German when German is in use' {
+        $script:LanguageInUse = Resolve-O365Language -Language 'de'
+        $script:Strings = Import-O365StringTable -Language 'de' -Path $menuResources
+        $german = New-ToolWindow -Tools $script:MenuTools
+        try {
+            $texts = @($german.Controls | ForEach-Object { $_.Text })
+
+            $texts | Should -Contain 'Was m*chtest du tun?'.Replace('*', [string][char]0x00F6)
+            $texts | Should -Contain 'Schliessen'
+        }
+        finally {
+            $german.Dispose()
+            $script:LanguageInUse = Resolve-O365Language -Language 'en'
+            $script:Strings = Import-O365StringTable -Language 'en' -Path $menuResources
+        }
     }
 
     It 'closes on Esc without choosing anything' {

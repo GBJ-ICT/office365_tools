@@ -19,4 +19,6 @@
     'Language.Picker.Option2'   = '    2) Deutsch'
     'Language.Picker.Option3'   = '    3) Follow Windows'
     'Language.Picker.Prompt'    = 'Number, or Enter to keep it'
+
+    'Language.Follow'           = 'Follow Windows'
 }

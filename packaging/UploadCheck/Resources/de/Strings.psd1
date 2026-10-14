@@ -162,4 +162,7 @@ Link nennt keinen Ordner.'
     'Upload.Address.Console.Help'        = 'Kopiere die Adresse aus deinem Browser und füge sie hier ein.
 Ein Rechtsklick fügt in dieses Fenster ein.'
     'Upload.Address.Console.Prompt'      = 'Adresse'
+
+    'Tool.UploadCheck.Title'             = 'Upload-Prüfung'
+    'Tool.UploadCheck.Description'       = 'Prüfe einen Ordner, bevor du ihn nach SharePoint hochlädst, oder prüfe, ob ein Upload angekommen ist.'
 }
