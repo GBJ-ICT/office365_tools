@@ -141,4 +141,110 @@ damit dir die vorhandenen Ordner angeboten werden.'
     'TestUpload.Result.Reports'             = 'Berichte: {0}'
     'TestUpload.Result.Open'                = 'Öffne {0} in einem Browser, um sie zu lesen.'
     'TestUpload.Result.NothingChanged'      = 'Es wurde nichts verändert, weder lokal noch in SharePoint.'
+
+    'LibraryAudit.Connected'                = 'Verbunden mit {0}'
+
+    'LibraryAudit.All'                      = 'Alle {0} sichtbaren Bibliotheken werden geprüft.'
+
+    'LibraryAudit.Finding.Mismatch'         = 'Die eindeutigen Berechtigungen in Tiefe {0} weichen vom übergeordneten Ordner ab.'
+
+    'LibraryAudit.Clean'                    = 'in Ordnung'
+
+    'LibraryAudit.Findings'                 = '  {0} Befund(e) -- {1}'
+
+    'LibraryAudit.ReportTitle'              = '{0} -- Zustandsbericht'
+
+    'LibraryAudit.Failed'                   = 'Die Prüfung von ''{0}'' ist fehlgeschlagen: {1}'
+
+    'LibraryAudit.ContentTypeHeading'       = '=== Inhaltstyp-Verknüpfungen (websiteweit) ==='
+
+    'LibraryAudit.ContentTypeFindings'      = '  {0} Befund(e)'
+
+    'LibraryAudit.ContentTypeFailed'        = 'Die Prüfung der Inhaltstypen ist fehlgeschlagen: {0}'
+
+    'LibraryAudit.SummaryTitle'             = 'Zusammenfassung der Website-Prüfung'
+
+    'LibraryAudit.SummaryHeading'           = '=== Zusammenfassung ==='
+
+    'LibraryAudit.ReportsWritten'           = 'Berichte geschrieben nach: {0}'
+
+    'LibraryAudit.NothingChanged'           = 'Es wurde nichts verändert. Wie du auf diese Befunde reagierst, steht in docs/sandbox/getting-started.md.'
+
+    'DocSetSync.Connected'                  = 'Verbunden mit {0}'
+
+    'DocSetSync.All'                        = 'Alle {0} sichtbaren Dokumentbibliotheken werden untersucht.'
+
+    'DocSetSync.None'                       = '  keine Dokumentsätze -- übersprungen'
+
+    'DocSetSync.Counts'                     = '  {0} Dokumentsatz/-sätze, {1} enthaltene(s) Element(e)'
+
+    'DocSetSync.Unshared'                   = '  {0} davon geben überhaupt keine Spalten frei'
+
+    'DocSetSync.Configuration'              = '  Konfiguration: {0} Befund(e), {1} Spalte(n) nicht als freigegeben eingetragen'
+
+    'DocSetSync.Data'                       = '  Daten: {0} von {1} Element(en) nicht abgeglichen ({2}%)'
+
+    'DocSetSync.ConfigurationTitle'         = '{0} -- Konfiguration der Dokumentsätze'
+
+    'DocSetSync.Failed'                     = 'Die Prüfung von ''{0}'' ist fehlgeschlagen: {1}'
+
+    'DocSetSync.DriftTitle'                 = 'Abweichende Metadaten der Dokumentsätze'
+
+    'DocSetSync.ConfigurationSummaryTitle'  = 'Konfiguration der Dokumentsätze'
+
+    'DocSetSync.SummaryHeading'             = '=== Zusammenfassung ==='
+
+    'DocSetSync.ItemsOut'                   = '  nicht abgeglichene Elemente : {0}'
+
+    'DocSetSync.ColumnDifferences'          = '  Spaltenunterschiede         : {0}'
+
+    'DocSetSync.WorstColumns'               = '  Am stärksten betroffene Spalten:'
+
+    'DocSetSync.ColumnItems'                = '    {0}: {1} Element(e)'
+
+    'DocSetSync.Reasons'                    = '  Gründe:'
+
+    'DocSetSync.ConfigurationFindings'      = '  Befunde zur Konfiguration:'
+
+    'DocSetSync.ReportsWritten'             = 'Berichte geschrieben nach: {0}'
+
+    'DocSetSync.NothingChanged'             = 'Es wurde nichts verändert.'
+
+    'DocSetSync.PushDown'                   = 'Um die Werte der Dokumentsätze nach unten zu übertragen:'
+
+    'DocSetSync.FixConfiguration'           = 'Behebe auch die Konfiguration, sonst kommt die Abweichung zurück. Siehe docs/sandbox/document-sets.md.'
+
+    'DocSetRepair.Connected'                = 'Verbunden mit {0}'
+
+    'DocSetRepair.All'                      = 'Alle {0} sichtbaren Dokumentbibliotheken werden untersucht.'
+
+    'DocSetRepair.InSync'                   = '  abgeglichen -- nichts zu tun'
+
+    'DocSetRepair.OutOfSync'                = '  {0} Element(e) nicht abgeglichen'
+
+    'DocSetRepair.Target'                   = '{0} Element(e) in ''{1}'''
+
+    'DocSetRepair.ActionSystem'             = ' (SystemUpdate: es wird keine Version angelegt)'
+
+    'DocSetRepair.Action'                   = 'Metadaten der Dokumentsätze nach unten übertragen{0}'
+
+    'DocSetRepair.Outcome'                  = '  repariert {0}, übersprungen {1}, fehlgeschlagen {2}'
+
+    'DocSetRepair.Failed'                   = 'Die Reparatur von ''{0}'' ist fehlgeschlagen: {1}'
+
+    'DocSetRepair.Before'                   = 'Zustand vor der Reparatur: {0}'
+
+    'DocSetRepair.SummaryHeading'           = '=== Zusammenfassung ==='
+
+    'DocSetRepair.WhatIf'                   = '  -WhatIf: Es wurde nichts verändert.'
+
+    'DocSetRepair.WouldWrite'               = '  {0} Spaltenwert(e) auf {1} Element(en) würden geschrieben.'
+
+    'DocSetRepair.NothingChanged'           = '  Es wurde nichts verändert.'
+
+    'DocSetRepair.Failures'                 = '  Fehler:'
+
+    'DocSetRepair.RerunLine1'               = 'Führe ./scripts/Test-DocumentSetSync.ps1 zur Bestätigung nochmals aus und prüfe die'
+
+    'DocSetRepair.RerunLine2'               = 'Befunde zur Konfiguration dort, damit die Abweichung nicht einfach zurückkommt.'
 }

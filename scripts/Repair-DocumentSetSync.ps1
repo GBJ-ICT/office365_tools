@@ -90,13 +90,26 @@ param(
 
     [Parameter()]
     [ValidateRange(1, 5000)]
-    [int]$PageSize = 500
+    [int]$PageSize = 500,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 # -- Connect ----------------------------------------------------------------
 if ($ProfileName) {
@@ -107,7 +120,7 @@ else {
 }
 
 $connection = Get-O365Connection
-Write-Host "Connected to $($connection.SiteUrl)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'DocSetRepair.Connected' $connection.SiteUrl) -ForegroundColor Green
 
 # -- Prepare output ---------------------------------------------------------
 if (-not $OutputPath) {
@@ -122,7 +135,7 @@ Start-O365Log -Path (Join-Path $OutputPath 'repair.log') | Out-Null
 
 if (-not $Library) {
     $Library = @(Get-PnPList | Where-Object { -not $_.Hidden -and $_.BaseTemplate -eq 101 } | ForEach-Object { $_.Title })
-    Write-Host "Examining all $($Library.Count) visible document libraries." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DocSetRepair.All' $Library.Count) -ForegroundColor Cyan
 }
 
 $before  = [System.Collections.Generic.List[object]]::new()
@@ -147,11 +160,11 @@ foreach ($name in $Library) {
         $drift = @(Get-SpoDocumentSetMismatch @findParameters)
 
         if ($drift.Count -eq 0) {
-            Write-Host '  in sync -- nothing to do' -ForegroundColor Green
+            Write-Host (Get-ScriptString 'DocSetRepair.InSync') -ForegroundColor Green
             continue
         }
 
-        Write-Host "  $($drift.Count) item(s) out of sync" -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DocSetRepair.OutOfSync' $drift.Count) -ForegroundColor Yellow
 
         # The record of what it was. Written before anything is touched, and
         # written under -WhatIf too: the point is to have it, not to have run.
@@ -183,8 +196,8 @@ foreach ($name in $Library) {
             $repairParameters['SystemUpdate'] = $true
         }
 
-        $target = "$($drift.Count) item(s) in '$name'"
-        $action = "Push Document Set metadata down$(if ($SystemUpdate) { ' (SystemUpdate: no version created)' })"
+        $target = (Get-ScriptString 'DocSetRepair.Target' $drift.Count $name)
+        $action = (Get-ScriptString 'DocSetRepair.Action' $(if ($SystemUpdate) { (Get-ScriptString 'DocSetRepair.ActionSystem') }))
 
         if ($PSCmdlet.ShouldProcess($target, $action)) {
             $outcome = @($drift | Repair-SpoDocumentSetMetadata @repairParameters)
@@ -197,7 +210,7 @@ foreach ($name in $Library) {
             $skipped  = @($outcome | Where-Object { $_.Status -eq 'SkippedEmptySource' }).Count
             $failed   = @($outcome | Where-Object { $_.Status -eq 'Failed' }).Count
 
-            Write-Host "  repaired $repaired, skipped $skipped, failed $failed" `
+            Write-Host (Get-ScriptString 'DocSetRepair.Outcome' $repaired $skipped $failed) `
                 -ForegroundColor $(if ($failed -gt 0) { 'Red' } else { 'Green' })
         }
         elseif ($WhatIfPreference) {
@@ -207,7 +220,7 @@ foreach ($name in $Library) {
         }
     }
     catch {
-        Write-Warning "Repair of '$name' failed: $($_.Exception.Message)"
+        Write-Warning (Get-ScriptString 'DocSetRepair.Failed' $name $_.Exception.Message)
     }
 }
 
@@ -216,7 +229,7 @@ if ($before.Count -gt 0) {
     $beforePath = Join-Path $OutputPath 'before.csv'
     $before | Export-Csv -Path $beforePath -NoTypeInformation -Encoding utf8
     Write-Host ''
-    Write-Host "State before the repair: $beforePath" -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRepair.Before' $beforePath) -ForegroundColor Gray
 }
 
 if ($results.Count -gt 0) {
@@ -227,15 +240,15 @@ Stop-O365Log | Out-Null
 
 # -- Summary ----------------------------------------------------------------
 Write-Host ''
-Write-Host '=== Summary ===' -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'DocSetRepair.SummaryHeading') -ForegroundColor Cyan
 
 if ($results.Count -eq 0) {
     if ($WhatIfPreference) {
-        Write-Host '  -WhatIf: nothing was changed.' -ForegroundColor Gray
-        Write-Host "  $($before.Count) column value(s) on $(@($before | Group-Object ServerRelativeUrl).Count) item(s) would be written." -ForegroundColor Gray
+        Write-Host (Get-ScriptString 'DocSetRepair.WhatIf') -ForegroundColor Gray
+        Write-Host (Get-ScriptString 'DocSetRepair.WouldWrite' $before.Count @($before | Group-Object ServerRelativeUrl).Count) -ForegroundColor Gray
     }
     else {
-        Write-Host '  nothing was changed.' -ForegroundColor Gray
+        Write-Host (Get-ScriptString 'DocSetRepair.NothingChanged') -ForegroundColor Gray
     }
 }
 else {
@@ -246,7 +259,7 @@ else {
     $failures = @($results | Where-Object { $_.Status -eq 'Failed' })
     if ($failures.Count -gt 0) {
         Write-Host ''
-        Write-Host '  Failures:' -ForegroundColor Red
+        Write-Host (Get-ScriptString 'DocSetRepair.Failures') -ForegroundColor Red
         $failures | Select-Object -First 10 | ForEach-Object {
             Write-Host "    $($_.ServerRelativeUrl): $($_.Error)"
         }
@@ -254,5 +267,5 @@ else {
 }
 
 Write-Host ''
-Write-Host 'Re-run ./scripts/Test-DocumentSetSync.ps1 to confirm, and check the' -ForegroundColor Gray
-Write-Host 'configuration findings there so the drift does not simply return.' -ForegroundColor Gray
+Write-Host (Get-ScriptString 'DocSetRepair.RerunLine1') -ForegroundColor Gray
+Write-Host (Get-ScriptString 'DocSetRepair.RerunLine2') -ForegroundColor Gray

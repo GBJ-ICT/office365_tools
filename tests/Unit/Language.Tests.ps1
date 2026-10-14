@@ -587,6 +587,45 @@ Describe 'The user guide' {
         Test-Path -LiteralPath (Join-Path $script:RepoRoot 'packaging/UploadCheck/READ-ME-FIRST.de.txt') | Should -BeTrue
     }
 }
+Describe 'The scripts that speak two languages' {
+
+    BeforeAll {
+        # Every script that asks for texts of its own through Get-ScriptString.
+        $script:Speaking = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'scripts') -Filter '*.ps1' -File |
+                Where-Object { (Get-Content -LiteralPath $_.FullName -Raw) -match 'Get-ScriptString' })
+    }
+
+    It 'are found' {
+        $script:Speaking.Count | Should -BeGreaterThan 0
+    }
+
+    It 'take -Language, which is en, de or auto' {
+        $bad = foreach ($file in $script:Speaking) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
+            $parameter = $ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Language' }
+
+            if (-not $parameter) { "$($file.Name): no -Language"; continue }
+
+            $validate = $parameter.Attributes | Where-Object { $_.TypeName.Name -eq 'ValidateSet' }
+            $values = if ($validate) { @($validate.PositionalArguments | ForEach-Object { $_.Value }) } else { @() }
+
+            if (($values -join ',') -ne 'en,de,auto') { "$($file.Name): -Language is not en, de, auto" }
+        }
+
+        $bad | Should -BeNullOrEmpty -Because ($bad -join '; ')
+    }
+
+    It 'apply it to the session, and read the shared text helper' {
+        $bad = foreach ($file in $script:Speaking) {
+            $text = Get-Content -LiteralPath $file.FullName -Raw
+
+            if ($text -notmatch 'Set-O365Language -Language \$Language -SessionOnly') { "$($file.Name): does not apply -Language" }
+            if ($text -notmatch "Shared/ScriptLanguage\.ps1") { "$($file.Name): does not load the text helper" }
+        }
+
+        $bad | Should -BeNullOrEmpty -Because ($bad -join '; ')
+    }
+}
 Describe 'The packaged tools' {
 
     It 'have a title and a description in English and in German, for the tool menu' {
