@@ -134,6 +134,6 @@ function Export-SpoReport {
             }
         }
 
-        Write-O365Log "Wrote $As report with $($collected.Count) row(s) to '$Path'." 'Success'
+        Write-O365Log (Get-O365String 'Report.Wrote' $As $collected.Count $Path) 'Success'
     }
 }

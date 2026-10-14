@@ -6,6 +6,10 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
+
+    # Some of these assert the English wording. Pinned for the session, so they
+    # hold on a machine whose Windows is in German.
+    Set-O365Language -Language en -SessionOnly
 }
 
 AfterAll {

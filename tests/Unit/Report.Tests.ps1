@@ -6,6 +6,10 @@
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
 
+    # These assertions are about the English wording. Pinned for the session, so
+    # they hold on a machine whose Windows is in German.
+    Set-O365Language -Language en -SessionOnly
+
     # Builds a finding without needing a tenant. Named with the New- verb for
     # readability; it only constructs an object, so ShouldProcess is moot.
     function New-TestFinding {
@@ -281,5 +285,73 @@ Describe 'Export-SpoReport with a folder comparison' {
         # Whatever the reader's thousands separator: , . ' or a thin space.
         $html | Should -Match '5\D?242\D?880 B'
         $html | Should -Match '5\D?251\D?072 B'
+    }
+}
+
+Describe 'Export-SpoReport in German' {
+
+    BeforeAll {
+        Set-O365Language -Language de -SessionOnly
+
+        $script:Dir = Join-Path ([System.IO.Path]::GetTempPath()) "o365tools-reportde-$([guid]::NewGuid())"
+        New-Item -Path $script:Dir -ItemType Directory -Force | Out-Null
+    }
+
+    AfterAll {
+        Set-O365Language -Language en -SessionOnly
+        Remove-Item -LiteralPath $script:Dir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It 'says in the page that it is German' {
+        $path = Join-Path $script:Dir 'findings.html'
+        New-TestFinding | Export-SpoReport -Path $path
+
+        Get-Content -LiteralPath $path -Raw -Encoding utf8 | Should -Match '<html lang="de">'
+    }
+
+    It 'words the headings and columns of a findings report in German' {
+        $path = Join-Path $script:Dir 'findings2.html'
+        New-TestFinding | Export-SpoReport -Path $path
+        $html = Get-Content -LiteralPath $path -Raw -Encoding utf8
+
+        $html | Should -Match '<th>Regel</th><th>Liste</th><th>Ziel</th><th>Meldung</th>'
+        $html | Should -Match 'Warnung'
+        $html | Should -Match '1 Befund\(e\)'
+        $html | Should -Match '1 Zeile\(n\)'
+    }
+
+    It 'keeps the rule name, which people filter on, as it is' {
+        $path = Join-Path $script:Dir 'findings3.html'
+        New-TestFinding -RuleId 'FileName.IllegalCharacter' | Export-SpoReport -Path $path
+
+        Get-Content -LiteralPath $path -Raw -Encoding utf8 | Should -Match '<code>FileName.IllegalCharacter</code>'
+    }
+
+    It 'words an empty report in German' {
+        $path = Join-Path $script:Dir 'empty.html'
+        @() | Export-SpoReport -Path $path
+
+        Get-Content -LiteralPath $path -Raw -Encoding utf8 | Should -Match 'Nichts zu berichten'
+    }
+
+    It 'words the file name rules in German, and in English when asked' {
+        (Test-SpoFileName -Name 'a:b.docx').Message | Should -BeLike 'Der Name enth*lt Zeichen, die SharePoint nicht erlaubt: :'
+
+        Set-O365Language -Language en -SessionOnly
+        (Test-SpoFileName -Name 'a:b.docx').Message | Should -Be 'Name contains character(s) SharePoint does not permit: :'
+        Set-O365Language -Language de -SessionOnly
+    }
+
+    It 'words the statuses of a comparison in German' {
+        $row = [pscustomobject]@{
+            PSTypeName = 'Office365Tools.FolderComparison'; RelativePath = 'a.txt'; Status = 'MissingRemote'
+            LocalSize = 10; RemoteSize = $null; LocalModified = $null; RemoteModified = $null
+        }
+        $path = Join-Path $script:Dir 'compare.html'
+        $row | Export-SpoReport -Path $path
+        $html = Get-Content -LiteralPath $path -Raw -Encoding utf8
+
+        $html | Should -Match 'Fehlt in SharePoint'
+        $html | Should -Match 'Auf diesem Computer'
     }
 }
