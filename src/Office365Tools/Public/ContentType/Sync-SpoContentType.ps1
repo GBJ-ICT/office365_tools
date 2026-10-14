@@ -55,7 +55,7 @@ function Sync-SpoContentType {
         $parent = Get-PnPContentType -Identity $ContentType -ErrorAction SilentlyContinue
         if (-not $parent) {
             throw [System.InvalidOperationException]::new(
-                "Site content type '$ContentType' was not found."
+                (Get-O365String 'ContentType.Sync.NotFound' $ContentType)
             )
         }
 
@@ -71,7 +71,7 @@ function Sync-SpoContentType {
             @(Get-PnPList | Where-Object { $_.ContentTypesEnabled -and ($IncludeHidden -or -not $_.Hidden) })
         }
 
-        Write-O365Log "Syncing '$($parent.Name)' into $(@($lists).Count) candidate list(s)." 'Info'
+        Write-O365Log (Get-O365String 'ContentType.Sync.Syncing' $parent.Name @($lists).Count) 'Info'
 
         foreach ($list in $lists) {
             $listContentType = Get-PnPContentType -List $list -ErrorAction SilentlyContinue |
@@ -88,21 +88,21 @@ function Sync-SpoContentType {
             $missing = @($parentFields | Where-Object { $_.InternalName -notin $listFields })
 
             if ($missing.Count -eq 0) {
-                Write-O365Log "'$($list.Title)' is already in sync." 'Info'
+                Write-O365Log (Get-O365String 'ContentType.Sync.AlreadyInSync' $list.Title) 'Info'
                 continue
             }
 
             foreach ($field in $missing) {
                 $target = "$($list.Title) / $($listContentType.Name)"
 
-                if (-not $PSCmdlet.ShouldProcess($target, "Add field '$($field.InternalName)'")) {
+                if (-not $PSCmdlet.ShouldProcess($target, (Get-O365String 'ContentType.Sync.Action' $field.InternalName))) {
                     continue
                 }
 
                 try {
                     Add-PnPFieldToContentType -Field $field.InternalName -ContentType $listContentType -List $list.Title -ErrorAction Stop
                     $added++
-                    Write-O365Log "Added '$($field.InternalName)' to '$target'." 'Success'
+                    Write-O365Log (Get-O365String 'ContentType.Sync.Added' $field.InternalName $target) 'Success'
 
                     if ($PassThru) {
                         [pscustomobject]@{
@@ -117,7 +117,7 @@ function Sync-SpoContentType {
                     }
                 }
                 catch {
-                    Write-Error -Message "Failed to add '$($field.InternalName)' to '$target': $($_.Exception.Message)" -TargetObject $target
+                    Write-Error -Message (Get-O365String 'ContentType.Sync.Failed' $field.InternalName $target $_.Exception.Message) -TargetObject $target
 
                     if ($PassThru) {
                         [pscustomobject]@{
@@ -136,6 +136,6 @@ function Sync-SpoContentType {
     }
 
     end {
-        Write-O365Log "Sync complete: $added field(s) added." 'Info'
+        Write-O365Log (Get-O365String 'ContentType.Sync.Done' $added) 'Info'
     }
 }

@@ -221,9 +221,7 @@ function Get-SpoDocumentSetRegisterEntry {
         foreach ($name in @($ReferenceField, $DocumentIdField, $KeyField | Where-Object { $_ })) {
             if ($name -notin $registerFieldNames) {
                 throw [System.ArgumentException]::new(
-                    "Column '$name' is not a writable column on list '$($register.Title)'. " +
-                    "Note this must be the internal name, not the display title. " +
-                    "Run: Get-PnPField -List '$($register.Title)' | Select-Object InternalName, Title"
+                    (Get-O365String 'DocumentSet.Register.ColumnNotWritable' $name $register.Title)
                 )
             }
         }
@@ -268,16 +266,14 @@ function Get-SpoDocumentSetRegisterEntry {
 
             if ($known.Count -eq 0) {
                 throw [System.ArgumentException]::new(
-                    "Content type '$wantedType', mapped from library '$($entry.Key)', is not on list '$($register.Title)'. " +
-                    "Available: $(($registerContentTypes | ForEach-Object Name) -join ', '). " +
-                    "Add it to the list first, or correct -ContentTypeMap."
+                    (Get-O365String 'DocumentSet.Register.ContentTypeNotOnList' $wantedType $entry.Key $register.Title (($registerContentTypes | ForEach-Object Name) -join ', '))
                 )
             }
 
             $wantedContentType[[string]$entry.Key] = $known[0].Name
         }
 
-        Write-O365Log "Register '$($register.Title)': matching $($matched.Count) column(s) by name, keyed on '$KeyField'." 'Info'
+        Write-O365Log (Get-O365String 'DocumentSet.Register.Matching' $register.Title $matched.Count $KeyField) 'Info'
 
         # Index the register once. Two entries under one key means the register
         # already has duplicates -- reported rather than silently collapsed,
@@ -296,12 +292,12 @@ function Get-SpoDocumentSetRegisterEntry {
             $key = ConvertTo-SpoRegisterKey -Value $item.FieldValues[$KeyField]
 
             if ($key -eq '') {
-                Write-O365Log "Register item $($item.Id) has no value in '$KeyField'; it cannot be matched and may be duplicated." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Register.ItemNoKey' $item.Id $KeyField) 'Warning'
                 continue
             }
 
             if ($existing.ContainsKey($key)) {
-                Write-O365Log "Register items $($existing[$key].Id) and $($item.Id) share the key '$key' in '$KeyField'." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Register.ItemsShareKey' $existing[$key].Id $item.Id $key $KeyField) 'Warning'
                 $ambiguous.Add($key) | Out-Null
                 continue
             }
@@ -316,7 +312,7 @@ function Get-SpoDocumentSetRegisterEntry {
             }
         }
 
-        Write-O365Log "Register '$($register.Title)' holds $($registerItems.Count) item(s), $($existing.Count) with a usable key." 'Info'
+        Write-O365Log (Get-O365String 'DocumentSet.Register.Holds' $register.Title $registerItems.Count $existing.Count) 'Info'
 
         $siteUrl = $script:O365State.SiteUrl
     }
@@ -333,7 +329,7 @@ function Get-SpoDocumentSetRegisterEntry {
             else { '' }
 
             if ($ContentTypeMap.Count -gt 0 -and -not $contentType) {
-                Write-O365Log "Library '$($list.Title)' is not in -ContentTypeMap; its entries get the default content type of '$($register.Title)'." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Register.NotInMap' $list.Title $register.Title) 'Warning'
             }
 
             $libraryFieldNames = @(Get-PnPField -List $list | ForEach-Object { $_.InternalName })
@@ -356,11 +352,11 @@ function Get-SpoDocumentSetRegisterEntry {
                     ForEach-Object { $_.Value })
 
             if ($unavailable.Count -gt 0) {
-                Write-O365Log "Library '$($list.Title)' has no column(s) $(($unavailable | Sort-Object) -join ', '); those register columns stay empty." 'Info'
+                Write-O365Log (Get-O365String 'DocumentSet.Register.MissingColumns' $list.Title (($unavailable | Sort-Object) -join ', ')) 'Info'
             }
 
             if ($DocumentIdField -and '_dlc_DocId' -notin $libraryFieldNames) {
-                Write-O365Log "Library '$($list.Title)' has no Document ID column. Enable the Document ID service on the site, or the register's '$DocumentIdField' stays empty." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Register.NoDocumentId' $list.Title $DocumentIdField) 'Warning'
             }
 
             $rootFolder = Get-PnPProperty -ClientObject $list -Property RootFolder
@@ -368,7 +364,7 @@ function Get-SpoDocumentSetRegisterEntry {
 
             $items = @(Get-PnPListItem -List $list -PageSize $PageSize -Fields @($wanted))
 
-            Write-O365Log "Read $($items.Count) item(s) from '$($list.Title)'." 'Info'
+            Write-O365Log (Get-O365String 'DocumentSet.Register.Read' $items.Count $list.Title) 'Info'
 
             foreach ($item in $items) {
                 if ($item.FileSystemObjectType -ne 'Folder') { continue }
@@ -410,7 +406,7 @@ function Get-SpoDocumentSetRegisterEntry {
                 else { ConvertTo-SpoRegisterKey -Value $item.FieldValues[$KeyField] }
 
                 if ($key -eq '') {
-                    Write-O365Log "Document Set '$url' has no value for the key column; skipped rather than risk a duplicate." 'Warning'
+                    Write-O365Log (Get-O365String 'DocumentSet.Register.SetNoKey' $url) 'Warning'
                     continue
                 }
 
@@ -426,10 +422,7 @@ function Get-SpoDocumentSetRegisterEntry {
                 # nothing is emitted; the warning is the useful output.
                 if ($exists) {
                     if ($ambiguous.Contains($key) -or $claimed.ContainsKey($key)) {
-                        Write-O365Log ("Document Set '$url' shares the key '$key' with " +
-                            "$(if ($claimed.ContainsKey($key)) { "'$($claimed[$key])'" } else { "another register row" }) " +
-                            "and register item $($current.Id). It cannot be told apart from them, so it is left alone. " +
-                            "Use -KeyField with the reference column if each copy needs its own row.") 'Warning'
+                        Write-O365Log (Get-O365String 'DocumentSet.Register.SharesKey' $url $key $(if ($claimed.ContainsKey($key)) { "'$($claimed[$key])'" } else { (Get-O365String 'DocumentSet.Register.AnotherRow') }) $current.Id) 'Warning'
                         continue
                     }
 
@@ -456,7 +449,7 @@ function Get-SpoDocumentSetRegisterEntry {
                     }
                     $values = $narrowed
 
-                    Write-O365Log "Register item $($current.Id) ('$([string]$item.FieldValues['FileLeafRef'])') is out of step with '$($list.Title)': $($difference -join ', ')." 'Warning'
+                    Write-O365Log (Get-O365String 'DocumentSet.Register.OutOfStep' $current.Id ([string]$item.FieldValues['FileLeafRef']) $list.Title ($difference -join ', ')) 'Warning'
                 }
 
                 # SourceList, not List: Add-SpoListItem aliases its -Library

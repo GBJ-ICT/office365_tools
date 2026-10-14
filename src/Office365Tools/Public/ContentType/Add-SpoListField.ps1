@@ -142,8 +142,7 @@ function Add-SpoListField {
             foreach ($needed in 'InternalName', 'SchemaXml') {
                 if (-not $Schema.PSObject.Properties[$needed]) {
                     throw [System.ArgumentException]::new(
-                        "-Schema is missing '$needed'. It expects output from Get-SpoListFieldSchema; " +
-                        "to describe a column instead, use the -DisplayName and -Type parameters."
+                        (Get-O365String 'ContentType.AddListField.SchemaMissing' $needed)
                     )
                 }
             }
@@ -156,8 +155,7 @@ function Add-SpoListField {
             $noteProperty = $Schema.PSObject.Properties['PortabilityNote']
             if ($noteProperty -and $noteProperty.Value -and -not $AllowUnportableType) {
                 Write-O365Log (
-                    "Skipping '$name' ($fieldType): $($noteProperty.Value) " +
-                    'Pass -AllowUnportableType to create it anyway.') 'Warning'
+                    (Get-O365String 'ContentType.AddListField.Unportable' $name $fieldType $noteProperty.Value)) 'Warning'
                 $skipped++
                 return
             }
@@ -168,16 +166,14 @@ function Add-SpoListField {
 
                 if (-not $InternalName -or $InternalName -notmatch '^[A-Za-z]') {
                     throw [System.ArgumentException]::new(
-                        "Could not derive a valid internal name from '$DisplayName'. " +
-                        'Internal names must start with a letter and contain only letters, digits and underscores. ' +
-                        'Supply -InternalName explicitly.'
+                        (Get-O365String 'ContentType.AddListField.NoInternalName' $DisplayName)
                     )
                 }
             }
 
             if ($Type -in 'Choice', 'MultiChoice' -and -not $Choice) {
                 throw [System.ArgumentException]::new(
-                    "A $Type column needs its options. Supply -Choice, for example: -Choice 'Open', 'Closed'"
+                    (Get-O365String 'ContentType.AddListField.NeedsChoice' $Type)
                 )
             }
 
@@ -198,14 +194,14 @@ function Add-SpoListField {
         }
 
         if ($name -in $existingByList[$list.Title]) {
-            Write-O365Log "Column '$name' is already on '$($list.Title)'; leaving it as it is." 'Info'
+            Write-O365Log (Get-O365String 'ContentType.AddListField.AlreadyThere' $name $list.Title) 'Info'
             $skipped++
             return
         }
 
         $target = "$label ($fieldType, internal name '$name')"
 
-        if (-not $PSCmdlet.ShouldProcess("$($list.Title): $target", 'Add list column')) {
+        if (-not $PSCmdlet.ShouldProcess("$($list.Title): $target", (Get-O365String 'ContentType.AddListField.Action'))) {
             Write-Verbose "Would send:`n$fieldXml"
             return
         }
@@ -214,11 +210,11 @@ function Add-SpoListField {
             Add-PnPFieldFromXml -List $list.Title -FieldXml $fieldXml -ErrorAction Stop | Out-Null
             $existingByList[$list.Title] += $name
             $created++
-            Write-O365Log "Added column '$name' to '$($list.Title)'." 'Success'
+            Write-O365Log (Get-O365String 'ContentType.AddListField.Added' $name $list.Title) 'Success'
         }
         catch {
             Write-Error -Message (
-                "Failed to add column '$name' to '$($list.Title)': $($_.Exception.Message)"
+                (Get-O365String 'ContentType.AddListField.Failed' $name $list.Title $_.Exception.Message)
             ) -TargetObject $fieldXml
             return
         }
@@ -228,7 +224,7 @@ function Add-SpoListField {
                 $view = Get-PnPView -List $list.Title | Where-Object { $_.DefaultView } | Select-Object -First 1
 
                 if (-not $view) {
-                    Write-O365Log "List '$($list.Title)' has no default view; '$name' was not added to one." 'Warning'
+                    Write-O365Log (Get-O365String 'ContentType.AddListField.NoDefaultView' $list.Title $name) 'Warning'
                 }
                 elseif ($name -in @($view.ViewFields)) {
                     Write-Verbose "'$name' is already in view '$($view.Title)'."
@@ -236,11 +232,11 @@ function Add-SpoListField {
                 else {
                     Set-PnPView -List $list.Title -Identity $view.Id `
                         -Fields (@($view.ViewFields) + $name) -ErrorAction Stop | Out-Null
-                    Write-O365Log "Added '$name' to view '$($view.Title)'." 'Success'
+                    Write-O365Log (Get-O365String 'ContentType.AddListField.AddedToView' $name $view.Title) 'Success'
                 }
             }
             catch {
-                Write-O365Log "Column '$name' was created but adding it to the default view failed: $($_.Exception.Message)" 'Warning'
+                Write-O365Log (Get-O365String 'ContentType.AddListField.ViewFailed' $name $_.Exception.Message) 'Warning'
             }
         }
 
@@ -251,7 +247,7 @@ function Add-SpoListField {
 
     end {
         if ($created -gt 0 -or $skipped -gt 0) {
-            Write-O365Log "Added $created column(s); skipped $skipped." 'Info'
+            Write-O365Log (Get-O365String 'ContentType.AddListField.Done' $created $skipped) 'Info'
         }
     }
 }

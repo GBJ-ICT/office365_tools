@@ -99,26 +99,21 @@ function New-SpoField {
 
         if (-not $InternalName -or $InternalName -notmatch '^[A-Za-z]') {
             throw [System.ArgumentException]::new(
-                "Could not derive a valid internal name from '$DisplayName'. " +
-                'Internal names must start with a letter and contain only letters, digits and underscores. ' +
-                'Supply -InternalName explicitly.'
+                (Get-O365String 'ContentType.NewField.NoInternalName' $DisplayName)
             )
         }
     }
 
     if ($Type -in 'Choice', 'MultiChoice' -and -not $Choice) {
         throw [System.ArgumentException]::new(
-            "A $Type column needs its options. Supply -Choice, for example: -Choice 'Open', 'Closed'"
+            (Get-O365String 'ContentType.NewField.NeedsChoice' $Type)
         )
     }
 
     $existing = Get-PnPField -Identity $InternalName -ErrorAction SilentlyContinue
     if ($existing) {
         throw [System.InvalidOperationException]::new(
-            "A site column with internal name '$InternalName' already exists " +
-            "(display name '$($existing.Title)', group '$($existing.Group)'). " +
-            'Internal names are permanent and must be unique -- choose a different -InternalName, ' +
-            'or reuse the existing column with Add-SpoFieldToContentType.'
+            (Get-O365String 'ContentType.NewField.Exists' $InternalName $existing.Title $existing.Group)
         )
     }
 
@@ -139,7 +134,7 @@ function New-SpoField {
 
     $target = "$DisplayName ($Type, internal name '$InternalName', group '$Group')"
 
-    if (-not $PSCmdlet.ShouldProcess($script:O365State.SiteUrl, "Create site column $target")) {
+    if (-not $PSCmdlet.ShouldProcess($script:O365State.SiteUrl, (Get-O365String 'ContentType.NewField.Action' $target))) {
         # Showing the XML under -WhatIf is genuinely useful: it is the thing
         # that will be sent, and it is where mistakes hide.
         Write-Verbose "Would send:`n$fieldXml"
@@ -148,11 +143,11 @@ function New-SpoField {
 
     try {
         Add-PnPFieldFromXml -FieldXml $fieldXml -ErrorAction Stop | Out-Null
-        Write-O365Log "Created site column '$DisplayName' (internal name '$InternalName')." 'Success'
+        Write-O365Log (Get-O365String 'ContentType.NewField.Created' $DisplayName $InternalName) 'Success'
     }
     catch {
         throw [System.InvalidOperationException]::new(
-            "Failed to create site column '$DisplayName': $($_.Exception.Message)",
+            (Get-O365String 'ContentType.NewField.Failed' $DisplayName $_.Exception.Message),
             $_.Exception
         )
     }

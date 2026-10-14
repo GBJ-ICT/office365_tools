@@ -127,7 +127,7 @@ function Test-SpoDocumentSetSharedColumn {
                     }
                     New-SpoFinding -RuleId 'DocumentSet.TemplateUnreadable' -Severity Error -Scope ContentType `
                         -Target $target -List $list.Title `
-                        -Message "Could not read the Document Set template for '$($documentSet.ContentTypeName)', so its shared columns cannot be verified." `
+                        -Message (Get-O365String 'Rule.DocumentSet.TemplateUnreadable' $documentSet.ContentTypeName) `
                         -Detail $detail
                     continue
                 }
@@ -141,7 +141,7 @@ function Test-SpoDocumentSetSharedColumn {
                     }
                     New-SpoFinding -RuleId 'DocumentSet.NoSharedColumn' -Severity Warning -Scope ContentType `
                         -Target $target -List $list.Title `
-                        -Message "Document Set '$typeName' has no shared columns, so none of its metadata reaches the documents inside it." `
+                        -Message (Get-O365String 'Rule.DocumentSet.NoSharedColumn' $typeName) `
                         -Detail $detail
                 }
 
@@ -157,7 +157,7 @@ function Test-SpoDocumentSetSharedColumn {
                     }
                     New-SpoFinding -RuleId 'DocumentSet.ColumnNotShared' -Severity Warning -Scope Field `
                         -Target "$target / $($candidate.InternalName)" -List $list.Title `
-                        -Message "Column '$($candidate.DisplayName)' is on Document Set '$typeName' but is not a shared column, so its value is never copied to the contents." `
+                        -Message (Get-O365String 'Rule.DocumentSet.ColumnNotShared' $candidate.DisplayName $typeName) `
                         -Detail $detail
                 }
 
@@ -169,7 +169,7 @@ function Test-SpoDocumentSetSharedColumn {
                     }
                     New-SpoFinding -RuleId 'DocumentSet.SharedColumnMissingFromLibrary' -Severity Error -Scope Field `
                         -Target "$target / $name" -List $list.Title `
-                        -Message "Shared column '$name' does not exist on library '$($list.Title)', so its value cannot be stored on any item there." `
+                        -Message (Get-O365String 'Rule.DocumentSet.SharedColumnMissingFromLibrary' $name $list.Title) `
                         -Detail $detail
                 }
 
@@ -189,7 +189,7 @@ function Test-SpoDocumentSetSharedColumn {
                                     ForEach-Object { $_.InternalName })
                         }
                         catch {
-                            Write-O365Log "Could not read columns of allowed content type '$allowed': $($_.Exception.Message)" 'Warning'
+                            Write-O365Log (Get-O365String 'DocumentSet.Shared.ReadFailed' $allowed $_.Exception.Message) 'Warning'
                             @()
                         }
                     }
@@ -213,12 +213,12 @@ function Test-SpoDocumentSetSharedColumn {
                     }
                     New-SpoFinding -RuleId 'DocumentSet.SharedColumnMissingFromChildContentType' -Severity Info -Scope ContentType `
                         -Target "$target -> $allowed" -List $list.Title `
-                        -Message "Content type '$allowed' is allowed inside '$typeName' but lacks $($absent.Count) shared column(s): $($absent -join ', '). Values are stored but do not appear on the document's form." `
+                        -Message (Get-O365String 'Rule.DocumentSet.SharedColumnMissingFromChildContentType' $allowed $typeName $absent.Count ($absent -join ', ')) `
                         -Detail $detail
                 }
             }
         }
 
-        Write-O365Log 'Document Set shared column check complete.' 'Success'
+        Write-O365Log (Get-O365String 'DocumentSet.Shared.Done') 'Success'
     }
 }
