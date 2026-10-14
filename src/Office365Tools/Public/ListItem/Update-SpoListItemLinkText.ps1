@@ -126,23 +126,19 @@ function Update-SpoListItemLinkText {
         $target = $fields | Where-Object { $_.InternalName -eq $Field }
         if (-not $target) {
             throw [System.ArgumentException]::new(
-                "Column '$Field' was not found on list '$($list.Title)'. " +
-                "Note this must be the internal name, not the display title. " +
-                "Run: Get-PnPField -List '$($list.Title)' | Select-Object InternalName, Title"
+                (Get-O365String 'ListItem.LinkText.ColumnNotFound' $Field $list.Title)
             )
         }
 
         if ($target.TypeAsString -notlike 'URL*') {
             throw [System.ArgumentException]::new(
-                "Column '$Field' on list '$($list.Title)' is of type '$($target.TypeAsString)', not URL. " +
-                "Only a hyperlink column has display text to set; use Update-SpoListItem for anything else."
+                (Get-O365String 'ListItem.LinkText.NotUrl' $Field $list.Title $target.TypeAsString)
             )
         }
 
         if ($TextField -notin @($fields | ForEach-Object { $_.InternalName })) {
             throw [System.ArgumentException]::new(
-                "Column '$TextField' was not found on list '$($list.Title)'. " +
-                "Run: Get-PnPField -List '$($list.Title)' | Select-Object InternalName, Title"
+                (Get-O365String 'ListItem.LinkText.TextColumnNotFound' $TextField $list.Title)
             )
         }
 
@@ -153,7 +149,7 @@ function Update-SpoListItemLinkText {
             $items = @($items | Where-Object { $set.Contains($_.Id) })
         }
 
-        Write-O365Log "Considering $($items.Count) item(s) in '$($list.Title)' for link text from '$TextField'." 'Info'
+        Write-O365Log (Get-O365String 'ListItem.LinkText.Considering' $items.Count $list.Title $TextField) 'Info'
 
         foreach ($item in $items) {
             $link = $item.FieldValues[$Field]
@@ -181,14 +177,14 @@ function Update-SpoListItemLinkText {
 
             if ([string]::IsNullOrWhiteSpace($url)) {
                 $skipped++
-                Write-O365Log "Item $($item.Id) has no URL in '$Field'; there is no link to label." 'Info'
+                Write-O365Log (Get-O365String 'ListItem.LinkText.NoUrl' $item.Id $Field) 'Info'
                 & $emit 'Skipped' $null
                 continue
             }
 
             if ([string]::IsNullOrWhiteSpace($text)) {
                 $skipped++
-                Write-O365Log "Item $($item.Id) has no value in '$TextField'; leaving the link text alone rather than blanking it." 'Warning'
+                Write-O365Log (Get-O365String 'ListItem.LinkText.NoText' $item.Id $TextField) 'Warning'
                 & $emit 'Skipped' $null
                 continue
             }
@@ -199,7 +195,7 @@ function Update-SpoListItemLinkText {
                 continue
             }
 
-            if (-not $PSCmdlet.ShouldProcess("$($list.Title) item $($item.Id)", "Set '$Field' text to '$text'")) {
+            if (-not $PSCmdlet.ShouldProcess("$($list.Title) item $($item.Id)", (Get-O365String 'ListItem.LinkText.Action' $Field $text))) {
                 continue
             }
 
@@ -217,17 +213,17 @@ function Update-SpoListItemLinkText {
                 Set-PnPListItem @parameters | Out-Null
 
                 $updated++
-                Write-O365Log "Set '$Field' text on item $($item.Id) to '$text'." 'Success'
+                Write-O365Log (Get-O365String 'ListItem.LinkText.Set' $Field $item.Id $text) 'Success'
                 & $emit 'Updated' $null
             }
             catch {
                 $failed++
-                Write-O365Log "Failed to set '$Field' text on item $($item.Id): $($_.Exception.Message)" 'Error'
-                Write-Error -Message "Failed to set '$Field' text on item $($item.Id) in '$($list.Title)': $($_.Exception.Message)" -TargetObject $item.Id
+                Write-O365Log (Get-O365String 'ListItem.LinkText.Failed' $Field $item.Id $_.Exception.Message) 'Error'
+                Write-Error -Message (Get-O365String 'ListItem.LinkText.FailedIn' $Field $item.Id $list.Title $_.Exception.Message) -TargetObject $item.Id
                 & $emit 'Failed' $_.Exception.Message
             }
         }
 
-        Write-O365Log "Link text pass complete: $updated updated, $correct already correct, $skipped skipped, $failed failed." 'Info'
+        Write-O365Log (Get-O365String 'ListItem.LinkText.Done' $updated $correct $skipped $failed) 'Info'
     }
 }

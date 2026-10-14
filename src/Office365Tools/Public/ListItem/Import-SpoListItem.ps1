@@ -55,7 +55,7 @@ function Import-SpoListItem {
         [Parameter(Mandatory, Position = 0)]
         [ValidateScript({
                 if (-not (Test-Path -LiteralPath $_ -PathType Leaf)) {
-                    throw "File '$_' does not exist."
+                    throw (Get-O365String 'ListItem.Import.FileMissing' $_)
                 }
                 $true
             })]
@@ -96,13 +96,13 @@ function Import-SpoListItem {
         '.json' { @(Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json) }
         default {
             throw [System.ArgumentException]::new(
-                "Unsupported file type '$extension'. Use .csv, .tsv, or .json."
+                (Get-O365String 'ListItem.Import.UnsupportedType' $extension)
             )
         }
     }
 
     if ($rows.Count -eq 0) {
-        Write-O365Log "File '$Path' contains no rows; nothing to import." 'Warning'
+        Write-O365Log (Get-O365String 'ListItem.Import.NoRows' $Path) 'Warning'
         return
     }
 
@@ -118,9 +118,7 @@ function Import-SpoListItem {
     $unknown = @($targetFields | Where-Object { $_ -notin $writable })
     if ($unknown.Count -gt 0) {
         throw [System.ArgumentException]::new(
-            "Column(s) in '$Path' do not match any writable field on list '$($list.Title)': $($unknown -join ', '). " +
-            "Field names must be internal names. Run: Get-PnPField -List '$($list.Title)' | Select-Object InternalName, Title. " +
-            'Use -Mapping to translate column names.'
+            (Get-O365String 'ListItem.Import.UnknownColumns' $Path $list.Title ($unknown -join ', '))
         )
     }
 
@@ -131,15 +129,14 @@ function Import-SpoListItem {
 
     if ($requiredMissing.Count -gt 0) {
         Write-O365Log (
-            "List '$($list.Title)' has required field(s) not present in the file: " +
-            "$($requiredMissing -join ', '). Rows may be rejected by the server."
+            (Get-O365String 'ListItem.Import.RequiredMissing' $list.Title ($requiredMissing -join ', '))
         ) 'Warning'
     }
 
-    Write-O365Log "Validated $($rows.Count) row(s) against '$($list.Title)'. Columns: $($targetFields -join ', ')." 'Success'
+    Write-O365Log (Get-O365String 'ListItem.Import.Validated' $rows.Count $list.Title ($targetFields -join ', ')) 'Success'
 
     # -- Import -------------------------------------------------------------
-    if (-not $PSCmdlet.ShouldProcess("$($list.Title)", "Create $($rows.Count) item(s) from '$Path'")) {
+    if (-not $PSCmdlet.ShouldProcess("$($list.Title)", (Get-O365String 'ListItem.Import.Action' $rows.Count $Path))) {
         return
     }
 
@@ -150,7 +147,7 @@ function Import-SpoListItem {
     foreach ($row in $rows) {
         $rowNumber++
 
-        Write-Progress -Activity "Importing into $($list.Title)" `
+        Write-Progress -Activity (Get-O365String 'ListItem.Import.Activity' $list.Title) `
             -Status "Row $rowNumber of $($rows.Count)" `
             -PercentComplete (($rowNumber / $rows.Count) * 100)
 
@@ -167,7 +164,7 @@ function Import-SpoListItem {
         }
 
         if ($values.Count -eq 0) {
-            Write-O365Log "Row $rowNumber is empty; skipped." 'Warning'
+            Write-O365Log (Get-O365String 'ListItem.Import.RowEmpty' $rowNumber) 'Warning'
             continue
         }
 
@@ -197,7 +194,7 @@ function Import-SpoListItem {
         }
         catch {
             $failed++
-            $message = "Row $rowNumber failed: $($_.Exception.Message)"
+            $message = (Get-O365String 'ListItem.Import.RowFailed' $rowNumber $_.Exception.Message)
             Write-O365Log $message 'Error'
 
             if ($PassThru) {
@@ -212,15 +209,15 @@ function Import-SpoListItem {
             }
 
             if ($StopOnError) {
-                Write-Progress -Activity "Importing into $($list.Title)" -Completed
+                Write-Progress -Activity (Get-O365String 'ListItem.Import.Activity' $list.Title) -Completed
                 throw [System.InvalidOperationException]::new(
-                    "$message Import stopped after $created successful row(s) because -StopOnError was specified.",
+                    (Get-O365String 'ListItem.Import.Stopped' $message $created),
                     $_.Exception
                 )
             }
         }
     }
 
-    Write-Progress -Activity "Importing into $($list.Title)" -Completed
-    Write-O365Log "Import complete: $created created, $failed failed, out of $($rows.Count) row(s)." 'Success'
+    Write-Progress -Activity (Get-O365String 'ListItem.Import.Activity' $list.Title) -Completed
+    Write-O365Log (Get-O365String 'ListItem.Import.Done' $created $failed $rows.Count) 'Success'
 }

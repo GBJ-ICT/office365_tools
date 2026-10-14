@@ -11,6 +11,10 @@
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
 
+    # The refusals are asserted by their English wording. Pinned for the session,
+    # so they hold on a machine whose Windows is German.
+    Set-O365Language -Language en -SessionOnly
+
     # $result.Date.ToString('yyyy-MM-dd') looks like it should work and does
     # not: member enumeration over a collection cannot pass an argument, so
     # the format string has nowhere to go.
@@ -231,5 +235,24 @@ Describe 'Get-SpoRecurringDate' {
             $both.Count | Should -BeGreaterThan 0
             $both.Count | Should -BeLessThan $stride.Count
         }
+    }
+}
+
+Describe 'Get-SpoRecurringDate, refusing in German' {
+
+    BeforeAll {
+        Set-O365Language -Language de -SessionOnly
+    }
+
+    AfterAll {
+        Set-O365Language -Language en -SessionOnly
+    }
+
+    It 'says in German that a week of the month needs a weekday' {
+        { Get-SpoRecurringDate -Start '2026-09-01' -Until '2026-09-30' -WeekOfMonth First } | Should -Throw '*braucht einen Wochentag*'
+    }
+
+    It 'says in German that -Until is before -Start' {
+        { Get-SpoRecurringDate -Start '2026-09-30' -Until '2026-09-01' -DayOfWeek Sunday } | Should -Throw '*liegt vor -Start*'
     }
 }

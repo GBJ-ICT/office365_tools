@@ -393,4 +393,84 @@
     'Rule.DocumentSet.SharedColumnMissingFromChildContentType' = 'Content type ''{0}'' is allowed inside ''{1}'' but lacks {2} shared column(s): {3}. Values are stored but do not appear on the document''s form.'
 
     'DocumentSet.Shared.Done'                                  = 'Document Set shared column check complete.'
+
+    'ListItem.Add.UnknownFields'                               = 'Field(s) not found on list ''{0}'': {1}. Note these must be internal names, not display titles. Run: Get-PnPField -List ''{0}'' | Select-Object InternalName, Title'
+
+    'ListItem.Add.NoTitle'                                     = '(no title)'
+
+    'ListItem.Add.Action'                                      = 'Add list item'
+
+    'ListItem.Add.Added'                                       = 'Added item {0} to ''{1}''.'
+
+    'ListItem.Add.Failed'                                      = 'Failed to add item to ''{0}'': {1}'
+
+    'ListItem.Add.Done'                                        = 'Added {0} item(s).'
+
+    'ListItem.Export.Exporting'                                = 'Exporting {0} field(s) from ''{1}''.'
+
+    'ListItem.Export.Done'                                     = 'Export of ''{0}'' complete.'
+
+    'ListItem.Import.FileMissing'                              = 'File ''{0}'' does not exist.'
+
+    'ListItem.Import.UnsupportedType'                          = 'Unsupported file type ''{0}''. Use .csv, .tsv, or .json.'
+
+    'ListItem.Import.NoRows'                                   = 'File ''{0}'' contains no rows; nothing to import.'
+
+    'ListItem.Import.UnknownColumns'                           = 'Column(s) in ''{0}'' do not match any writable field on list ''{1}'': {2}. Field names must be internal names. Run: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title. Use -Mapping to translate column names.'
+
+    'ListItem.Import.RequiredMissing'                          = 'List ''{0}'' has required field(s) not present in the file: {1}. Rows may be rejected by the server.'
+
+    'ListItem.Import.Validated'                                = 'Validated {0} row(s) against ''{1}''. Columns: {2}.'
+
+    'ListItem.Import.Action'                                   = 'Create {0} item(s) from ''{1}'''
+
+    'ListItem.Import.Activity'                                 = 'Importing into {0}'
+
+    'ListItem.Import.RowEmpty'                                 = 'Row {0} is empty; skipped.'
+
+    'ListItem.Import.RowFailed'                                = 'Row {0} failed: {1}'
+
+    'ListItem.Import.Stopped'                                  = '{0} Import stopped after {1} successful row(s) because -StopOnError was specified.'
+
+    'ListItem.Import.Done'                                     = 'Import complete: {0} created, {1} failed, out of {2} row(s).'
+
+    'ListItem.Update.Nothing'                                  = 'Nothing to update on item {0} in ''{1}'': -Values is empty and -ContentType was not given. Supply the fields to set, a content type to reclassify the item as, or both.'
+
+    'ListItem.Update.ChangeFields'                             = 'fields: {0}'
+
+    'ListItem.Update.ChangeContentType'                        = 'content type: {0}'
+
+    'ListItem.Update.Action'                                   = 'Update item {0} ({1})'
+
+    'ListItem.Update.Updated'                                  = 'Updated item {0} in ''{1}''.'
+
+    'ListItem.Update.Failed'                                   = 'Failed to update item {0} in ''{1}'': {2}'
+
+    'ListItem.Update.Done'                                     = 'Updated {0} item(s).'
+
+    'ListItem.LinkText.ColumnNotFound'                         = 'Column ''{0}'' was not found on list ''{1}''. Note this must be the internal name, not the display title. Run: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title'
+
+    'ListItem.LinkText.NotUrl'                                 = 'Column ''{0}'' on list ''{1}'' is of type ''{2}'', not URL. Only a hyperlink column has display text to set; use Update-SpoListItem for anything else.'
+
+    'ListItem.LinkText.TextColumnNotFound'                     = 'Column ''{0}'' was not found on list ''{1}''. Run: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title'
+
+    'ListItem.LinkText.Considering'                            = 'Considering {0} item(s) in ''{1}'' for link text from ''{2}''.'
+
+    'ListItem.LinkText.NoUrl'                                  = 'Item {0} has no URL in ''{1}''; there is no link to label.'
+
+    'ListItem.LinkText.NoText'                                 = 'Item {0} has no value in ''{1}''; leaving the link text alone rather than blanking it.'
+
+    'ListItem.LinkText.Action'                                 = 'Set ''{0}'' text to ''{1}'''
+
+    'ListItem.LinkText.Set'                                    = 'Set ''{0}'' text on item {1} to ''{2}''.'
+
+    'ListItem.LinkText.Failed'                                 = 'Failed to set ''{0}'' text on item {1}: {2}'
+
+    'ListItem.LinkText.FailedIn'                               = 'Failed to set ''{0}'' text on item {1} in ''{2}'': {3}'
+
+    'ListItem.LinkText.Done'                                   = 'Link text pass complete: {0} updated, {1} already correct, {2} skipped, {3} failed.'
+
+    'Schedule.NeedsWeekday'                                    = '-WeekOfMonth needs a weekday to count: ''first'' what? Add -DayOfWeek, for example: -WeekOfMonth First -DayOfWeek Sunday'
+
+    'Schedule.UntilBeforeStart'                                = '-Until ({0}) is before -Start ({1}).'
 }
