@@ -473,4 +473,124 @@
     'Schedule.NeedsWeekday'                                    = '-WeekOfMonth needs a weekday to count: ''first'' what? Add -DayOfWeek, for example: -WeekOfMonth First -DayOfWeek Sunday'
 
     'Schedule.UntilBeforeStart'                                = '-Until ({0}) is before -Start ({1}).'
+
+    'Permission.Grant.NoRole'                                  = 'Role ''{0}'' does not exist on this site. Available roles: {1}'
+
+    'Permission.Grant.Inherits'                                = '''{0}'' currently inherits its permissions. Granting here requires breaking inheritance, which changes the security model for everything below it. Re-run with -BreakInheritance (and normally -CopyExisting) if that is what you want.'
+
+    'Permission.Grant.BreakAction'                             = 'Break permission inheritance (copy existing: {0})'
+
+    'Permission.Grant.Broke'                                   = 'Broke inheritance on ''{0}''.'
+
+    'Permission.Grant.Action'                                  = 'Grant ''{0}'' to ''{1}'''
+
+    'Permission.Grant.Granted'                                 = 'Granted ''{0}'' to ''{1}'' on ''{2}''.'
+
+    'Permission.Grant.Failed'                                  = 'Failed to grant ''{0}'' to ''{1}'' on ''{2}'': {3}'
+
+    'Permission.Repair.MissingProperty'                        = 'Input object is missing the ''{0}'' property. Pipe output from Get-SpoPermissionMismatch.'
+
+    'Permission.Repair.Action'                                 = 'Discard unique permissions and inherit from parent'
+
+    'Permission.Repair.Reset'                                  = 'Reset inheritance on ''{0}''.'
+
+    'Permission.Repair.Failed'                                 = 'Failed to reset inheritance on ''{0}'': {1}'
+
+    'Permission.Repair.Done'                                   = 'Repair complete: {0} repaired, {1} failed.'
+
+    'Permission.Revoke.Inherits'                               = '''{0}'' inherits its permissions, so there is nothing to revoke here. Revoke at the level where the permission was granted instead.'
+
+    'Permission.Revoke.ActionRole'                             = 'Revoke ''{0}'' from ''{1}'''
+
+    'Permission.Revoke.ActionAll'                              = 'Revoke all roles from ''{0}'''
+
+    'Permission.Revoke.AllAtListLevel'                         = 'Revoking all roles at list level is not supported; specify -Role.'
+
+    'Permission.Revoke.Done'                                   = '{0} on ''{1}''.'
+
+    'Permission.Revoke.Failed'                                 = 'Failed to revoke on ''{0}'': {1}'
+
+    'Permission.Orphaned.CheckingGroups'                       = 'Checking site groups for orphaned members.'
+
+    'Rule.Permission.EmptyGroup'                               = 'SharePoint group ''{0}'' has no members but may still hold permissions.'
+
+    'Rule.Permission.OrphanedPrincipalInGroup'                 = 'User ''{0}'' in group ''{1}'' does not resolve to an active account.'
+
+    'Permission.Orphaned.CheckingList'                         = 'Checking unique assignments in ''{0}''.'
+
+    'Rule.Permission.OrphanedPrincipal'                        = 'Item grants access to ''{0}'', which does not resolve to an active account.'
+
+    'Permission.Mismatch.Scanning'                             = 'Scanning ''{0}'' for permission mismatches.'
+
+    'Permission.Mismatch.Empty'                                = 'Library ''{0}'' contains no items.'
+
+    'Permission.Mismatch.Checking'                             = 'Checking {0} item(s).'
+
+    'Permission.Mismatch.Activity'                             = 'Checking permissions in {0}'
+
+    'Permission.Mismatch.ReadFailed'                           = 'Could not read permission state of ''{0}'': {1}'
+
+    'Permission.Mismatch.ParentFailed'                         = 'Could not read parent permissions for ''{0}''; comparing against the library instead.'
+
+    'Permission.Mismatch.Done'                                 = 'Finished scanning ''{0}''.'
+
+    'Permission.Report.Building'                               = 'Building permission report for ''{0}''.'
+
+    'Permission.Report.ExpandFailed'                           = 'Could not expand group ''{0}'': {1}'
+
+    'Permission.Report.Activity'                               = 'Reporting permissions in {0}'
+
+    'Permission.Report.ReadFailed'                             = 'Could not read permission state of ''{0}'': {1}'
+
+    'Permission.Report.Done'                                   = 'Permission report for ''{0}'' complete.'
+
+    'Pdf.Export.ViewNotFound'                                  = 'View ''{0}'' was not found on ''{1}''. Views on this list: {2}'
+
+    'Pdf.Export.ItemLinkNotColumn'                             = '-ItemLink names ''{0}'', which is not one of the printed columns: {1}'
+
+    'Pdf.Export.DisplayFormFailed'                             = 'Could not read the display form URL of ''{0}'': {1}'
+
+    'Pdf.Export.GroupNotColumn'                                = 'Grouping column ''{0}'' is not among the printed columns; it will head each group but not appear as a column.'
+
+    'Pdf.Export.Action'                                        = 'Print {0} row(s) and {1} column(s) to PDF'
+
+    'Pdf.Export.Unverified'                                    = 'Wrote ''{0}'' without verifying it.'
+
+    'Pdf.Export.Wrote'                                         = 'Wrote ''{0}'': {1} row(s), {2} column(s), {3} page(s), {4} verification error(s).'
+
+    'Rule.Pdf.Missing'                                         = 'The PDF does not exist, so nothing about its contents can be checked.'
+
+    'Rule.Pdf.NothingToCheck'                                  = 'No rows were supplied, so the PDF was not checked against anything.'
+
+    'Pdf.Test.Sampling'                                        = 'Checking a sample of {0} row(s) out of {1}.'
+
+    'Rule.Pdf.NotAPdf'                                         = 'The file is not a PDF, so the export did not produce what it reported.'
+
+    'Rule.Pdf.NoPages'                                         = 'The PDF contains no pages.'
+
+    'Rule.Pdf.NoTextLayer'                                     = 'No text could be read from the PDF, so its contents were not verified. The file itself may still be correct.'
+
+    'Rule.Pdf.TruncatedDocument'                               = 'The closing attestation line is not in the PDF, so the document does not run to the end of the data.'
+
+    'Rule.Pdf.RowCountMismatch'                                = 'The PDF attests to {0} row(s) but {1} were exported.'
+
+    'Rule.Pdf.ExtractionSuspect'                               = '{0} of {1} values were not found, which usually means the PDF''s text could not be read correctly rather than that the values are absent. Open the PDF, or install pdftotext, before acting on the findings below.'
+
+    'Rule.Pdf.MissingValue'                                    = 'Row {0}, column ''{1}'': the printed value is not in the PDF.'
+
+    'Rule.Pdf.MoreMissingValues'                               = '{0} further value(s) were also missing and are not listed individually.'
+
+    'Rule.Pdf.WrappedValue'                                    = 'Row {0}, column ''{1}'': printed, but broken across lines.'
+
+    'Rule.Pdf.WrappedValues'                                   = '{0} of {1} value(s) were printed across a line break and were matched with spacing ignored. Pass -ReportWrapped to list them.'
+
+    'Rule.Pdf.MissingLink'                                     = '{0}: the cell was printed but carries no clickable link in the PDF.'
+
+    'Rule.Pdf.MoreMissingLinks'                                = '{0} further link(s) were also missing and are not listed individually.'
+
+    'Rule.Pdf.NoLinks'                                         = '{0} link(s) were rendered but the PDF carries no link annotations at all. The browser printed the text without the links.'
+
+    'Pdf.Test.Checked'                                         = 'Checked {0} value(s) against ''{1}'': {2} missing, {3} wrapped{4}'
+
+    'Pdf.Test.LinksMissing'                                    = ', {0} link(s) missing.'
 }

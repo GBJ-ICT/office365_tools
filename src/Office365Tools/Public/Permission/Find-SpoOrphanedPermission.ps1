@@ -50,7 +50,7 @@ function Find-SpoOrphanedPermission {
     }
 
     process {
-        Write-O365Log 'Checking site groups for orphaned members.' 'Info'
+        Write-O365Log (Get-O365String 'Permission.Orphaned.CheckingGroups') 'Info'
 
         foreach ($group in (Get-PnPGroup -ErrorAction SilentlyContinue)) {
             $members = @(Get-PnPGroupMember -Group $group.Title -ErrorAction SilentlyContinue)
@@ -59,7 +59,7 @@ function Find-SpoOrphanedPermission {
                 if ($IncludeEmptyGroups) {
                     New-SpoFinding -RuleId 'Permission.EmptyGroup' -Severity Info -Scope Principal `
                         -Target $group.Title `
-                        -Message "SharePoint group '$($group.Title)' has no members but may still hold permissions." `
+                        -Message (Get-O365String 'Rule.Permission.EmptyGroup' $group.Title) `
                         -Detail @{ GroupId = $group.Id }
                 }
                 continue
@@ -81,7 +81,7 @@ function Find-SpoOrphanedPermission {
                     }
                     New-SpoFinding -RuleId 'Permission.OrphanedPrincipal' -Severity Warning -Scope Principal `
                         -Target $member.LoginName `
-                        -Message "User '$($member.Title)' in group '$($group.Title)' does not resolve to an active account." `
+                        -Message (Get-O365String 'Rule.Permission.OrphanedPrincipalInGroup' $member.Title $group.Title) `
                         -Detail $detail
                 }
             }
@@ -92,7 +92,7 @@ function Find-SpoOrphanedPermission {
         }
 
         $list = Resolve-SpoList -Identity $Library
-        Write-O365Log "Checking unique assignments in '$($list.Title)'." 'Info'
+        Write-O365Log (Get-O365String 'Permission.Orphaned.CheckingList' $list.Title) 'Info'
 
         $items = Get-PnPListItem -List $list -PageSize $PageSize
 
@@ -123,7 +123,7 @@ function Find-SpoOrphanedPermission {
                     }
                     New-SpoFinding -RuleId 'Permission.OrphanedPrincipal' -Severity Warning -Scope Item `
                         -Target $itemUrl -List $list.Title `
-                        -Message "Item grants access to '$($member.Title)', which does not resolve to an active account." `
+                        -Message (Get-O365String 'Rule.Permission.OrphanedPrincipal' $member.Title) `
                         -Detail $detail
                 }
             }

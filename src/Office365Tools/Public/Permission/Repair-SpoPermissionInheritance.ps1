@@ -73,7 +73,7 @@ function Repair-SpoPermissionInheritance {
         else {
             foreach ($required in 'ServerRelativeUrl', 'List') {
                 if ($required -notin $InputObject.PSObject.Properties.Name) {
-                    Write-Error "Input object is missing the '$required' property. Pipe output from Get-SpoPermissionMismatch."
+                    Write-Error (Get-O365String 'Permission.Repair.MissingProperty' $required)
                     return
                 }
             }
@@ -83,7 +83,7 @@ function Repair-SpoPermissionInheritance {
             $itemId     = $InputObject.ItemId
         }
 
-        $description = "Discard unique permissions and inherit from parent"
+        $description = (Get-O365String 'Permission.Repair.Action')
 
         if (-not $PSCmdlet.ShouldProcess($targetUrl, $description)) {
             return
@@ -107,7 +107,7 @@ function Repair-SpoPermissionInheritance {
             Invoke-PnPQuery -ErrorAction Stop
 
             $repaired++
-            Write-O365Log "Reset inheritance on '$targetUrl'." 'Success'
+            Write-O365Log (Get-O365String 'Permission.Repair.Reset' $targetUrl) 'Success'
 
             if ($PassThru) {
                 [pscustomobject]@{
@@ -123,8 +123,8 @@ function Repair-SpoPermissionInheritance {
         }
         catch {
             $failed++
-            Write-O365Log "Failed to reset inheritance on '$targetUrl': $($_.Exception.Message)" 'Error'
-            Write-Error -Message "Failed to reset inheritance on '$targetUrl': $($_.Exception.Message)" -TargetObject $targetUrl
+            Write-O365Log (Get-O365String 'Permission.Repair.Failed' $targetUrl $_.Exception.Message) 'Error'
+            Write-Error -Message (Get-O365String 'Permission.Repair.Failed' $targetUrl $_.Exception.Message) -TargetObject $targetUrl
 
             if ($PassThru) {
                 [pscustomobject]@{
@@ -141,6 +141,6 @@ function Repair-SpoPermissionInheritance {
     }
 
     end {
-        Write-O365Log "Repair complete: $repaired repaired, $failed failed." 'Info'
+        Write-O365Log (Get-O365String 'Permission.Repair.Done' $repaired $failed) 'Info'
     }
 }

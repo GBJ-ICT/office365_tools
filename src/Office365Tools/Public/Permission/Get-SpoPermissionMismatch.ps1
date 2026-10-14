@@ -81,7 +81,7 @@ function Get-SpoPermissionMismatch {
         $root = Get-PnPProperty -ClientObject $list -Property RootFolder
         $rootUrl = $root.ServerRelativeUrl
 
-        Write-O365Log "Scanning '$($list.Title)' for permission mismatches." 'Info'
+        Write-O365Log (Get-O365String 'Permission.Mismatch.Scanning' $list.Title) 'Info'
 
         $listAssignments = Get-PnPProperty -ClientObject $list -Property RoleAssignments
         $listSignature   = Get-SpoPermissionSignature -RoleAssignment $listAssignments
@@ -93,11 +93,11 @@ function Get-SpoPermissionMismatch {
         $items = Get-PnPListItem -List $list -PageSize $PageSize
 
         if (-not $items) {
-            Write-O365Log "Library '$($list.Title)' contains no items." 'Warning'
+            Write-O365Log (Get-O365String 'Permission.Mismatch.Empty' $list.Title) 'Warning'
             return
         }
 
-        Write-O365Log "Checking $(@($items).Count) item(s)." 'Info'
+        Write-O365Log (Get-O365String 'Permission.Mismatch.Checking' @($items).Count) 'Info'
 
         $checked = 0
         foreach ($item in $items) {
@@ -109,7 +109,7 @@ function Get-SpoPermissionMismatch {
                 continue
             }
 
-            Write-Progress -Activity "Checking permissions in $($list.Title)" `
+            Write-Progress -Activity (Get-O365String 'Permission.Mismatch.Activity' $list.Title) `
                 -Status $itemName -PercentComplete (($checked / @($items).Count) * 100)
 
             $isFolder = $item.FileSystemObjectType -eq 'Folder'
@@ -133,7 +133,7 @@ function Get-SpoPermissionMismatch {
                 $hasUnique = Get-PnPProperty -ClientObject $item -Property HasUniqueRoleAssignments
             }
             catch {
-                Write-O365Log "Could not read permission state of '$itemUrl': $($_.Exception.Message)" 'Warning'
+                Write-O365Log (Get-O365String 'Permission.Mismatch.ReadFailed' $itemUrl $_.Exception.Message) 'Warning'
                 continue
             }
 
@@ -155,7 +155,7 @@ function Get-SpoPermissionMismatch {
                     )
                 }
                 catch {
-                    Write-O365Log "Could not read parent permissions for '$parentUrl'; comparing against the library instead." 'Warning'
+                    Write-O365Log (Get-O365String 'Permission.Mismatch.ParentFailed' $parentUrl) 'Warning'
                     $listSignature
                 }
             }
@@ -184,7 +184,7 @@ function Get-SpoPermissionMismatch {
             }
         }
 
-        Write-Progress -Activity "Checking permissions in $($list.Title)" -Completed
-        Write-O365Log "Finished scanning '$($list.Title)'." 'Success'
+        Write-Progress -Activity (Get-O365String 'Permission.Mismatch.Activity' $list.Title) -Completed
+        Write-O365Log (Get-O365String 'Permission.Mismatch.Done' $list.Title) 'Success'
     }
 }

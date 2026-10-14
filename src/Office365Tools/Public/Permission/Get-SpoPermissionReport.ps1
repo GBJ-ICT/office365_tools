@@ -66,7 +66,7 @@ function Get-SpoPermissionReport {
         $root    = Get-PnPProperty -ClientObject $list -Property RootFolder
         $rootUrl = $root.ServerRelativeUrl
 
-        Write-O365Log "Building permission report for '$($list.Title)'." 'Info'
+        Write-O365Log (Get-O365String 'Permission.Report.Building' $list.Title) 'Info'
 
         # Emit an object's assignments as flat rows.
         $emit = {
@@ -94,7 +94,7 @@ function Get-SpoPermissionReport {
                                     })
                         }
                         catch {
-                            Write-O365Log "Could not expand group '$($member.Title)': $($_.Exception.Message)" 'Warning'
+                            Write-O365Log (Get-O365String 'Permission.Report.ExpandFailed' $member.Title $_.Exception.Message) 'Warning'
                             @()
                         }
                     }
@@ -143,14 +143,14 @@ function Get-SpoPermissionReport {
             $itemUrl = $item.FieldValues['FileRef']
             if (-not $itemUrl) { continue }
 
-            Write-Progress -Activity "Reporting permissions in $($list.Title)" `
+            Write-Progress -Activity (Get-O365String 'Permission.Report.Activity' $list.Title) `
                 -Status $item.FieldValues['FileLeafRef'] -PercentComplete (($index / [Math]::Max($total, 1)) * 100)
 
             try {
                 $hasUnique = Get-PnPProperty -ClientObject $item -Property HasUniqueRoleAssignments
             }
             catch {
-                Write-O365Log "Could not read permission state of '$itemUrl': $($_.Exception.Message)" 'Warning'
+                Write-O365Log (Get-O365String 'Permission.Report.ReadFailed' $itemUrl $_.Exception.Message) 'Warning'
                 continue
             }
 
@@ -164,7 +164,7 @@ function Get-SpoPermissionReport {
             & $emit $item $scope $itemUrl $pathInfo.RelativePath $hasUnique
         }
 
-        Write-Progress -Activity "Reporting permissions in $($list.Title)" -Completed
-        Write-O365Log "Permission report for '$($list.Title)' complete." 'Success'
+        Write-Progress -Activity (Get-O365String 'Permission.Report.Activity' $list.Title) -Completed
+        Write-O365Log (Get-O365String 'Permission.Report.Done' $list.Title) 'Success'
     }
 }
