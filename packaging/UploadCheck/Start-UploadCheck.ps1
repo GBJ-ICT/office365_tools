@@ -800,7 +800,8 @@ $arguments = @(
     '-File', $checker
     '-LocalPath', $Folder
     '-Mode', $mode
-    '-NextStep', $nextStep)
+    '-NextStep', $nextStep
+    '-Language', $script:Chosen.Language)
 
 if ($ReportFolder) {
     $arguments += @('-OutputPath', (Join-Path $ReportFolder "upload-check-$(Get-Date -Format 'yyyyMMdd_HHmmss')"))
