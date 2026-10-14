@@ -475,4 +475,216 @@ offered the folders that exist.'
     'DateSeries.Done'                       = 'Created {0} entry(s); {1} skipped.'
 
     'DateSeries.Log'                        = 'Log: {0}'
+
+    'ContentTypeMenu.Equivalent'            = '  Equivalent command:'
+
+    'ContentTypeMenu.NothingToChoose'       = '  Nothing to choose from.'
+
+    'ContentTypeMenu.FilterActive'          = '  filter: ''{0}'' ({1} of {2})'
+
+    'ContentTypeMenu.NoMatches'             = '  No matches.'
+
+    'ContentTypeMenu.MoreRows'              = '        ... and {0} more. Narrow with /text.'
+
+    'ContentTypeMenu.PickMany'              = 'Enter numbers (1,3,5 or 2-6 or all), /text to filter, or B to go back.'
+
+    'ContentTypeMenu.PickOne'               = 'Enter a number, /text to filter, or B to go back.'
+
+    'ContentTypeMenu.BadSelection'          = '  Not a valid selection.'
+
+    'ContentTypeMenu.OutOfRange'            = '  Out of range: {0}'
+
+    'ContentTypeMenu.PickJustOne'           = '  Pick one.'
+
+    'ContentTypeMenu.LoadingTypes'          = '  Loading content types...'
+
+    'ContentTypeMenu.NoCustomTypes'         = '  No custom content types found on this site.'
+
+    'ContentTypeMenu.NoCustomTypesHint'     = 'Use option 3 to create one, or -Group to widen the filter.'
+
+    'ContentTypeMenu.LoadingColumns'        = '  Loading columns...'
+
+    'ContentTypeMenu.Sealed'                = '  Sealed:      yes (cannot be modified)'
+
+    'ContentTypeMenu.DetailGroup'           = '  Group:       {0}'
+
+    'ContentTypeMenu.DetailDescription'     = '  Description: {0}'
+
+    'ContentTypeMenu.DetailColumns'         = '  Columns ({0}):'
+
+    'ContentTypeMenu.None'                  = '    (none)'
+
+    'ContentTypeMenu.HeaderInternal'        = 'INTERNAL NAME'
+
+    'ContentTypeMenu.HeaderDisplay'         = 'DISPLAY NAME'
+
+    'ContentTypeMenu.HeaderType'            = 'TYPE'
+
+    'ContentTypeMenu.HeaderRequired'        = 'REQ'
+
+    'ContentTypeMenu.ListTitle'             = 'Site content types ({0})'
+
+    'ContentTypeMenu.Loading'               = '  Loading...'
+
+    'ContentTypeMenu.NoneFound'             = '  None found.'
+
+    'ContentTypeMenu.BuiltInHidden'         = 'Built-in types are hidden. Get-SpoContentType -IncludeBuiltIn shows everything.'
+
+    'ContentTypeMenu.WhichType'             = 'Which content type?'
+
+    'ContentTypeMenu.CreateTypeTitle'       = 'Create a content type'
+
+    'ContentTypeMenu.PromptName'            = '  Name'
+
+    'ContentTypeMenu.ParentHint'            = 'The parent decides where the content type can be used.'
+
+    'ContentTypeMenu.ParentDocument'        = '  Document - for document libraries'
+
+    'ContentTypeMenu.ParentItem'            = '  Item     - for plain lists'
+
+    'ContentTypeMenu.PromptParent'          = '  Parent'
+
+    'ContentTypeMenu.PromptGroup'           = '  Group'
+
+    'ContentTypeMenu.PromptDescription'     = '  Description (optional)'
+
+    'ContentTypeMenu.AboutToCreate'         = '  About to create:'
+
+    'ContentTypeMenu.SummaryName'           = '    Name:        {0}'
+
+    'ContentTypeMenu.SummaryParent'         = '    Parent:      {0}'
+
+    'ContentTypeMenu.SummaryGroup'          = '    Group:       {0}'
+
+    'ContentTypeMenu.SummaryDescription'    = '    Description: {0}'
+
+    'ContentTypeMenu.CreateIt'              = '  Create it?'
+
+    'ContentTypeMenu.Cancelled'             = '  Cancelled.'
+
+    'ContentTypeMenu.TypeCreated'           = '  Created ''{0}''.'
+
+    'ContentTypeMenu.TypeCreatedHint'       = 'Add columns to it with option 4.'
+
+    'ContentTypeMenu.Failed'                = '  Failed: {0}'
+
+    'ContentTypeMenu.CreateFieldTitle'      = 'Create a site column'
+
+    'ContentTypeMenu.PromptDisplayName'     = '  Display name'
+
+    'ContentTypeMenu.PromptType'            = '  Type'
+
+    'ContentTypeMenu.OptionsHint'           = 'Enter the options, separated by commas.'
+
+    'ContentTypeMenu.PromptOptions'         = '  Options'
+
+    'ContentTypeMenu.NeedsOption'           = '  A {0} column needs at least one option. Cancelled.'
+
+    'ContentTypeMenu.InternalNameHint'      = 'Internal name is permanent and must be unique. Leave blank to derive it.'
+
+    'ContentTypeMenu.PromptInternalName'    = '  Internal name (optional)'
+
+    'ContentTypeMenu.PromptRequired'        = '  Required?'
+
+    'ContentTypeMenu.SummaryDisplayName'    = '    Display name:  {0}'
+
+    'ContentTypeMenu.SummaryInternalName'   = '    Internal name: {0}'
+
+    'ContentTypeMenu.SummaryType'           = '    Type:          {0}'
+
+    'ContentTypeMenu.SummaryFieldGroup'     = '    Group:         {0}'
+
+    'ContentTypeMenu.SummaryRequired'       = '    Required:      {0}'
+
+    'ContentTypeMenu.SummaryOptions'        = '    Options:       {0}'
+
+    'ContentTypeMenu.FieldCreated'          = '  Created column ''{0}''.'
+
+    'ContentTypeMenu.FieldCreatedHint'      = 'Attach it to a content type with option 4.'
+
+    'ContentTypeMenu.AddToWhich'            = 'Add columns to which content type?'
+
+    'ContentTypeMenu.SealedError'           = '  This content type is sealed and cannot be modified.'
+
+    'ContentTypeMenu.ModeExisting'          = '  [1] Pick from existing site columns'
+
+    'ContentTypeMenu.ModeNew'               = '  [2] Create a new column and add it'
+
+    'ContentTypeMenu.ModeBack'              = '  [B] Back'
+
+    'ContentTypeMenu.LoadingSiteColumns'    = '  Loading site columns...'
+
+    'ContentTypeMenu.AllColumnsPresent'     = '  Every site column is already on this content type.'
+
+    'ContentTypeMenu.WhichColumns'          = 'Which columns? ({0} available)'
+
+    'ContentTypeMenu.CopiesHint1'           = 'Existing lists using this content type hold independent copies.'
+
+    'ContentTypeMenu.CopiesHint2'           = 'Updating them keeps everything in step; skipping causes drift.'
+
+    'ContentTypeMenu.PromptUpdateCopies'    = '  Update existing list copies too?'
+
+    'ContentTypeMenu.SummaryUpdateCopies'   = '  Update list copies: {0}'
+
+    'ContentTypeMenu.Apply'                 = '  Apply?'
+
+    'ContentTypeMenu.RemoveFromWhich'       = 'Remove columns from which content type?'
+
+    'ContentTypeMenu.NoRemovable'           = '  No removable columns.'
+
+    'ContentTypeMenu.WhichToRemove'         = 'Which columns to remove?'
+
+    'ContentTypeMenu.Warning'               = '  WARNING'
+
+    'ContentTypeMenu.RemoveWarn1'           = 'The site column and its stored data are not deleted, but the column'
+
+    'ContentTypeMenu.RemoveWarn2'           = 'stops appearing on forms and views for this content type. Users'
+
+    'ContentTypeMenu.RemoveWarn3'           = 'experience that as data loss.'
+
+    'ContentTypeMenu.AboutToRemove'         = '  About to remove from {0}:'
+
+    'ContentTypeMenu.TypeNameToConfirm'     = '  Type the content type name (''{0}'') to confirm'
+
+    'ContentTypeMenu.NameMismatch'          = '  Did not match. Cancelled.'
+
+    'ContentTypeMenu.ColumnRemoved'         = '    {0}: removed'
+
+    'ContentTypeMenu.ColumnRemoveFailed'    = '    {0}: failed -- {1}'
+
+    'ContentTypeMenu.Connecting'            = 'Connecting...'
+
+    'ContentTypeMenu.ManagerTitle'          = 'Content type manager'
+
+    'ContentTypeMenu.Site'                  = '  Site: {0}'
+
+    'ContentTypeMenu.GroupFilter'           = '  Group filter: {0}'
+
+    'ContentTypeMenu.Menu1'                 = '  [1] List content types'
+
+    'ContentTypeMenu.Menu2'                 = '  [2] Inspect a content type'
+
+    'ContentTypeMenu.Menu3'                 = '  [3] Create a content type'
+
+    'ContentTypeMenu.Menu4'                 = '  [4] Add columns to a content type'
+
+    'ContentTypeMenu.Menu5'                 = '  [5] Remove columns from a content type'
+
+    'ContentTypeMenu.Menu6'                 = '  [6] Create a site column'
+
+    'ContentTypeMenu.MenuQuit'              = '  [Q] Quit'
+
+    'ContentTypeMenu.Bye'                   = '  Bye.'
+
+    'ContentTypeMenu.NotAnOption'           = '  Not an option.'
+
+    'ContentTypeMenu.PressEnter'            = '  Press Enter to continue'
+
+    'ContentTypeMenu.Yes'                   = 'yes'
+
+    'ContentTypeMenu.No'                    = 'no'
+
+    'ContentTypeMenu.YesNo'                 = '(y/N)'
+
+    'ContentTypeMenu.AboutToAdd'            = '  About to add to {0}:'
 }
