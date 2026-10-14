@@ -288,7 +288,7 @@ function Export-SpoListPdf {
                 if (-not $listView) {
                     $available = @(Get-PnPView -List $list | Select-Object -ExpandProperty Title)
                     throw [System.InvalidOperationException]::new(
-                        "View '$View' was not found on '$($list.Title)'. Views on this list: $($available -join ', ')"
+                        (Get-O365String 'Pdf.Export.ViewNotFound' $View $list.Title ($available -join ', '))
                     )
                 }
                 $viewFields = @($listView.ViewFields)
@@ -326,7 +326,7 @@ function Export-SpoListPdf {
             if ($ItemLink) {
                 if ($ItemLink -notin $columns) {
                     throw [System.InvalidOperationException]::new(
-                        "-ItemLink names '$ItemLink', which is not one of the printed columns: $($columns -join ', ')"
+                        (Get-O365String 'Pdf.Export.ItemLinkNotColumn' $ItemLink ($columns -join ', '))
                     )
                 }
 
@@ -335,7 +335,7 @@ function Export-SpoListPdf {
                     $displayForm = [string](Get-PnPProperty -ClientObject $list -Property DefaultDisplayFormUrl -ErrorAction Stop)
                 }
                 catch {
-                    Write-O365Log "Could not read the display form URL of '$($list.Title)': $($_.Exception.Message)" 'Verbose'
+                    Write-O365Log (Get-O365String 'Pdf.Export.DisplayFormFailed' $list.Title $_.Exception.Message) 'Info'
                 }
 
                 $site = [string]$script:O365State.SiteUrl
@@ -396,7 +396,7 @@ function Export-SpoListPdf {
         }
 
         if ($GroupBy -and $GroupBy -notin $columns) {
-            Write-O365Log "Grouping column '$GroupBy' is not among the printed columns; it will head each group but not appear as a column." 'Info'
+            Write-O365Log (Get-O365String 'Pdf.Export.GroupNotColumn' $GroupBy) 'Info'
         }
 
         # -------------------------------------------------------------------
@@ -428,7 +428,7 @@ function Export-SpoListPdf {
         Set-Content -LiteralPath $htmlPath -Value $render.Html -Encoding utf8 -WhatIf:$false
 
         try {
-            if (-not $PSCmdlet.ShouldProcess($pdfPath, "Print $($render.RowCount) row(s) and $($columns.Count) column(s) to PDF")) {
+            if (-not $PSCmdlet.ShouldProcess($pdfPath, (Get-O365String 'Pdf.Export.Action' $render.RowCount $columns.Count))) {
                 return [pscustomobject]@{
                     PSTypeName  = 'Office365Tools.PdfExport'
                     Path        = $pdfPath
@@ -467,7 +467,7 @@ function Export-SpoListPdf {
         $pageCount = 0
 
         if ($SkipVerification) {
-            Write-O365Log "Wrote '$pdfPath' without verifying it." 'Warning'
+            Write-O365Log (Get-O365String 'Pdf.Export.Unverified' $pdfPath) 'Warning'
         }
         else {
             $verifyArguments = @{
@@ -489,8 +489,7 @@ function Export-SpoListPdf {
         $verified = -not $SkipVerification -and $errors.Count -eq 0 -and $inconclusive.Count -eq 0
 
         Write-O365Log (
-            "Wrote '$pdfPath': $($render.RowCount) row(s), $($columns.Count) column(s), $pageCount page(s), " +
-            "$($errors.Count) verification error(s)."
+            (Get-O365String 'Pdf.Export.Wrote' $pdfPath $render.RowCount $columns.Count $pageCount $errors.Count)
         ) $(if ($errors.Count -gt 0) { 'Warning' } else { 'Success' })
 
         [pscustomobject]@{

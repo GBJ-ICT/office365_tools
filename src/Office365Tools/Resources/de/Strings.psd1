@@ -473,4 +473,124 @@
     'Schedule.NeedsWeekday'                                    = '-WeekOfMonth braucht einen Wochentag zum Zählen: der "erste" was? Gib -DayOfWeek an, zum Beispiel: -WeekOfMonth First -DayOfWeek Sunday'
 
     'Schedule.UntilBeforeStart'                                = '-Until ({0}) liegt vor -Start ({1}).'
+
+    'Permission.Grant.NoRole'                                  = 'Die Rolle ''{0}'' gibt es auf dieser Website nicht. Vorhandene Rollen: {1}'
+
+    'Permission.Grant.Inherits'                                = '''{0}'' erbt seine Berechtigungen derzeit. Um hier etwas zu vergeben, muss die Vererbung unterbrochen werden; das ändert das Sicherheitsmodell für alles darunter. Führe den Befehl nochmals mit -BreakInheritance (und normalerweise -CopyExisting) aus, wenn du das möchtest.'
+
+    'Permission.Grant.BreakAction'                             = 'Berechtigungsvererbung unterbrechen (bestehende kopieren: {0})'
+
+    'Permission.Grant.Broke'                                   = 'Die Vererbung auf ''{0}'' wurde unterbrochen.'
+
+    'Permission.Grant.Action'                                  = '''{0}'' an ''{1}'' vergeben'
+
+    'Permission.Grant.Granted'                                 = '''{0}'' wurde an ''{1}'' auf ''{2}'' vergeben.'
+
+    'Permission.Grant.Failed'                                  = '''{0}'' konnte ''{1}'' auf ''{2}'' nicht vergeben werden: {3}'
+
+    'Permission.Repair.MissingProperty'                        = 'Dem Eingabeobjekt fehlt die Eigenschaft ''{0}''. Leite die Ausgabe von Get-SpoPermissionMismatch weiter.'
+
+    'Permission.Repair.Action'                                 = 'Eindeutige Berechtigungen verwerfen und vom Überobjekt erben'
+
+    'Permission.Repair.Reset'                                  = 'Die Vererbung auf ''{0}'' wurde zurückgesetzt.'
+
+    'Permission.Repair.Failed'                                 = 'Die Vererbung auf ''{0}'' konnte nicht zurückgesetzt werden: {1}'
+
+    'Permission.Repair.Done'                                   = 'Reparatur abgeschlossen: {0} repariert, {1} fehlgeschlagen.'
+
+    'Permission.Revoke.Inherits'                               = '''{0}'' erbt seine Berechtigungen, darum gibt es hier nichts zu entziehen. Entziehe sie stattdessen auf der Ebene, auf der sie vergeben wurden.'
+
+    'Permission.Revoke.ActionRole'                             = '''{0}'' von ''{1}'' entziehen'
+
+    'Permission.Revoke.ActionAll'                              = 'Alle Rollen von ''{0}'' entziehen'
+
+    'Permission.Revoke.AllAtListLevel'                         = 'Alle Rollen auf Listenebene zu entziehen wird nicht unterstützt; gib -Role an.'
+
+    'Permission.Revoke.Done'                                   = '{0} auf ''{1}''.'
+
+    'Permission.Revoke.Failed'                                 = 'Das Entziehen auf ''{0}'' ist fehlgeschlagen: {1}'
+
+    'Permission.Orphaned.CheckingGroups'                       = 'Websitegruppen werden auf verwaiste Mitglieder geprüft.'
+
+    'Rule.Permission.EmptyGroup'                               = 'Die SharePoint-Gruppe ''{0}'' hat keine Mitglieder, hält aber möglicherweise noch Berechtigungen.'
+
+    'Rule.Permission.OrphanedPrincipalInGroup'                 = 'Der Benutzer ''{0}'' in der Gruppe ''{1}'' entspricht keinem aktiven Konto.'
+
+    'Permission.Orphaned.CheckingList'                         = 'Eindeutige Zuweisungen in ''{0}'' werden geprüft.'
+
+    'Rule.Permission.OrphanedPrincipal'                        = 'Das Element gewährt ''{0}'' Zugriff, was keinem aktiven Konto entspricht.'
+
+    'Permission.Mismatch.Scanning'                             = '''{0}'' wird auf abweichende Berechtigungen durchsucht.'
+
+    'Permission.Mismatch.Empty'                                = 'Die Bibliothek ''{0}'' enthält keine Elemente.'
+
+    'Permission.Mismatch.Checking'                             = '{0} Element(e) werden geprüft.'
+
+    'Permission.Mismatch.Activity'                             = 'Berechtigungen in {0} werden geprüft'
+
+    'Permission.Mismatch.ReadFailed'                           = 'Der Berechtigungsstand von ''{0}'' konnte nicht gelesen werden: {1}'
+
+    'Permission.Mismatch.ParentFailed'                         = 'Die Berechtigungen des Überobjekts von ''{0}'' konnten nicht gelesen werden; stattdessen wird mit der Bibliothek verglichen.'
+
+    'Permission.Mismatch.Done'                                 = 'Die Suche in ''{0}'' ist abgeschlossen.'
+
+    'Permission.Report.Building'                               = 'Der Berechtigungsbericht für ''{0}'' wird erstellt.'
+
+    'Permission.Report.ExpandFailed'                           = 'Die Gruppe ''{0}'' konnte nicht aufgelöst werden: {1}'
+
+    'Permission.Report.Activity'                               = 'Berechtigungen in {0} werden berichtet'
+
+    'Permission.Report.ReadFailed'                             = 'Der Berechtigungsstand von ''{0}'' konnte nicht gelesen werden: {1}'
+
+    'Permission.Report.Done'                                   = 'Der Berechtigungsbericht für ''{0}'' ist abgeschlossen.'
+
+    'Pdf.Export.ViewNotFound'                                  = 'Die Ansicht ''{0}'' wurde in ''{1}'' nicht gefunden. Ansichten dieser Liste: {2}'
+
+    'Pdf.Export.ItemLinkNotColumn'                             = '-ItemLink nennt ''{0}'', das keine der gedruckten Spalten ist: {1}'
+
+    'Pdf.Export.DisplayFormFailed'                             = 'Die Adresse des Anzeigeformulars von ''{0}'' konnte nicht gelesen werden: {1}'
+
+    'Pdf.Export.GroupNotColumn'                                = 'Die Gruppierungsspalte ''{0}'' gehört nicht zu den gedruckten Spalten; sie steht über jeder Gruppe, erscheint aber nicht als Spalte.'
+
+    'Pdf.Export.Action'                                        = '{0} Zeile(n) und {1} Spalte(n) als PDF drucken'
+
+    'Pdf.Export.Unverified'                                    = '''{0}'' wurde geschrieben, ohne es zu prüfen.'
+
+    'Pdf.Export.Wrote'                                         = '''{0}'' geschrieben: {1} Zeile(n), {2} Spalte(n), {3} Seite(n), {4} Prüffehler.'
+
+    'Rule.Pdf.Missing'                                         = 'Das PDF gibt es nicht, darum lässt sich über seinen Inhalt nichts prüfen.'
+
+    'Rule.Pdf.NothingToCheck'                                  = 'Es wurden keine Zeilen angegeben, darum wurde das PDF gegen nichts geprüft.'
+
+    'Pdf.Test.Sampling'                                        = 'Geprüft wird eine Stichprobe von {0} Zeile(n) aus {1}.'
+
+    'Rule.Pdf.NotAPdf'                                         = 'Die Datei ist kein PDF, der Export hat also nicht das erzeugt, was er gemeldet hat.'
+
+    'Rule.Pdf.NoPages'                                         = 'Das PDF enthält keine Seiten.'
+
+    'Rule.Pdf.NoTextLayer'                                     = 'Aus dem PDF liess sich kein Text lesen, darum wurde sein Inhalt nicht geprüft. Die Datei selbst kann trotzdem in Ordnung sein.'
+
+    'Rule.Pdf.TruncatedDocument'                               = 'Die abschliessende Bestätigungszeile steht nicht im PDF, das Dokument reicht also nicht bis zum Ende der Daten.'
+
+    'Rule.Pdf.RowCountMismatch'                                = 'Das PDF bestätigt {0} Zeile(n), exportiert wurden aber {1}.'
+
+    'Rule.Pdf.ExtractionSuspect'                               = '{0} von {1} Werten wurden nicht gefunden; meistens heisst das, dass sich der Text des PDFs nicht richtig lesen liess, und nicht, dass die Werte fehlen. Öffne das PDF oder installiere pdftotext, bevor du auf die Befunde unten reagierst.'
+
+    'Rule.Pdf.MissingValue'                                    = 'Zeile {0}, Spalte ''{1}'': Der gedruckte Wert steht nicht im PDF.'
+
+    'Rule.Pdf.MoreMissingValues'                               = '{0} weitere(r) Wert(e) fehlten ebenfalls und sind nicht einzeln aufgeführt.'
+
+    'Rule.Pdf.WrappedValue'                                    = 'Zeile {0}, Spalte ''{1}'': gedruckt, aber über mehrere Zeilen umbrochen.'
+
+    'Rule.Pdf.WrappedValues'                                   = '{0} von {1} Wert(en) wurden über einen Zeilenumbruch gedruckt und ohne Rücksicht auf Leerräume zugeordnet. Mit -ReportWrapped werden sie aufgelistet.'
+
+    'Rule.Pdf.MissingLink'                                     = '{0}: Die Zelle wurde gedruckt, trägt im PDF aber keinen anklickbaren Link.'
+
+    'Rule.Pdf.MoreMissingLinks'                                = '{0} weitere(r) Link(s) fehlten ebenfalls und sind nicht einzeln aufgeführt.'
+
+    'Rule.Pdf.NoLinks'                                         = '{0} Link(s) wurden dargestellt, das PDF enthält aber überhaupt keine Link-Anmerkungen. Der Browser hat den Text ohne die Links gedruckt.'
+
+    'Pdf.Test.Checked'                                         = '{0} Wert(e) gegen ''{1}'' geprüft: {2} fehlend, {3} umbrochen{4}'
+
+    'Pdf.Test.LinksMissing'                                    = ', {0} Link(s) fehlen.'
 }

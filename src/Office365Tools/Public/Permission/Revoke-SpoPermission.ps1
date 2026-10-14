@@ -71,13 +71,12 @@ function Revoke-SpoPermission {
 
         if (-not $hasUnique) {
             Write-O365Log (
-                "'$target' inherits its permissions, so there is nothing to revoke here. " +
-                'Revoke at the level where the permission was granted instead.'
+                (Get-O365String 'Permission.Revoke.Inherits' $target)
             ) 'Warning'
             return
         }
 
-        $description = if ($Role) { "Revoke '$Role' from '$Identity'" } else { "Revoke all roles from '$Identity'" }
+        $description = if ($Role) { (Get-O365String 'Permission.Revoke.ActionRole' $Role $Identity) } else { (Get-O365String 'Permission.Revoke.ActionAll' $Identity) }
 
         if (-not $PSCmdlet.ShouldProcess($target, $description)) {
             return
@@ -97,14 +96,14 @@ function Revoke-SpoPermission {
                     Set-PnPListPermission -List $list.Title -User $Identity -RemoveRole $Role -ErrorAction Stop
                 }
                 else {
-                    throw 'Revoking all roles at list level is not supported; specify -Role.'
+                    throw (Get-O365String 'Permission.Revoke.AllAtListLevel')
                 }
             }
 
-            Write-O365Log "$description on '$target'." 'Success'
+            Write-O365Log (Get-O365String 'Permission.Revoke.Done' $description $target) 'Success'
         }
         catch {
-            Write-Error -Message "Failed to revoke on '$target': $($_.Exception.Message)" -TargetObject $target
+            Write-Error -Message (Get-O365String 'Permission.Revoke.Failed' $target $_.Exception.Message) -TargetObject $target
         }
     }
 }
