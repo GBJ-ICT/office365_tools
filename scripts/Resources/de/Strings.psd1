@@ -247,4 +247,174 @@ damit dir die vorhandenen Ordner angeboten werden.'
     'DocSetRepair.RerunLine1'               = 'Führe ./scripts/Test-DocumentSetSync.ps1 zur Bestätigung nochmals aus und prüfe die'
 
     'DocSetRepair.RerunLine2'               = 'Befunde zur Konfiguration dort, damit die Abweichung nicht einfach zurückkommt.'
+
+    'DocSetRegister.Connected'              = 'Verbunden mit {0}'
+
+    'DocSetRegister.PlanningHeading'        = '=== Planung ==='
+
+    'DocSetRegister.NothingToDo'            = 'Nichts zu tun: ''{0}'' stimmt mit jedem Dokumentsatz in {1} überein.'
+
+    'DocSetRegister.PlanRow'                = '  {0,-24} {1,-8} {2,4} Zeile(n)'
+
+    'DocSetRegister.Moved'                  = '  {0} Zeile(n) gehören zu einem Dokumentsatz, der in eine andere Bibliothek verschoben wurde:'
+
+    'DocSetRegister.MovedRow'               = '    {0,-6} {1} -- {2} -> {3}'
+
+    'DocSetRegister.Columns'                = '  Registerspalten: {0}'
+
+    'DocSetRegister.PlanWritten'            = 'Plan geschrieben nach: {0}'
+
+    'DocSetRegister.NothingChanged'         = 'Es wurde nichts verändert.'
+
+    'DocSetRegister.ReadIt'                 = 'Lies ihn, ändere die Werte, die anders sein sollen, und dann:'
+
+    'DocSetRegister.PlanNotFound'           = 'Die Plandatei ''{0}'' wurde nicht gefunden. Führe das Skript ohne -Plan aus, um eine zu erzeugen.'
+
+    'DocSetRegister.PlanEmpty'              = 'Der Plan ''{0}'' hat keine Zeilen.'
+
+    'DocSetRegister.PlanNoColumns'          = 'Der Plan ''{0}'' hat Zeilen zum Anlegen, aber keine Registerspalten, nur Herkunftsspalten ({1}). Es ist wohl die falsche Datei.'
+
+    'DocSetRegister.PlanNoColumn'           = 'Dem Plan ''{0}'' fehlt die Spalte ''{1}''. Erzeuge einen Plan, indem du das Skript ohne -Plan ausführst, statt ihn von Hand zu schreiben.'
+
+    'DocSetRegister.WritingHeading'         = '=== Einträge werden geschrieben ==='
+
+    'DocSetRegister.RowsFrom'               = '  {0} Zeile(n) aus {1}'
+
+    'DocSetRegister.ValueColumns'           = '  Spalten: {0}'
+
+    'DocSetRegister.AlreadyHolds'           = '  ''{0}'' enthält bereits {1} Zeile(n) mit einer Dokument-ID'
+
+    'DocSetRegister.SkippedAction'          = '  {0} übersprungen -- die Aktion ''{1}'' schreibt dieses Skript nicht'
+
+    'DocSetRegister.NoRow'                  = 'In ''{0}'' gibt es keine Zeile für die Dokument-ID ''{1}''. Die Zeile wurde seit dem Schreiben des Plans vielleicht gelöscht; plane neu.'
+
+    'DocSetRegister.Missing'                = '  FEHLT {0} -- diese Zeile gibt es nicht mehr; plane neu'
+
+    'DocSetRegister.Ok'                     = '  ok      {0,-6} {1} -- bereits {2}'
+
+    'DocSetRegister.WouldUpdate'            = '  würde aktualisieren {0,-6} {1} -- {2}'
+
+    'DocSetRegister.Updated'                = '  aktualisiert {0,-6} {1} -- {2} -> {3}'
+
+    'DocSetRegister.Failed'                 = '  FEHLGESCHLAGEN  {0} -- {1}'
+
+    'DocSetRegister.SkippedPresent'         = '  übersprungen {0,-6} {1} -- bereits im Register'
+
+    'DocSetRegister.DefaultContentType'     = 'Standardinhaltstyp'
+
+    'DocSetRegister.WouldCreate'            = '  würde anlegen   {0} -- {1}'
+
+    'DocSetRegister.Created'                = '  angelegt {0,-6} {1}'
+
+    'DocSetRegister.SkipLinkText'           = 'Der Durchgang für den Linktext wird übersprungen (-SkipLinkText).'
+
+    'DocSetRegister.PassTwoWould'           = 'Der zweite Durchgang würde den Text von ''{0}'' aus ''{1}'' auf den oben angelegten Zeilen setzen.'
+
+    'DocSetRegister.NoLinkText'             = 'Es wurde nichts geschrieben, darum gibt es keinen Linktext zu setzen.'
+
+    'DocSetRegister.LinkTextHeading'        = '=== Linktext wird gesetzt ==='
+
+    'DocSetRegister.SummaryHeading'         = '=== Zusammenfassung ==='
+
+    'DocSetRegister.SumCreated'             = '  angelegte Einträge     : {0}'
+
+    'DocSetRegister.SumUpdated'             = '  aktualisierte Einträge : {0}'
+
+    'DocSetRegister.SumPresent'             = '  schon vorhanden        : {0}'
+
+    'DocSetRegister.SumCorrect'             = '  schon richtig          : {0}'
+
+    'DocSetRegister.SumNotFound'            = '  nicht gefundene Zeilen : {0}'
+
+    'DocSetRegister.SumFailed'              = '  fehlgeschlagene Einträge: {0}'
+
+    'DocSetRegister.SumLabelled'            = '  beschriftete Links     : {0}'
+
+    'DocSetRegister.ReportsWritten'         = 'Berichte geschrieben nach: {0}'
+
+    'DocSetRegister.SomeFailed1'            = 'Einige Zeilen sind fehlgeschlagen. written.csv nennt den Grund für jede. Korrigiere den Plan und führe dieselbe'
+
+    'DocSetRegister.SomeFailed2'            = 'Datei nochmals aus: Erfolgreiche Zeilen werden über die Dokument-ID erkannt und nicht zweimal geschrieben.'
+
+    'ListToPdf.Printing'                    = '''{0}'' wird gedruckt ...'
+
+    'ListToPdf.WouldPrint'                  = '{0} Zeile(n) und {1} Spalte(n) würden nach {2} gedruckt'
+
+    'ListToPdf.Counts'                      = '  {0} Zeile(n), {1} Spalte(n), {2} Seite(n), Prüfsumme {3}'
+
+    'ListToPdf.Links'                       = '  {0} anklickbare(r) Link(s)'
+
+    'ListToPdf.Columns'                     = '  Spalten: {0}'
+
+    'ListToPdf.NotVerified'                 = '  nicht geprüft (-SkipVerification)'
+
+    'ListToPdf.ReportTitle'                 = 'Prüfung von {0} Zeile(n) in {1}'
+
+    'ListToPdf.Verified'                    = '  Geprüft: Jeder gedruckte Wert wurde im PDF gefunden.'
+
+    'ListToPdf.NotFullyVerified'            = '  Nicht vollständig geprüft. Siehe verification.html -- das PDF kann trotzdem in Ordnung sein.'
+
+    'ListToPdf.Failed'                      = '  {0} Wert(e) oder Prüfung(en) sind fehlgeschlagen. Dem PDF fehlen Daten:'
+
+    'ListToPdf.More'                        = '    ... und {0} weitere'
+
+    'ListToPdf.UsualCause'                  = '  Übliche Ursache: zu viele Spalten für das Papier. Verkleinere -FontSize, nimm -PaperSize A3 oder drucke weniger Spalten.'
+
+    'ListToPdf.ReportIn'                    = '  Bericht und Protokoll in {0}'
+
+    'FieldValue.ListNotFound'               = 'Die Liste oder Bibliothek ''{0}'' wurde auf {1} nicht gefunden.'
+
+    'FieldValue.Blank'                      = '(leer)'
+
+    'FieldValue.Found'                      = '''{0}'': {1} Element(e) mit {2} = {3} -> ''{4}''.'
+
+    'FieldValue.Action'                     = '{0} = ''{1}'' setzen (war {2}) auf Element {3}'
+
+    'FieldValue.Failed'                     = 'Element {0} in ''{1}'' konnte nicht aktualisiert werden: {2}'
+
+    'FieldValue.Done'                       = 'Fertig. {0} Element(e) aktualisiert, {1} fehlgeschlagen.'
+
+    'ListSchema.Reading'                    = '''{0}'' wird gelesen ...'
+
+    'ListSchema.NoSourceView'               = 'Die Quellliste ''{0}'' hat keine Standardansicht; -CopyDefaultView wird übersprungen.'
+
+    'ListSchema.ReadOnly'                   = '{0} Spalte(n) aus ''{1}'' gelesen. Es wurde nichts geschrieben.'
+
+    'ListSchema.SchemaWritten'              = 'Schema geschrieben nach {0}'
+
+    'ListSchema.RerunApply'                 = 'Führe das Skript nochmals mit -Apply aus, um diese Spalten im Ziel anzulegen.'
+
+    'ListSchema.Writing'                    = 'Es wird nach ''{0}'' geschrieben ...'
+
+    'ListSchema.NoTargetView'               = 'Die Zielliste ''{0}'' hat keine Standardansicht.'
+
+    'ListSchema.ViewAction'                 = 'Ansichtsspalten auf {0} setzen'
+
+    'ListSchema.ViewNow'                    = 'Die Standardansicht zeigt jetzt: {0}'
+
+    'ListSchema.Done'                       = 'Fertig. Protokoll und Schema in {0}'
+
+    'Register.NeedsSiteUrl'                 = '-ProfileName braucht -SiteUrl, damit das Profil weiss, mit welcher Site es sich verbinden soll.'
+
+    'Register.Installing'                   = 'PnP.PowerShell wird installiert...'
+
+    'Register.Action'                       = 'Entra-ID-Anwendung ''{0}'' mit {1} registrieren'
+
+    'Register.Registering'                  = '''{0}'' wird in {1} registriert...'
+
+    'Register.BrowserWillOpen'              = 'Ein Browserfenster öffnet sich für Anmeldung und Zustimmung.'
+
+    'Register.Complete'                     = 'Registrierung abgeschlossen.'
+
+    'Register.ClientId'                     = '  Client-ID: {0}'
+
+    'Register.Consent1'                     = 'Die Zustimmung braucht einige Minuten, bis sie überall gilt. Schlägt die erste Verbindung'
+
+    'Register.Consent2'                     = 'mit einem Berechtigungsfehler fehl, warte kurz und versuche es nochmals.'
+
+    'Register.ProfileDescription'           = 'Registriert durch Register-PnPApplication.ps1 am {0}'
+
+    'Register.ProfileSaved'                 = 'Das Profil ''{0}'' wurde gespeichert. Verbinde dich mit: Connect-O365 -ProfileName {0}'
+
+    'Register.SaveAsProfile'                = 'Speichere sie als Profil mit:'
 }

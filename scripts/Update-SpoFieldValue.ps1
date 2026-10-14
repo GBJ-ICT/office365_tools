@@ -91,13 +91,26 @@ param(
     [switch]$DocumentSetOnly,
 
     [Parameter()]
-    [switch]$SkipInapplicable
+    [switch]$SkipInapplicable,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 $connection = Get-O365Connection -ErrorAction SilentlyContinue
 if (-not $connection -or -not $connection.IsLive) {
@@ -115,7 +128,7 @@ $targetLists = if ($Library) {
     $Library | ForEach-Object {
         $list = Get-PnPList -Identity $_ -ErrorAction SilentlyContinue
         if (-not $list) {
-            Write-Error "List or library '$_' was not found on $($connection.SiteUrl)."
+            Write-Error (Get-ScriptString 'FieldValue.ListNotFound' $_ $connection.SiteUrl)
         }
         else {
             $list
@@ -185,11 +198,11 @@ foreach ($list in $targetLists) {
 
         if ($items.Count -eq 0) { continue }
 
-        $fromLabel = if ($isBlank) { '(blank)' } else { "'$oldValue'" }
-        Write-Host "'$($list.Title)': $($items.Count) item(s) with $Field = $fromLabel -> '$newValue'." -ForegroundColor Cyan
+        $fromLabel = if ($isBlank) { (Get-ScriptString 'FieldValue.Blank') } else { "'$oldValue'" }
+        Write-Host (Get-ScriptString 'FieldValue.Found' $list.Title $items.Count $Field $fromLabel $newValue) -ForegroundColor Cyan
 
         foreach ($item in $items) {
-            $description = "Set $Field = '$newValue' (was $fromLabel) on item $($item.Id)"
+            $description = (Get-ScriptString 'FieldValue.Action' $Field $newValue $fromLabel $item.Id)
 
             if (-not $PSCmdlet.ShouldProcess($list.Title, $description)) { continue }
 
@@ -206,11 +219,11 @@ foreach ($list in $targetLists) {
             }
             catch {
                 $totalFailed++
-                Write-Error -Message "Failed to update item $($item.Id) in '$($list.Title)': $($_.Exception.Message)" -TargetObject $item.Id
+                Write-Error -Message (Get-ScriptString 'FieldValue.Failed' $item.Id $list.Title $_.Exception.Message) -TargetObject $item.Id
             }
         }
     }
 }
 
 $summaryColor = if ($totalFailed -gt 0) { 'Yellow' } else { 'Green' }
-Write-Host "Done. $totalUpdated item(s) updated, $totalFailed failed." -ForegroundColor $summaryColor
+Write-Host (Get-ScriptString 'FieldValue.Done' $totalUpdated $totalFailed) -ForegroundColor $summaryColor

@@ -106,7 +106,7 @@ Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd
 # or Windows says. Applied to this session only, so the saved choice is left
 # alone. The texts of this script live in scripts\Resources, over the module's own.
 if ($Language) {
-    Set-O365Language -Language $Language -SessionOnly
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
 }
 
 . (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
