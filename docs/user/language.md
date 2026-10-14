@@ -3,10 +3,11 @@
 The tools speak **English** or **German**. By default they use the language your
 Windows is set to, so most people never need to change anything.
 
-!!! note "What is in both languages today"
-    The **upload checker** (the launcher, the tool menu, the checker itself and its
-    reports) and the **file name checks** are in English and German. The other
-    scripts and PowerShell commands still speak English only; they will follow.
+!!! note "What is in both languages"
+    Everything: the **upload checker** (the launcher, the tool menu, the checker
+    itself and its reports), the **file name checks**, all the **scripts** and the
+    **PowerShell commands**. Command names, parameter names and the column names
+    in CSV files stay English on purpose.
 
 ## Change the language
 
