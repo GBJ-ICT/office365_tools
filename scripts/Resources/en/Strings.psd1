@@ -141,4 +141,110 @@ offered the folders that exist.'
     'TestUpload.Result.Reports'             = 'Reports: {0}'
     'TestUpload.Result.Open'                = 'Open {0} in a browser to read them.'
     'TestUpload.Result.NothingChanged'      = 'Nothing was changed, locally or in SharePoint.'
+
+    'LibraryAudit.Connected'                = 'Connected to {0}'
+
+    'LibraryAudit.All'                      = 'Auditing all {0} visible libraries.'
+
+    'LibraryAudit.Finding.Mismatch'         = 'Unique permissions at depth {0} differ from the parent folder.'
+
+    'LibraryAudit.Clean'                    = 'clean'
+
+    'LibraryAudit.Findings'                 = '  {0} finding(s) -- {1}'
+
+    'LibraryAudit.ReportTitle'              = '{0} -- health report'
+
+    'LibraryAudit.Failed'                   = 'Audit of ''{0}'' failed: {1}'
+
+    'LibraryAudit.ContentTypeHeading'       = '=== Content type links (site-wide) ==='
+
+    'LibraryAudit.ContentTypeFindings'      = '  {0} finding(s)'
+
+    'LibraryAudit.ContentTypeFailed'        = 'Content type check failed: {0}'
+
+    'LibraryAudit.SummaryTitle'             = 'Site audit summary'
+
+    'LibraryAudit.SummaryHeading'           = '=== Summary ==='
+
+    'LibraryAudit.ReportsWritten'           = 'Reports written to: {0}'
+
+    'LibraryAudit.NothingChanged'           = 'Nothing was changed. To act on these findings, see docs/sandbox/getting-started.md.'
+
+    'DocSetSync.Connected'                  = 'Connected to {0}'
+
+    'DocSetSync.All'                        = 'Examining all {0} visible document libraries.'
+
+    'DocSetSync.None'                       = '  no Document Sets -- skipped'
+
+    'DocSetSync.Counts'                     = '  {0} Document Set(s), {1} contained item(s)'
+
+    'DocSetSync.Unshared'                   = '  {0} of them share no columns at all'
+
+    'DocSetSync.Configuration'              = '  configuration: {0} finding(s), {1} column(s) not registered as shared'
+
+    'DocSetSync.Data'                       = '  data: {0} of {1} item(s) out of sync ({2}%)'
+
+    'DocSetSync.ConfigurationTitle'         = '{0} -- Document Set configuration'
+
+    'DocSetSync.Failed'                     = 'Check of ''{0}'' failed: {1}'
+
+    'DocSetSync.DriftTitle'                 = 'Document Set metadata drift'
+
+    'DocSetSync.ConfigurationSummaryTitle'  = 'Document Set configuration'
+
+    'DocSetSync.SummaryHeading'             = '=== Summary ==='
+
+    'DocSetSync.ItemsOut'                   = '  items out of sync : {0}'
+
+    'DocSetSync.ColumnDifferences'          = '  column differences: {0}'
+
+    'DocSetSync.WorstColumns'               = '  Worst columns:'
+
+    'DocSetSync.ColumnItems'                = '    {0}: {1} item(s)'
+
+    'DocSetSync.Reasons'                    = '  Reasons:'
+
+    'DocSetSync.ConfigurationFindings'      = '  Configuration findings:'
+
+    'DocSetSync.ReportsWritten'             = 'Reports written to: {0}'
+
+    'DocSetSync.NothingChanged'             = 'Nothing was changed.'
+
+    'DocSetSync.PushDown'                   = 'To push the Document Set values down:'
+
+    'DocSetSync.FixConfiguration'           = 'Fix the configuration too, or the drift comes back. See docs/sandbox/document-sets.md.'
+
+    'DocSetRepair.Connected'                = 'Connected to {0}'
+
+    'DocSetRepair.All'                      = 'Examining all {0} visible document libraries.'
+
+    'DocSetRepair.InSync'                   = '  in sync -- nothing to do'
+
+    'DocSetRepair.OutOfSync'                = '  {0} item(s) out of sync'
+
+    'DocSetRepair.Target'                   = '{0} item(s) in ''{1}'''
+
+    'DocSetRepair.ActionSystem'             = ' (SystemUpdate: no version created)'
+
+    'DocSetRepair.Action'                   = 'Push Document Set metadata down{0}'
+
+    'DocSetRepair.Outcome'                  = '  repaired {0}, skipped {1}, failed {2}'
+
+    'DocSetRepair.Failed'                   = 'Repair of ''{0}'' failed: {1}'
+
+    'DocSetRepair.Before'                   = 'State before the repair: {0}'
+
+    'DocSetRepair.SummaryHeading'           = '=== Summary ==='
+
+    'DocSetRepair.WhatIf'                   = '  -WhatIf: nothing was changed.'
+
+    'DocSetRepair.WouldWrite'               = '  {0} column value(s) on {1} item(s) would be written.'
+
+    'DocSetRepair.NothingChanged'           = '  nothing was changed.'
+
+    'DocSetRepair.Failures'                 = '  Failures:'
+
+    'DocSetRepair.RerunLine1'               = 'Re-run ./scripts/Test-DocumentSetSync.ps1 to confirm, and check the'
+
+    'DocSetRepair.RerunLine2'               = 'configuration findings there so the drift does not simply return.'
 }
