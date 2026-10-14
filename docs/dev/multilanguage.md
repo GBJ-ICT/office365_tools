@@ -370,18 +370,27 @@ The `.cmd` already runs `chcp 65001`. The launcher also sets
 
 ## Reports
 
-The HTML report takes its text from the same tables (`Report.*` keys), including
-rule titles and "how to fix" paragraphs (`Rule.<RuleId>.Title`,
-`Rule.<RuleId>.Fix`). Findings carry only the `RuleId` and data; the text is
-looked up when the report is rendered. That keeps findings language-neutral, so
-a finding saved as JSON can be rendered later in either language.
+The HTML report takes its fixed text -- headings, column headings, the labels of
+a comparison, the empty message, the severity names -- from the module's tables
+(`Report.*` keys), in the language of the run.
 
-The report sets `<html lang="…">` from the resolved language code, not the raw
-culture: `de-CH` gives `lang="de"`. The language is also shown in the header.
-CSV output never changes.
+**A finding's message is worded when the finding is made.** The first design had
+findings carry only the `RuleId` and data, with the sentence looked up when a
+report was drawn. That does not fit the findings: their sentences contain the
+names, counts and sizes they are about, so each rule has a template with
+placeholders (`Rule.FileName.IllegalCharacter`, ...), filled in at once, through
+`Get-O365String`. The cost is that a finding saved as JSON or CSV is in the
+language it was made in. The `RuleId`, severity and scope are not translated, so
+filters, suppressions and spreadsheets keep working in either language.
 
-[health-rules.md](../sandbox/health-rules.md) stays English for now and is the
-source of the English `Rule.*` strings. The coverage test keeps the two in step.
+The report sets `<html lang="...">` from the resolved language code, not the raw
+culture: `de-CH` gives `lang="de"`. CSV output keeps its column names in English;
+the message column follows the language.
+
+The sentences of the rules are converted by group, as the commands that make them
+are: the file name rules (`Rule.FileName.*`) and the upload checker's own
+(`TestUpload.Finding.*`) are done. The rule reference
+[health-rules.md](../sandbox/health-rules.md) stays English for now.
 
 ## Packaging
 

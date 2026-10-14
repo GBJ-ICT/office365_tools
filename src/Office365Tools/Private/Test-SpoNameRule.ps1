@@ -56,49 +56,49 @@ function Test-SpoNameRule {
     if ($found.Count -gt 0) {
         New-SpoFinding -RuleId 'FileName.IllegalCharacter' -Severity Error -Scope Item `
             -Target $Target -List $List `
-            -Message "Name contains character(s) SharePoint does not permit: $($found -join ' ')" `
+            -Message (Get-O365String 'Rule.FileName.IllegalCharacter' ($found -join ' ')) `
             -Detail @{ Name = $Name; Characters = $found }
     }
 
     if ($Name -ne $Name.TrimStart()) {
         New-SpoFinding -RuleId 'FileName.LeadingSpace' -Severity Warning -Scope Item `
             -Target $Target -List $List `
-            -Message 'Name begins with whitespace, which some clients strip silently.' `
+            -Message (Get-O365String 'Rule.FileName.LeadingSpace') `
             -Detail @{ Name = $Name }
     }
 
     if ($Name -ne $Name.TrimEnd()) {
         New-SpoFinding -RuleId 'FileName.TrailingSpace' -Severity Warning -Scope Item `
             -Target $Target -List $List `
-            -Message 'Name ends with whitespace, which some clients strip silently.' `
+            -Message (Get-O365String 'Rule.FileName.TrailingSpace') `
             -Detail @{ Name = $Name }
     }
 
     if ($Name.TrimEnd().EndsWith('.')) {
         New-SpoFinding -RuleId 'FileName.TrailingPeriod' -Severity Error -Scope Item `
             -Target $Target -List $List `
-            -Message 'Name ends with a period, which the OneDrive sync client rejects.' `
+            -Message (Get-O365String 'Rule.FileName.TrailingPeriod') `
             -Detail @{ Name = $Name }
     }
 
     if ($stem -in $reservedNames -or $Name -in $reservedNames) {
         New-SpoFinding -RuleId 'FileName.ReservedName' -Severity Error -Scope Item `
             -Target $Target -List $List `
-            -Message "'$Name' is a reserved name and cannot be used." `
+            -Message (Get-O365String 'Rule.FileName.ReservedName' $Name) `
             -Detail @{ Name = $Name }
     }
 
     if ($Name.StartsWith('~$') -or $Name.StartsWith('_vti_')) {
         New-SpoFinding -RuleId 'FileName.ReservedPrefix' -Severity Error -Scope Item `
             -Target $Target -List $List `
-            -Message 'Name starts with a reserved prefix (~$ or _vti_).' `
+            -Message (Get-O365String 'Rule.FileName.ReservedPrefix') `
             -Detail @{ Name = $Name }
     }
 
     if ($Name.Length -gt 255) {
         New-SpoFinding -RuleId 'FileName.TooLong' -Severity Error -Scope Item `
             -Target $Target -List $List `
-            -Message "Name is $($Name.Length) characters; the limit is 255." `
+            -Message (Get-O365String 'Rule.FileName.TooLong' $Name.Length) `
             -Detail @{ Name = $Name; Length = $Name.Length }
     }
 
@@ -109,7 +109,7 @@ function Test-SpoNameRule {
         if ($risky.Count -gt 0) {
             New-SpoFinding -RuleId 'FileName.RiskyCharacter' -Severity Info -Scope Item `
                 -Target $Target -List $List `
-                -Message "Name contains $($risky -join ' '), which is legal but breaks some downstream tools." `
+                -Message (Get-O365String 'Rule.FileName.RiskyCharacter' ($risky -join ' ')) `
                 -Detail @{ Name = $Name; Characters = $risky }
         }
     }
