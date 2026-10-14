@@ -93,17 +93,15 @@ function Add-SpoFieldToContentType {
         }
 
         if (-not $target) {
-            $where = if ($Library) { "list '$Library'" } else { 'this site' }
+            $where = if ($Library) { (Get-O365String 'ContentType.AddField.WhereList' $Library) } else { (Get-O365String 'ContentType.AddField.WhereSite') }
             throw [System.InvalidOperationException]::new(
-                "Content type '$ContentType' was not found on $where. " +
-                'Run Get-SpoContentType to see what exists.'
+                (Get-O365String 'ContentType.AddField.NotFound' $ContentType $where)
             )
         }
 
         if ($target.Sealed) {
             throw [System.InvalidOperationException]::new(
-                "Content type '$($target.Name)' is sealed and cannot be modified. " +
-                'Unseal it in the site settings first, or inherit a new content type from it.'
+                (Get-O365String 'ContentType.AddField.Sealed' $target.Name)
             )
         }
 
@@ -120,7 +118,7 @@ function Add-SpoFieldToContentType {
         foreach ($fieldName in $Field) {
             if ($fieldName -in $existingFields) {
                 $skipped++
-                Write-O365Log "'$fieldName' is already on '$($target.Name)'; skipped." 'Info'
+                Write-O365Log (Get-O365String 'ContentType.AddField.AlreadyThere' $fieldName $target.Name) 'Info'
 
                 if ($PassThru) {
                     [pscustomobject]@{
@@ -139,13 +137,12 @@ function Add-SpoFieldToContentType {
             $siteField = Get-PnPField -Identity $fieldName -ErrorAction SilentlyContinue
             if (-not $siteField) {
                 Write-Error -Message (
-                    "Site column '$fieldName' does not exist. Create it with New-SpoField, " +
-                    'or check the internal name with Get-SpoField.'
+                    (Get-O365String 'ContentType.AddField.NoSiteColumn' $fieldName)
                 ) -TargetObject $fieldName
                 continue
             }
 
-            if (-not $PSCmdlet.ShouldProcess($target.Name, "Add column '$fieldName'")) {
+            if (-not $PSCmdlet.ShouldProcess($target.Name, (Get-O365String 'ContentType.AddField.Action' $fieldName))) {
                 continue
             }
 
@@ -164,7 +161,7 @@ function Add-SpoFieldToContentType {
 
                 $added++
                 $existingFields += $fieldName
-                Write-O365Log "Added '$fieldName' to '$($target.Name)'." 'Success'
+                Write-O365Log (Get-O365String 'ContentType.AddField.Added' $fieldName $target.Name) 'Success'
 
                 if ($PassThru) {
                     [pscustomobject]@{
@@ -179,7 +176,7 @@ function Add-SpoFieldToContentType {
                 }
             }
             catch {
-                Write-Error -Message "Failed to add '$fieldName' to '$($target.Name)': $($_.Exception.Message)" -TargetObject $fieldName
+                Write-Error -Message (Get-O365String 'ContentType.AddField.Failed' $fieldName $target.Name $_.Exception.Message) -TargetObject $fieldName
 
                 if ($PassThru) {
                     [pscustomobject]@{
@@ -198,13 +195,12 @@ function Add-SpoFieldToContentType {
 
     end {
         if ($added -gt 0 -or $skipped -gt 0) {
-            Write-O365Log "Column changes complete: $added added, $skipped already present." 'Info'
+            Write-O365Log (Get-O365String 'ContentType.AddField.Done' $added $skipped) 'Info'
         }
 
         if ($added -gt 0 -and -not $UpdateChildren -and -not $Library) {
             Write-O365Log (
-                'Existing list copies of this content type were not updated. ' +
-                'Re-run with -UpdateChildren, or use Sync-SpoContentType, to push the change down.'
+                (Get-O365String 'ContentType.AddField.ChildrenNotUpdated')
             ) 'Warning'
         }
     }

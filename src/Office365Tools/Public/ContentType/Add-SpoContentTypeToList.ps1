@@ -65,25 +65,25 @@ function Add-SpoContentTypeToList {
         if (-not $siteContentType) {
             $available = @(Get-PnPContentType | ForEach-Object { $_.Name } | Sort-Object) -join ', '
             throw [System.InvalidOperationException]::new(
-                "Site content type '$ContentType' was not found. Available: $available"
+                (Get-O365String 'ContentType.AddToList.NotFound' $ContentType $available)
             )
         }
 
         if (-not $list.ContentTypesEnabled) {
-            if ($PSCmdlet.ShouldProcess($list.Title, 'Enable content type management')) {
+            if ($PSCmdlet.ShouldProcess($list.Title, (Get-O365String 'ContentType.AddToList.EnableAction'))) {
                 Set-PnPList -Identity $list.Title -EnableContentTypes $true -ErrorAction Stop
-                Write-O365Log "Enabled content type management on '$($list.Title)'." 'Info'
+                Write-O365Log (Get-O365String 'ContentType.AddToList.Enabled' $list.Title) 'Info'
             }
         }
 
-        if ($PSCmdlet.ShouldProcess($list.Title, "Add content type '$($siteContentType.Name)'")) {
+        if ($PSCmdlet.ShouldProcess($list.Title, (Get-O365String 'ContentType.AddToList.AddAction' $siteContentType.Name))) {
             try {
                 Add-PnPContentTypeToList -List $list.Title -ContentType $siteContentType.Name -DefaultContentType:$SetDefault -ErrorAction Stop
-                Write-O365Log "Added '$($siteContentType.Name)' to '$($list.Title)'." 'Success'
+                Write-O365Log (Get-O365String 'ContentType.AddToList.Added' $siteContentType.Name $list.Title) 'Success'
             }
             catch {
                 throw [System.InvalidOperationException]::new(
-                    "Failed to add '$($siteContentType.Name)' to '$($list.Title)': $($_.Exception.Message)",
+                    (Get-O365String 'ContentType.AddToList.Failed' $siteContentType.Name $list.Title $_.Exception.Message),
                     $_.Exception
                 )
             }
@@ -94,18 +94,18 @@ function Add-SpoContentTypeToList {
                 Where-Object { $_.Id.StringValue -eq '0x0101' -or $_.Name -eq 'Document' }
 
             if ($document) {
-                if ($PSCmdlet.ShouldProcess($list.Title, "Remove built-in content type '$($document.Name)'")) {
+                if ($PSCmdlet.ShouldProcess($list.Title, (Get-O365String 'ContentType.AddToList.RemoveBuiltinAction' $document.Name))) {
                     try {
                         Remove-PnPContentTypeFromList -List $list.Title -ContentType $document.Name -ErrorAction Stop
-                        Write-O365Log "Removed built-in '$($document.Name)' from '$($list.Title)'." 'Success'
+                        Write-O365Log (Get-O365String 'ContentType.AddToList.RemovedBuiltin' $document.Name $list.Title) 'Success'
                     }
                     catch {
-                        Write-O365Log "Could not remove built-in content type: $($_.Exception.Message)" 'Warning'
+                        Write-O365Log (Get-O365String 'ContentType.AddToList.RemoveBuiltinFailed' $_.Exception.Message) 'Warning'
                     }
                 }
             }
             else {
-                Write-O365Log "No built-in Document content type on '$($list.Title)'; nothing to remove." 'Info'
+                Write-O365Log (Get-O365String 'ContentType.AddToList.NoBuiltin' $list.Title) 'Info'
             }
         }
 

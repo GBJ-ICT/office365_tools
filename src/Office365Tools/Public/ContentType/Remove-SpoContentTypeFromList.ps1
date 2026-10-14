@@ -47,7 +47,7 @@ function Remove-SpoContentTypeFromList {
             Where-Object { $_.Name -eq $ContentType -or $_.Id.StringValue -eq $ContentType }
 
         if (-not $listContentType) {
-            Write-O365Log "Content type '$ContentType' is not attached to '$($list.Title)'; nothing to remove." 'Warning'
+            Write-O365Log (Get-O365String 'ContentType.RemoveFromList.NotAttached' $ContentType $list.Title) 'Warning'
             return
         }
 
@@ -58,20 +58,18 @@ function Remove-SpoContentTypeFromList {
 
             if ($inUse.Count -gt 0) {
                 throw [System.InvalidOperationException]::new(
-                    "$($inUse.Count) item(s) in '$($list.Title)' still use content type '$ContentType'. " +
-                    'Change those items to a different content type first, or re-run with -Force to let ' +
-                    'the server reject the operation itself.'
+                    (Get-O365String 'ContentType.RemoveFromList.InUse' $inUse.Count $list.Title $ContentType)
                 )
             }
         }
 
-        if ($PSCmdlet.ShouldProcess($list.Title, "Remove content type '$ContentType'")) {
+        if ($PSCmdlet.ShouldProcess($list.Title, (Get-O365String 'ContentType.RemoveFromList.Action' $ContentType))) {
             try {
                 Remove-PnPContentTypeFromList -List $list.Title -ContentType $listContentType.Name -ErrorAction Stop
-                Write-O365Log "Removed '$ContentType' from '$($list.Title)'." 'Success'
+                Write-O365Log (Get-O365String 'ContentType.RemoveFromList.Removed' $ContentType $list.Title) 'Success'
             }
             catch {
-                Write-Error -Message "Failed to remove '$ContentType' from '$($list.Title)': $($_.Exception.Message)" -TargetObject $list.Title
+                Write-Error -Message (Get-O365String 'ContentType.RemoveFromList.Failed' $ContentType $list.Title $_.Exception.Message) -TargetObject $list.Title
             }
         }
     }

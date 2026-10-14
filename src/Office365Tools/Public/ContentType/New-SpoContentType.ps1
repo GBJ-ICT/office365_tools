@@ -69,23 +69,20 @@ function New-SpoContentType {
         $existing = Get-PnPContentType -Identity $Name -ErrorAction SilentlyContinue
         if ($existing) {
             throw [System.InvalidOperationException]::new(
-                "A site content type named '$Name' already exists (ID $($existing.Id.StringValue)). " +
-                'Use Add-SpoFieldToContentType to change it, or pick a different name.'
+                (Get-O365String 'ContentType.New.Exists' $Name $existing.Id.StringValue)
             )
         }
 
         $parentContentType = Get-PnPContentType -Identity $Parent -ErrorAction SilentlyContinue
         if (-not $parentContentType) {
             throw [System.InvalidOperationException]::new(
-                "Parent content type '$Parent' was not found. " +
-                "Common parents are 'Item' (for lists) and 'Document' (for libraries). " +
-                'Run Get-SpoContentType -IncludeBuiltIn to see what is available.'
+                (Get-O365String 'ContentType.New.NoParent' $Parent)
             )
         }
 
         $target = "$Name (inheriting from $($parentContentType.Name), group '$Group')"
 
-        if (-not $PSCmdlet.ShouldProcess($script:O365State.SiteUrl, "Create content type $target")) {
+        if (-not $PSCmdlet.ShouldProcess($script:O365State.SiteUrl, (Get-O365String 'ContentType.New.Action' $target))) {
             return
         }
 
@@ -101,11 +98,11 @@ function New-SpoContentType {
             }
 
             Add-PnPContentType @params | Out-Null
-            Write-O365Log "Created content type '$Name' in group '$Group'." 'Success'
+            Write-O365Log (Get-O365String 'ContentType.New.Created' $Name $Group) 'Success'
         }
         catch {
             throw [System.InvalidOperationException]::new(
-                "Failed to create content type '$Name': $($_.Exception.Message)",
+                (Get-O365String 'ContentType.New.Failed' $Name $_.Exception.Message),
                 $_.Exception
             )
         }

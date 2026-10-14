@@ -55,8 +55,8 @@ function Find-SpoContentTypeByColumn {
         Get-PnPContentType
     }
 
-    $scopeLabel = if ($Library) { "list '$Library'" } else { 'the site' }
-    Write-O365Log "Searching $(@($contentTypes).Count) content type(s) in $scopeLabel for column '$ColumnName'." 'Info'
+    $scopeLabel = if ($Library) { (Get-O365String 'ContentType.Find.ScopeList' $Library) } else { (Get-O365String 'ContentType.Find.ScopeSite') }
+    Write-O365Log (Get-O365String 'ContentType.Find.Searching' @($contentTypes).Count $scopeLabel $ColumnName) 'Info'
 
     foreach ($contentType in $contentTypes) {
         $fields = Get-PnPProperty -ClientObject $contentType -Property Fields

@@ -124,7 +124,7 @@ function Get-SpoDocumentSetMismatch {
         $map = Get-SpoDocumentSetMap -List $list -Name $DocumentSet -PageSize $PageSize
 
         if (@($map.DocumentSet).Count -eq 0) {
-            Write-O365Log "No Document Sets found in '$($list.Title)'." 'Warning'
+            Write-O365Log (Get-O365String 'DocumentSet.Mismatch.None' $list.Title) 'Warning'
             return
         }
 
@@ -134,7 +134,7 @@ function Get-SpoDocumentSetMismatch {
         foreach ($sourceSet in $map.DocumentSet) {
             $checked++
 
-            Write-Progress -Activity "Checking Document Set metadata in $($list.Title)" `
+            Write-Progress -Activity (Get-O365String 'DocumentSet.Mismatch.Activity' $list.Title) `
                 -Status $sourceSet.Name -PercentComplete (($checked / $total) * 100)
 
             $template = Resolve-SpoDocumentSetTemplate `
@@ -157,7 +157,7 @@ function Get-SpoDocumentSetMismatch {
             }
 
             if ($columns.Count -eq 0) {
-                Write-O365Log "Document Set '$($sourceSet.Name)' has no shared columns; nothing to compare. Run Test-SpoDocumentSetSharedColumn to see why." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Mismatch.NoShared' $sourceSet.Name) 'Warning'
                 continue
             }
 
@@ -237,7 +237,7 @@ function Get-SpoDocumentSetMismatch {
             }
         }
 
-        Write-Progress -Activity "Checking Document Set metadata in $($list.Title)" -Completed
-        Write-O365Log "Finished checking Document Set metadata in '$($list.Title)'." 'Success'
+        Write-Progress -Activity (Get-O365String 'DocumentSet.Mismatch.Activity' $list.Title) -Completed
+        Write-O365Log (Get-O365String 'DocumentSet.Mismatch.Done' $list.Title) 'Success'
     }
 }
