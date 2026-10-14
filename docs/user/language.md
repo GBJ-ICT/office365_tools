@@ -1,20 +1,27 @@
 # Language
 
-> **Status: planned.** This describes how it will work once it is built.
-> For developers: [multilanguage.md](../dev/multilanguage.md).
-
 The tools speak **English** or **German**. By default they use the language your
 Windows is set to, so most people never need to change anything.
 
+!!! note "What is in both languages today"
+    The **upload checker** (the launcher, the tool menu, the checker itself and its
+    reports) and the **file name checks** are in English and German. The other
+    scripts and PowerShell commands still speak English only; they will follow.
+
 ## Change the language
 
-When a tool shows a menu, you will see this line at the top:
+**In the tool window:** use the **Language / Sprache** box at the bottom left and
+pick English, Deutsch or Follow Windows. The window opens again in that language.
+
+**In a text menu** (the upload checker's "What would you like to do?" and the
+numbered list), the top shows this line:
 
 ```
 Language: English        (L = change / ändern)
 ```
 
-Press **L**, then pick **English**, **Deutsch** or **Follow Windows**.
+Press **L**, then pick **English**, **Deutsch** or **Follow Windows**. Press Enter
+to leave things as they are.
 
 Your choice is remembered. Every tool starts in that language from now on, until
 you change it again.
@@ -30,8 +37,12 @@ Set-O365Language auto    # follow Windows again
 Get-O365Language         # show which language is active
 ```
 
-To use the other language just once, add `-Language en` or `-Language de` to a
-command.
+To use the other language just once, add `-Language en` or `-Language de` to the
+upload checker's script:
+
+```powershell
+./scripts/Test-Upload.ps1 -LocalPath C:\ToUpload -Language de
+```
 
 ## What changes, and what does not
 

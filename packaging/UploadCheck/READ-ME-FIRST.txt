@@ -1,5 +1,7 @@
-Upload checker
+﻿Upload checker
 ==============
+
+(Deutsch: READ-ME-FIRST.de.txt)
 
 What it does
 ------------
@@ -54,6 +56,19 @@ How to use it
    Open the .html one in a browser.
 
 
+The language
+------------
+The checker speaks English or German. By default it uses the language of your
+Windows. On the screen that asks "What would you like to do?" you will see a
+line at the top, "Language: English (L = change / ändern)": type L and choose
+English, Deutsch or "Follow Windows". The choice is remembered, for every tool.
+In the tool window there is a "Language / Sprache" box for the same.
+
+The reports are written in the language you started the checker in. The names
+of the rules (for example FileName.IllegalCharacter) stay in English, so that
+filters and spreadsheets keep working.
+
+
 Reading the reports
 -------------------
 BEFORE uploading, the report says at the top what was checked, and then what
@@ -103,6 +118,8 @@ The ones worth knowing about:
                 file to the moment of the upload, so every file would look
                 newer there. Set it to false if the files went up through the
                 OneDrive app, which keeps the dates.
+  Language      en, de or auto: fix the language for this file only. Usually
+                leave it empty.
 
 If you mistype something in there, the checker says which line is wrong and
 what it expected. It will not run with settings it does not understand.
@@ -149,6 +166,10 @@ missing PowerShell 7 rather than failing to start.
 
 Exit codes: 0 nothing to fix, 1 findings, 2 a setup problem (could not fetch
 the checker, unreadable settings, no PowerShell 7).
+
+The language comes from -Language, the environment variable O365_LANGUAGE, the
+choice saved for the user (%APPDATA%\office365_tools\settings.json), and
+otherwise from Windows. How it is built is in docs/dev/multilanguage.md.
 
 Test-Upload.ps1 takes a target library, path limits, a blocked-extension list
 and an exit-code policy. Run  Get-Help scripts/Test-Upload.ps1 -Full  for the

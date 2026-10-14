@@ -232,6 +232,16 @@ function Invoke-PackageTask {
         if ($entry.ReadMe) {
             $readMeName = if ($Tool) { 'READ-ME-FIRST.txt' } else { "READ-ME-FIRST - $($entry.Title).txt" }
             Copy-Item -Path (Join-Path $repoRoot "$($entry.Folder)/$($entry.ReadMe)") -Destination (Join-Path $staging $readMeName) -Force
+
+            # The read-me in the other languages, beside the English one: the
+            # same name with the language before the extension, READ-ME-FIRST.de.txt.
+            $readMeBase = [System.IO.Path]::GetFileNameWithoutExtension($entry.ReadMe)
+            $readMeStem = [System.IO.Path]::GetFileNameWithoutExtension($readMeName)
+
+            foreach ($translation in (Get-ChildItem -LiteralPath (Join-Path $repoRoot $entry.Folder) -Filter "$readMeBase.??.txt" -File)) {
+                $code = $translation.BaseName.Substring($translation.BaseName.LastIndexOf('.') + 1)
+                Copy-Item -LiteralPath $translation.FullName -Destination (Join-Path $staging "$readMeStem.$code.txt") -Force
+            }
         }
     }
 

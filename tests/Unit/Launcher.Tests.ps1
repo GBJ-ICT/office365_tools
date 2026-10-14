@@ -268,6 +268,16 @@ Describe 'Tool <Name>' -ForEach $toolCases {
         }
     }
 
+    It 'has its read-me in German as well, which the build puts beside the English one' {
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($script:Tool.ReadMe)
+
+        Test-Path -LiteralPath (Join-Path $Folder "$base.de.txt") -PathType Leaf | Should -BeTrue
+
+        # A German text file read by Notepad needs its byte order mark.
+        $bytes = [System.IO.File]::ReadAllBytes((Join-Path $Folder "$base.de.txt"))
+        $bytes[0] | Should -Be 0xEF
+    }
+
     It 'prefills only settings its template has' {
         if (-not $script:Tool.ContainsKey('Prefill')) { return }
 

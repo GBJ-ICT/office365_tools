@@ -8,7 +8,7 @@ start each tool.
 | Guide | Read it when |
 |---|---|
 | [Tools at a glance](user/tools.md) | You want to know which tool does what, and how to start it |
-| [Language](user/language.md) | You want the tools in English or German *(planned)* |
+| [Language](user/language.md) | You want the tools in English or German |
 
 ## Developer docs
 
@@ -16,7 +16,7 @@ For people who change the tools.
 
 | Document | Read it when |
 |---|---|
-| [Multi-language design](dev/multilanguage.md) | You add a message, a command, or a language *(planned)* |
+| [Multi-language design](dev/multilanguage.md) | You add a message, a command, or a language |
 
 ## Sandbox — [overview](sandbox/README.md)
 
@@ -32,6 +32,6 @@ cleaned up and moved into the user guide or the developer docs.
 | [Printing](sandbox/printing.md) | A list as a verified PDF |
 | [Migration](sandbox/migration.md) | What became of the old scripts |
 
-Documents marked *planned* describe a design that is agreed but not yet
-implemented. They are written first so the behaviour can be checked before any
-code exists.
+The user guide is available in German as well: use the language switch at the top
+of the page, or the `.de.md` file beside each page. The developer documents and the
+sandbox are English only.

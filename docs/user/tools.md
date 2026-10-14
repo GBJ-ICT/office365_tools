@@ -20,7 +20,7 @@ that everything arrived. It only looks; it never changes anything.
 1. Double-click `Check-Upload.cmd`, or drag the folder you want checked onto it.
 2. Pick the folder, then choose what to do: check before uploading, check that
    it arrived, or both.
-3. Read the report in the `out` folder. Red means fix it before uploading.
+3. Read the report in the `Reports` folder next to the launcher. Red means fix it before uploading.
 
 Checking before uploading needs no sign-in. Checking afterwards asks you to sign
 in with your work account.
