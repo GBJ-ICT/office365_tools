@@ -41,9 +41,9 @@ BeforeAll {
             -Filter '*.ps1' -Recurse -File)
 
     # Every folder of string tables: the module's, and one per packaged tool.
-    # The module's, the tool menu's (packaging\Resources), and one per tool
+    # The module's, the tool menu's (packaging\Resources), the scripts' (scripts\Resources), and one per tool
     # (packaging\<Tool>\Resources).
-    $roots = @($script:Resources, (Join-Path $script:RepoRoot 'packaging/Resources')) + @(
+    $roots = @($script:Resources, (Join-Path $script:RepoRoot 'packaging/Resources'), (Join-Path $script:RepoRoot 'scripts/Resources')) + @(
         Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'packaging') -Directory |
             ForEach-Object { Join-Path $_.FullName 'Resources' } |
             Where-Object { Test-Path -LiteralPath $_ })

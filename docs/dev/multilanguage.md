@@ -139,8 +139,14 @@ preference, not a cache.
 src/Office365Tools/Resources/
     en/Strings.psd1          # the reference language; every key exists here
     de/Strings.psd1
+packaging/Resources/
+    en/Strings.psd1          # the tool menu (Start-Tool.ps1)
+    de/Strings.psd1
 packaging/UploadCheck/Resources/
     en/Strings.psd1          # strings only the launcher entry script uses
+    de/Strings.psd1
+scripts/Resources/
+    en/Strings.psd1          # the scripts in scripts/, keys named for the script
     de/Strings.psd1
 ```
 
@@ -472,7 +478,18 @@ yet converted keep their English text until their turn.
      menu is always passed to the tool as `-Language`, so it beats an environment
      variable and a language in the tool's settings file for that run. Only the
      message that the shared language file itself is missing stays English.
-3. `scripts/Test-Upload.ps1` console output and `-Language`.
+3. **Done:** `scripts/Test-Upload.ps1`. It takes `-Language` (`en`, `de`, `auto`),
+   applied with `Set-O365Language -SessionOnly`, so it holds for that run and
+   the saved choice is not touched; the upload checker launcher passes its own
+   language on. All its console text, its prompts, its findings (`Upload.*`),
+   and the labels, titles and verdicts of its reports come from
+   `scripts/Resources`, through a small `Get-ScriptString` that every script
+   uses for its own texts. The findings it makes are worded in the language of
+   the run when they are made, not when a report is drawn: a finding carries
+   data such as names and counts that a sentence needs, so its text is a
+   template filled in at once. Findings saved as JSON are therefore in the
+   language they were made in; their `RuleId` is not. Checking an empty
+   folder also stopped the script before; that is fixed.
 4. Module commands, by group: connection, library, permissions, content types,
    document sets, reports.
 5. HTML report text, rule titles and fixes.

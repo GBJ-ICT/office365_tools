@@ -227,13 +227,43 @@ param(
     [int]$ShowFirst = 10,
 
     [Parameter()]
-    [string]$NextStep = 'Afterwards, run the same command with -Mode Verify to confirm it arrived.'
+    [string]$NextStep,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly
+}
+
+# The texts of this script live in scripts\Resources, over the module's own.
+function Get-ScriptString {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    Get-O365String -ResourcePath (Join-Path $PSScriptRoot 'Resources') $Key @FormatArguments
+}
+
+if (-not $PSBoundParameters.ContainsKey('NextStep')) {
+    $NextStep = Get-ScriptString 'TestUpload.NextStep.Default'
+}
 
 # A caller that arrives through `pwsh -File` -- which is what the double-click
 # launcher and any scheduled task use -- cannot pass an array: PowerShell hands
@@ -314,7 +344,7 @@ function Format-Size {
     if ($Bytes -ge 1GB) { return '{0:N1} GB' -f ($Bytes / 1GB) }
     if ($Bytes -ge 1MB) { return '{0:N1} MB' -f ($Bytes / 1MB) }
     if ($Bytes -ge 1KB) { return '{0:N0} KB' -f ($Bytes / 1KB) }
-    return "$Bytes bytes"
+    return (Get-ScriptString 'TestUpload.Size.Bytes' $Bytes)
 }
 
 function Format-Target {
@@ -357,7 +387,7 @@ function Show-FindingSummary {
     )
 
     if (-not $Finding -or $Finding.Count -eq 0) {
-        Write-Host '  clean' -ForegroundColor Green
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Console.Clean')) -ForegroundColor Green
         return
     }
 
@@ -369,14 +399,14 @@ function Show-FindingSummary {
         $severity = $group.Group[0].Severity
         $colour   = $script:SeverityColor[$severity]
 
-        Write-Host ('  {0,-7} {1,-26} {2} file(s)' -f $severity, $group.Name, $group.Count) -ForegroundColor $colour
+        Write-Host ('  {0,-7} {1,-26} {2}' -f $severity, $group.Name, (Get-ScriptString 'TestUpload.Console.Files' $group.Count)) -ForegroundColor $colour
 
         foreach ($item in ($group.Group | Select-Object -First $First)) {
             Write-Host "          $(Format-Target -Text $item.Target)" -ForegroundColor DarkGray
         }
 
         if ($group.Count -gt $First) {
-            Write-Host "          ... and $($group.Count - $First) more, see the report" -ForegroundColor DarkGray
+            Write-Host ('          ' + (Get-ScriptString 'TestUpload.Console.More' ($group.Count - $First))) -ForegroundColor DarkGray
         }
     }
 }
@@ -405,7 +435,7 @@ function Read-Choice {
 
     while ($true) {
         Write-Host ''
-        $answer = (Read-Host "  Number [$Default]").Trim()
+        $answer = (Read-Host ('  ' + (Get-ScriptString 'TestUpload.Choice.Prompt' $Default))).Trim()
 
         if (-not $answer) { return $Default }
 
@@ -414,7 +444,7 @@ function Read-Choice {
             return $number
         }
 
-        Write-Host "  Please type a number between 1 and $($Option.Count)." -ForegroundColor Yellow
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Choice.Invalid' $Option.Count)) -ForegroundColor Yellow
     }
 }
 
@@ -446,11 +476,11 @@ function Select-RemoteFolder {
                 Where-Object { $_.Name -ne 'Forms' } |
                 Sort-Object Name)
 
-        $options = @("Compare against $here itself")
-        $options += $children | ForEach-Object { "Look inside $($_.Name)" }
-        if ($relative) { $options += 'Go back up one level' }
+        $options = @(Get-ScriptString 'TestUpload.Remote.Compare' $here)
+        $options += $children | ForEach-Object { Get-ScriptString 'TestUpload.Remote.Inside' $_.Name }
+        if ($relative) { $options += Get-ScriptString 'TestUpload.Remote.Up' }
 
-        $choice = Read-Choice -Question 'Where in the library did the files go?' -Option $options
+        $choice = Read-Choice -Question (Get-ScriptString 'TestUpload.Remote.Question') -Option $options
 
         if ($choice -eq 1) { return $relative }
 
@@ -480,12 +510,12 @@ function Read-Destination {
 
     while ($true) {
         Write-Host ''
-        Write-Host '  Where in SharePoint did the files go?' -ForegroundColor Cyan
-        Write-Host '  Open that folder in SharePoint, copy the address out of your' -ForegroundColor Gray
-        Write-Host '  browser, and paste it here. Press Enter to pick it after signing' -ForegroundColor Gray
-        Write-Host '  in instead.' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Destination.Title')) -ForegroundColor Cyan
+        foreach ($line in ((Get-ScriptString 'TestUpload.Destination.Help') -split "`r?`n")) {
+            Write-Host "  $line" -ForegroundColor Gray
+        }
 
-        $answer = (Read-Host '  Address').Trim()
+        $answer = (Read-Host ('  ' + (Get-ScriptString 'TestUpload.Destination.Address'))).Trim()
 
         if (-not $answer) { return $null }
 
@@ -513,10 +543,19 @@ function Show-Destination {
     )
 
     Write-Host ''
-    Write-Host '  That address says:' -ForegroundColor Cyan
-    Write-Host "    Site     $($Target.SiteUrl)"
-    Write-Host "    Library  $(if ($Target.Library) { $Target.Library } else { '(not named -- you will be asked)' })"
-    Write-Host "    Folder   $(if ($Target.RemoteFolder) { $Target.RemoteFolder } elseif ($Target.FolderIsCertain) { '(the top of the library)' } else { '(not named -- you will be asked)' })"
+    $notNamed = Get-ScriptString 'TestUpload.Destination.NotNamed'
+
+    $libraryText = $notNamed
+    if ($Target.Library) { $libraryText = $Target.Library }
+
+    $folderText = $notNamed
+    if ($Target.RemoteFolder) { $folderText = $Target.RemoteFolder }
+    elseif ($Target.FolderIsCertain) { $folderText = Get-ScriptString 'TestUpload.Destination.Top' }
+
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.Destination.Says')) -ForegroundColor Cyan
+    Write-Host ('    ' + (Get-ScriptString 'TestUpload.Destination.Line.Site' $Target.SiteUrl))
+    Write-Host ('    ' + (Get-ScriptString 'TestUpload.Destination.Line.Library' $libraryText))
+    Write-Host ('    ' + (Get-ScriptString 'TestUpload.Destination.Line.Folder' $folderText))
 }
 
 function Resolve-TargetList {
@@ -549,34 +588,34 @@ function Resolve-TargetList {
             Select-Object -ExpandProperty Title)
 
     $hint = if ($visible.Count -gt 0) {
-        "Libraries on this site: $($visible -join ', ')."
+        Get-ScriptString 'TestUpload.Library.Hint.List' ($visible -join ', ')
     }
     else {
-        'No document libraries are visible on this site, so this is probably the wrong site.'
+        Get-ScriptString 'TestUpload.Library.Hint.None'
     }
 
-    throw "There is no library called '$Name' on $($script:TargetSiteUrl). $hint"
+    throw (Get-ScriptString 'TestUpload.Library.NotFound' $Name $script:TargetSiteUrl $hint)
 }
 
 if ($Interactive -and -not $LocalPath) {
     Write-Host ''
-    Write-Host '  Which folder are you uploading?' -ForegroundColor Cyan
-    $LocalPath = (Read-Host '  Folder').Trim().Trim('"').TrimEnd('\')
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.Folder.Prompt')) -ForegroundColor Cyan
+    $LocalPath = (Read-Host ('  ' + (Get-ScriptString 'TestUpload.Folder.Label'))).Trim().Trim('"').TrimEnd('\')
 
     if (-not (Test-Path -LiteralPath $LocalPath -PathType Container)) {
-        throw "Folder '$LocalPath' does not exist."
+        throw (Get-ScriptString 'TestUpload.Folder.NotFound' $LocalPath)
     }
 }
 
 if (-not $LocalPath) {
-    throw 'Which folder? Pass -LocalPath, or -Interactive to be asked.'
+    throw (Get-ScriptString 'TestUpload.Folder.Required')
 }
 
 if ($Interactive -and -not $PSBoundParameters.ContainsKey('Mode')) {
-    $choice = Read-Choice -Question 'What would you like to do?' -Option @(
-        'Check this folder before I upload it (no sign-in needed)',
-        'I already uploaded it -- check that everything arrived (sign-in needed)',
-        'Both: check the folder, then check what arrived (sign-in needed)')
+    $choice = Read-Choice -Question (Get-ScriptString 'TestUpload.Mode.Question') -Option @(
+        (Get-ScriptString 'TestUpload.Mode.Option1'),
+        (Get-ScriptString 'TestUpload.Mode.Option2'),
+        (Get-ScriptString 'TestUpload.Mode.Option3'))
 
     $Mode = @('PreFlight', 'Verify', 'Both')[$choice - 1]
 }
@@ -598,8 +637,7 @@ if ($Destination) {
         Where-Object { $PSBoundParameters.ContainsKey($_) }
 
     if ($conflict) {
-        throw ("-Destination already says the site, the library and the folder, so " +
-            "-$($conflict -join ', -') cannot be given as well. Pass one or the other.")
+        throw (Get-ScriptString 'TestUpload.Destination.Conflict' ($conflict -join ', -'))
     }
 }
 elseif ($Interactive -and $Mode -ne 'PreFlight' -and -not $SiteUrl -and -not $Library -and -not $ProfileName) {
@@ -626,11 +664,11 @@ if ($Destination) {
 
 # -- Argument combinations the parameter block cannot express ----------------
 if ($Mode -ne 'PreFlight' -and -not $Library -and -not $Interactive) {
-    throw "-Mode $Mode compares against a library, so -Destination or -Library is required."
+    throw (Get-ScriptString 'TestUpload.Mode.NeedsLibrary' $Mode)
 }
 
 if ($Offline -and $Mode -ne 'PreFlight') {
-    throw "-Offline only applies to -Mode PreFlight; $Mode has to talk to the tenant."
+    throw (Get-ScriptString 'TestUpload.Mode.OfflineOnly' $Mode)
 }
 
 $script:TargetLibrary = $Library
@@ -650,18 +688,18 @@ $needsConnection = ($Mode -ne 'PreFlight') -or (
 if ($needsConnection) {
     if ($Interactive -and -not $ProfileName -and -not $SiteUrl) {
         Write-Host ''
-        Write-Host '  Which SharePoint site? For example:' -ForegroundColor Cyan
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Site.Question')) -ForegroundColor Cyan
         Write-Host '    https://contoso.sharepoint.com/sites/team' -ForegroundColor Gray
-        $SiteUrl = (Read-Host '  Site').Trim()
+        $SiteUrl = (Read-Host ('  ' + (Get-ScriptString 'TestUpload.Site.Label'))).Trim()
     }
 
     if ($SiteUrl) {
         if (-not $ClientId) {
-            throw 'Connecting with -SiteUrl also needs -ClientId. Ask whoever set this up for the application ID.'
+            throw (Get-ScriptString 'TestUpload.SignIn.NeedsClientId')
         }
 
         Write-Host ''
-        Write-Host '  A sign-in window will open now. Sign in with your work account.' -ForegroundColor Cyan
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.SignIn.Window')) -ForegroundColor Cyan
 
         # -Interactive is what opens the browser window. Without it PnP tries a
         # silent token first, which fails on a tenant that requires consent --
@@ -679,7 +717,7 @@ if ($needsConnection) {
     if ($connection) {
         $script:TargetSiteUrl = $connection.SiteUrl
         Write-Host ''
-        Write-Host "  Signed in to $($connection.SiteUrl)" -ForegroundColor Green
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.SignIn.Done' $connection.SiteUrl)) -ForegroundColor Green
     }
 
     # Now that there is a connection, the library can be chosen from the ones
@@ -690,10 +728,10 @@ if ($needsConnection) {
                 Sort-Object Title)
 
         if ($libraries.Count -eq 0) {
-            throw "No document libraries are visible on $($connection.SiteUrl)."
+            throw (Get-ScriptString 'TestUpload.Library.NoneVisible' $connection.SiteUrl)
         }
 
-        $choice  = Read-Choice -Question 'Which library did you upload into?' -Option $libraries.Title
+        $choice  = Read-Choice -Question (Get-ScriptString 'TestUpload.Library.Question') -Option $libraries.Title
         $Library = $libraries[$choice - 1].Title
 
         $script:TargetLibrary = $Library
@@ -751,20 +789,25 @@ $allFindings = [System.Collections.Generic.List[object]]::new()
 
 # -- Phase 1: pre-flight -----------------------------------------------------
 if ($Mode -in 'PreFlight', 'Both') {
-    Write-Section "Pre-flight: $LocalPath"
+    Write-Section (Get-ScriptString 'TestUpload.PreFlight.Section' $LocalPath)
 
     $localRoot = (Resolve-Path -LiteralPath $LocalPath).Path.TrimEnd('\')
     $files = @(Get-ChildItem -LiteralPath $localRoot -File -Recurse:(-not $TopLevelOnly) -Force)
-    $totalSize = ($files | Measure-Object -Property Length -Sum).Sum
-    if (-not $totalSize) { $totalSize = 0 }
+    # Added up by hand: Measure-Object hands back no Sum at all for an empty
+    # folder, and asking for it stops the run under strict mode.
+    $totalSize = [long]0
+    foreach ($item in $files) { $totalSize += $item.Length }
 
-    Write-Host "  $($files.Count) file(s), $(Format-Size -Bytes $totalSize)$(if ($TopLevelOnly) { ', subfolders left out' })"
+    $leftOut = ''
+    if ($TopLevelOnly) { $leftOut = Get-ScriptString 'TestUpload.PreFlight.LeftOut' }
+
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.PreFlight.Count' $files.Count (Format-Size -Bytes $totalSize)) + $leftOut)
 
     if ($prefix) {
-        Write-Host "  Paths measured against $prefix" -ForegroundColor DarkGray
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.PreFlight.Measured' $prefix)) -ForegroundColor DarkGray
     }
     else {
-        Write-Host '  Path length not checked: no target known. Pass -Destination, -Library or -TargetPathPrefix.' -ForegroundColor Yellow
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.PreFlight.NotMeasured')) -ForegroundColor Yellow
     }
 
     $findings = [System.Collections.Generic.List[object]]::new()
@@ -781,7 +824,7 @@ if ($Mode -in 'PreFlight', 'Both') {
     foreach ($file in $files) {
         $processed++
         if ($files.Count -gt 200 -and $processed % 100 -eq 0) {
-            Write-Progress -Activity 'Pre-flight' -Status "$processed of $($files.Count)" `
+            Write-Progress -Activity (Get-ScriptString 'TestUpload.PreFlight.Activity') -Status (Get-ScriptString 'TestUpload.PreFlight.Status' $processed $files.Count) `
                 -PercentComplete (100 * $processed / $files.Count)
         }
 
@@ -828,12 +871,12 @@ if ($Mode -in 'PreFlight', 'Both') {
 
             if ($remaining -lt 0) {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.PathWouldExceed' -Severity Error -Target $relative `
-                            -Message "Would be $($predicted.Length) characters at the target, $([Math]::Abs($remaining)) over the $PathLimit character limit." `
+                            -Message (Get-ScriptString 'TestUpload.Finding.PathWouldExceed' $predicted.Length ([Math]::Abs($remaining)) $PathLimit) `
                             -Detail @{ PredictedUrl = $predicted; Length = $predicted.Length; Limit = $PathLimit; Remaining = $remaining }))
             }
             elseif ($remaining -le $WarnAt) {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.PathNearLimit' -Severity Warning -Target $relative `
-                            -Message "Would be $($predicted.Length) characters at the target, only $remaining short of the $PathLimit character limit." `
+                            -Message (Get-ScriptString 'TestUpload.Finding.PathNearLimit' $predicted.Length $remaining $PathLimit) `
                             -Detail @{ PredictedUrl = $predicted; Length = $predicted.Length; Limit = $PathLimit; Remaining = $remaining }))
             }
         }
@@ -841,17 +884,17 @@ if ($Mode -in 'PreFlight', 'Both') {
         # -- Size
         if ($file.Length -eq 0) {
             $findings.Add((New-UploadFinding -RuleId 'Upload.EmptyFile' -Severity Warning -Target $relative `
-                        -Message 'File is empty; some upload paths skip zero-byte files without reporting it.' `
+                        -Message (Get-ScriptString 'TestUpload.Finding.EmptyFile') `
                         -Detail @{ LocalPath = $file.FullName }))
         }
         elseif ($file.Length -gt $maxBytes) {
             $findings.Add((New-UploadFinding -RuleId 'Upload.TooLarge' -Severity Error -Target $relative `
-                        -Message "File is $(Format-Size -Bytes $file.Length); SharePoint rejects anything over 250 GB." `
+                        -Message (Get-ScriptString 'TestUpload.Finding.TooLarge' (Format-Size -Bytes $file.Length)) `
                         -Detail @{ LocalPath = $file.FullName; Bytes = $file.Length }))
         }
         elseif ($file.Length -ge $largeBytes) {
             $findings.Add((New-UploadFinding -RuleId 'Upload.LargeFile' -Severity Warning -Target $relative `
-                        -Message "File is $(Format-Size -Bytes $file.Length); large uploads time out on slow links and are slow to sync." `
+                        -Message (Get-ScriptString 'TestUpload.Finding.LargeFile' (Format-Size -Bytes $file.Length)) `
                         -Detail @{ LocalPath = $file.FullName; Bytes = $file.Length }))
         }
 
@@ -860,30 +903,30 @@ if ($Mode -in 'PreFlight', 'Both') {
 
         if ($extension -and ($BlockedExtension -contains $extension)) {
             $findings.Add((New-UploadFinding -RuleId 'Upload.BlockedExtension' -Severity Error -Target $relative `
-                        -Message "'$extension' is on the blocked extension list; the upload will be refused." `
+                        -Message (Get-ScriptString 'TestUpload.Finding.BlockedExtension' $extension) `
                         -Detail @{ Extension = $extension }))
         }
         elseif ($extension -and ($script:ExecutableExtension -contains $extension)) {
             $findings.Add((New-UploadFinding -RuleId 'Upload.ExecutableFile' -Severity Info -Target $relative `
-                        -Message "'$extension' is commonly blocked by tenant policy, mail gateways or AV. Check before relying on it." `
+                        -Message (Get-ScriptString 'TestUpload.Finding.ExecutableFile' $extension) `
                         -Detail @{ Extension = $extension }))
         }
 
         if (($script:JunkName -contains $leaf) -or $extension -eq '.tmp') {
             $findings.Add((New-UploadFinding -RuleId 'Upload.JunkFile' -Severity Info -Target $relative `
-                        -Message 'Local file system artefact that means nothing in SharePoint.' `
+                        -Message (Get-ScriptString 'TestUpload.Finding.JunkFile') `
                         -Detail @{ LocalPath = $file.FullName }))
         }
     }
 
-    Write-Progress -Activity 'Pre-flight' -Completed
+    Write-Progress -Activity (Get-ScriptString 'TestUpload.PreFlight.Activity') -Completed
 
     foreach ($key in $pathBucket.Keys) {
         $variants = $pathBucket[$key]
         if ($variants.Count -le 1) { continue }
 
         $findings.Add((New-UploadFinding -RuleId 'Upload.CaseCollision' -Severity Error -Target $variants[0] `
-                    -Message "$($variants.Count) local files differ only in capitalisation and would become one file: $($variants -join ', ')" `
+                    -Message (Get-ScriptString 'TestUpload.Finding.CaseCollision' $variants.Count ($variants -join ', ')) `
                     -Detail @{ Paths = $variants.ToArray() }))
     }
 
@@ -901,36 +944,35 @@ if ($Mode -in 'PreFlight', 'Both') {
         $warningsHere = @($findings | Where-Object Severity -eq 'Warning').Count
 
         $verdict = if ($errorsHere -gt 0) {
-            "$errorsHere problem(s) to fix before uploading"
+            Get-ScriptString 'TestUpload.Verdict.PreFlight.Errors' $errorsHere
         }
         elseif ($warningsHere -gt 0) {
-            "nothing blocking, $warningsHere thing(s) worth a look"
+            Get-ScriptString 'TestUpload.Verdict.PreFlight.Warnings' $warningsHere
         }
         else {
-            'nothing to fix'
+            Get-ScriptString 'TestUpload.Verdict.PreFlight.Clean'
         }
 
-        $summary = [ordered]@{
-            'Folder checked'  = $localRoot
-            'Files'           = "$($files.Count), $(Format-Size -Bytes $totalSize)"
-            'Uploading to'    = if ($prefix) { $prefix } else { 'not given, so path lengths were not checked' }
-            'Subfolders'      = if ($TopLevelOnly) { 'left out' } else { 'included' }
-            'Result'          = $verdict
-            'Path limit'      = "$PathLimit characters, warning below $WarnAt left"
-            'Large file from' = "$LargeFileMb MB"
-            'Blocked types'   = if ($BlockedExtension.Count -gt 0) { $BlockedExtension -join ', ' } else { 'none configured' }
-            'Checked'         = (Get-Date -Format 'yyyy-MM-dd HH:mm')
-        }
+        $summary = [ordered]@{}
+        $summary[(Get-ScriptString 'TestUpload.Summary.FolderChecked')] = $localRoot
+        $summary[(Get-ScriptString 'TestUpload.Summary.Files')] = "$($files.Count), $(Format-Size -Bytes $totalSize)"
+        $summary[(Get-ScriptString 'TestUpload.Summary.UploadingTo')] = if ($prefix) { $prefix } else { Get-ScriptString 'TestUpload.Summary.NotGiven' }
+        $summary[(Get-ScriptString 'TestUpload.Summary.Subfolders')] = if ($TopLevelOnly) { Get-ScriptString 'TestUpload.Summary.LeftOut' } else { Get-ScriptString 'TestUpload.Summary.Included' }
+        $summary[(Get-ScriptString 'TestUpload.Summary.Result')] = $verdict
+        $summary[(Get-ScriptString 'TestUpload.Summary.PathLimit')] = Get-ScriptString 'TestUpload.Summary.PathLimitValue' $PathLimit $WarnAt
+        $summary[(Get-ScriptString 'TestUpload.Summary.LargeFileFrom')] = "$LargeFileMb MB"
+        $summary[(Get-ScriptString 'TestUpload.Summary.BlockedTypes')] = if ($BlockedExtension.Count -gt 0) { $BlockedExtension -join ', ' } else { Get-ScriptString 'TestUpload.Summary.NoneConfigured' }
+        $summary[(Get-ScriptString 'TestUpload.Summary.Checked')] = (Get-Date -Format 'yyyy-MM-dd HH:mm')
 
         $findings | Export-SpoReport -Path (Join-Path $OutputPath 'preflight.html') `
-            -Title "Before uploading -- $($files.Count) file(s), $verdict" -Summary $summary
+            -Title (Get-ScriptString 'TestUpload.Report.Title.PreFlight' $files.Count $verdict) -Summary $summary
     }
 }
 
 # -- Phase 2: verify ---------------------------------------------------------
 if ($Mode -in 'Verify', 'Both') {
     $scope = if ($RemoteFolder) { "$Library/$RemoteFolder" } else { $Library }
-    Write-Section "Verify: $LocalPath -> $scope"
+    Write-Section (Get-ScriptString 'TestUpload.Verify.Section' $LocalPath $scope)
 
     try {
         $comparison = @(Compare-SpoFolder -LocalPath $LocalPath -Library $Library -RemoteFolder $RemoteFolder `
@@ -944,15 +986,16 @@ if ($Mode -in 'Verify', 'Both') {
         Write-Host ''
         Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
         Write-Host ''
-        Write-Host '  Nothing was compared, so no verify report was written.' -ForegroundColor Yellow
-        Write-Host '  Correct RemoteFolder in upload-check.xml, or empty it to be' -ForegroundColor Gray
-        Write-Host '  offered the folders that exist.' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Verify.Failed.Title')) -ForegroundColor Yellow
+        foreach ($line in ((Get-ScriptString 'TestUpload.Verify.Failed.Hint') -split "`r?`n")) {
+            Write-Host "  $line" -ForegroundColor Gray
+        }
         Write-Verbose $_.ScriptStackTrace
 
         if ($allFindings.Count -gt 0) {
             $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'findings.csv')
             Write-Host ''
-            Write-Host "  The pre-flight report is still in $((Resolve-Path $OutputPath).Path)" -ForegroundColor Gray
+            Write-Host ('  ' + (Get-ScriptString 'TestUpload.Verify.PreFlightKept' (Resolve-Path $OutputPath).Path)) -ForegroundColor Gray
         }
 
         Stop-O365Log | Out-Null
@@ -972,19 +1015,22 @@ if ($Mode -in 'Verify', 'Both') {
     # way a copy would go to put it right. The categories whose comparison is
     # switched off are left out rather than shown as a reassuring 0.
     $categories = @(
-        @{ Status = 'Match'; Symbol = '= '; Label = 'Synchronised'; Colour = 'Green' }
-        @{ Status = 'MissingRemote'; Symbol = '->'; Label = 'Missing in SharePoint'; Colour = 'Red' }
-        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = 'Missing on this computer'; Colour = 'Red' }
+        @{ Status = 'Match'; Symbol = '= '; Label = (Get-ScriptString 'TestUpload.Category.Synchronised'); Colour = 'Green' }
+        @{ Status = 'MissingRemote'; Symbol = '->'; Label = (Get-ScriptString 'TestUpload.Category.MissingRemote'); Colour = 'Red' }
+        @{ Status = 'MissingLocal'; Symbol = '<-'; Label = (Get-ScriptString 'TestUpload.Category.MissingLocal'); Colour = 'Red' }
     )
     if ($CompareDate) {
-        $categories += @{ Status = 'LocalNewer'; Symbol = '->'; Label = 'Newer on this computer'; Colour = 'Yellow' }
-        $categories += @{ Status = 'RemoteNewer'; Symbol = '<-'; Label = 'Newer in SharePoint'; Colour = 'Cyan' }
+        $categories += @{ Status = 'LocalNewer'; Symbol = '->'; Label = (Get-ScriptString 'TestUpload.Category.LocalNewer'); Colour = 'Yellow' }
+        $categories += @{ Status = 'RemoteNewer'; Symbol = '<-'; Label = (Get-ScriptString 'TestUpload.Category.RemoteNewer'); Colour = 'Cyan' }
     }
     if ($CompareSize) {
-        $categories += @{ Status = 'SizeDiffers'; Symbol = '!='; Label = 'Different size'; Colour = 'Yellow' }
+        $categories += @{ Status = 'SizeDiffers'; Symbol = '!='; Label = (Get-ScriptString 'TestUpload.Category.SizeDiffers'); Colour = 'Yellow' }
     }
 
-    Write-Host "  $($comparison.Count) file(s) compared$(if ($TopLevelOnly) { ', subfolders left out' })"
+    $leftOut = ''
+    if ($TopLevelOnly) { $leftOut = Get-ScriptString 'TestUpload.PreFlight.LeftOut' }
+
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.Verify.Compared' $comparison.Count) + $leftOut)
     Write-Host ''
     foreach ($category in $categories) {
         $count = [int]$counts[$category.Status]
@@ -998,29 +1044,29 @@ if ($Mode -in 'Verify', 'Both') {
         switch ($row.Status) {
             'MissingRemote' {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.MissingRemote' -Severity Error -Target $row.RelativePath `
-                            -Message 'Present locally but not in the library: this file did not arrive.' `
+                            -Message (Get-ScriptString 'TestUpload.Finding.MissingRemote') `
                             -Detail @{ LocalPath = $row.LocalPath; LocalSize = $row.LocalSize }))
             }
             'SizeDiffers' {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.SizeDiffers' -Severity Warning -Target $row.RelativePath `
-                            -Message "Local file is $($row.LocalSize) bytes, the uploaded copy is $($row.RemoteSize)." `
+                            -Message (Get-ScriptString 'TestUpload.Finding.SizeDiffers' $row.LocalSize $row.RemoteSize) `
                             -Detail @{ LocalSize = $row.LocalSize; RemoteSize = $row.RemoteSize; RemoteUrl = $row.RemoteUrl }))
             }
             'MissingLocal' {
                 # An error like its mirror image above: the question is whether
                 # the two sides are the same, and they are not.
                 $findings.Add((New-UploadFinding -RuleId 'Upload.MissingLocal' -Severity Error -Target $row.RelativePath `
-                            -Message 'In the library but not in the local folder: deleted here, left over from an earlier upload, or added by someone else.' `
+                            -Message (Get-ScriptString 'TestUpload.Finding.MissingLocal') `
                             -Detail @{ RemoteUrl = $row.RemoteUrl; RemoteSize = $row.RemoteSize }))
             }
             'LocalNewer' {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.LocalNewer' -Severity Warning -Target $row.RelativePath `
-                            -Message "The copy on this computer is newer ($($row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')), SharePoint has $($row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm'))): changed after the upload, or an older version went up." `
+                            -Message (Get-ScriptString 'TestUpload.Finding.LocalNewer' $row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm') $row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')) `
                             -Detail @{ LocalModified = $row.LocalModified; RemoteModified = $row.RemoteModified; RemoteUrl = $row.RemoteUrl }))
             }
             'RemoteNewer' {
                 $findings.Add((New-UploadFinding -RuleId 'Upload.RemoteNewer' -Severity Info -Target $row.RelativePath `
-                            -Message "The copy in SharePoint is newer ($($row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')), this computer has $($row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm'))): edited there since, or stamped with the time of a browser upload." `
+                            -Message (Get-ScriptString 'TestUpload.Finding.RemoteNewer' $row.RemoteModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm') $row.LocalModified.ToLocalTime().ToString('yyyy-MM-dd HH:mm')) `
                             -Detail @{ LocalModified = $row.LocalModified; RemoteModified = $row.RemoteModified; RemoteUrl = $row.RemoteUrl }))
             }
         }
@@ -1037,37 +1083,36 @@ if ($Mode -in 'Verify', 'Both') {
     # Always written: it lists every file compared, so even a clean result is
     # a page worth having -- the inventory of what is now in SharePoint.
     $verdict = if ($missing -gt 0) {
-        "$missing file(s) did not arrive"
+        Get-ScriptString 'TestUpload.Verdict.Verify.Missing' $missing
     }
     elseif ($differs -gt 0) {
-        "everything arrived, $differs file(s) differ"
+        Get-ScriptString 'TestUpload.Verdict.Verify.Differs' $differs
     }
     else {
-        'everything arrived'
+        Get-ScriptString 'TestUpload.Verdict.Verify.Arrived'
     }
 
     # Not a fault of the upload, but the other half of "are the two the same":
     # said in the heading too, not only in the rows.
     $extra = [int]$counts['MissingLocal']
     if ($extra -gt 0) {
-        $verdict += ", $extra file(s) only in SharePoint"
+        $verdict += Get-ScriptString 'TestUpload.Verdict.Verify.Extra' $extra
     }
 
-    $summary = [ordered]@{
-        'Folder on this computer' = (Resolve-Path -LiteralPath $LocalPath).Path
-        'Compared with'           = $scope
-        'Site'                    = $script:TargetSiteUrl
-        'Files compared'          = $comparison.Count
-        'Synchronised'            = $matched
-        'Result'                  = $verdict
-        'Subfolders'              = if ($TopLevelOnly) { 'left out' } else { 'included' }
-        'Dates'                   = if ($CompareDate) { 'compared' } else { 'ignored (a browser upload stamps its own time)' }
-        'Sizes'                   = if ($CompareSize) { 'compared' } else { 'ignored (Office files legitimately differ)' }
-        'Checked'                 = (Get-Date -Format 'yyyy-MM-dd HH:mm')
-    }
+    $summary = [ordered]@{}
+    $summary[(Get-ScriptString 'TestUpload.Summary.FolderOnComputer')] = (Resolve-Path -LiteralPath $LocalPath).Path
+    $summary[(Get-ScriptString 'TestUpload.Summary.ComparedWith')] = $scope
+    $summary[(Get-ScriptString 'TestUpload.Summary.Site')] = $script:TargetSiteUrl
+    $summary[(Get-ScriptString 'TestUpload.Summary.FilesCompared')] = $comparison.Count
+    $summary[(Get-ScriptString 'TestUpload.Summary.Synchronised')] = $matched
+    $summary[(Get-ScriptString 'TestUpload.Summary.Result')] = $verdict
+    $summary[(Get-ScriptString 'TestUpload.Summary.Subfolders')] = if ($TopLevelOnly) { Get-ScriptString 'TestUpload.Summary.LeftOut' } else { Get-ScriptString 'TestUpload.Summary.Included' }
+    $summary[(Get-ScriptString 'TestUpload.Summary.Dates')] = if ($CompareDate) { Get-ScriptString 'TestUpload.Summary.Compared' } else { Get-ScriptString 'TestUpload.Summary.DatesIgnored' }
+    $summary[(Get-ScriptString 'TestUpload.Summary.Sizes')] = if ($CompareSize) { Get-ScriptString 'TestUpload.Summary.Compared' } else { Get-ScriptString 'TestUpload.Summary.SizesIgnored' }
+    $summary[(Get-ScriptString 'TestUpload.Summary.Checked')] = (Get-Date -Format 'yyyy-MM-dd HH:mm')
 
     $comparison | Export-SpoReport -Path (Join-Path $OutputPath 'verify.html') `
-        -Title "After uploading -- $verdict" -Summary $summary
+        -Title (Get-ScriptString 'TestUpload.Report.Title.Verify' $verdict) -Summary $summary
 }
 
 # -- Result ------------------------------------------------------------------
@@ -1081,14 +1126,14 @@ $errorCount = @($allFindings | Where-Object Severity -eq 'Error').Count
 $warningCount = @($allFindings | Where-Object Severity -eq 'Warning').Count
 $infoCount = @($allFindings | Where-Object Severity -eq 'Info').Count
 
-Write-Section 'Result'
+Write-Section (Get-ScriptString 'TestUpload.Result.Section')
 
 # Info is counted too: nothing to fix, but it was found, and a result that
 # leaves it out reads as if it had not been.
-$tally = "$errorCount error(s), $warningCount warning(s), $infoCount info"
+$tally = Get-ScriptString 'TestUpload.Result.Tally' $errorCount $warningCount $infoCount
 
 if ($errorCount -eq 0 -and $warningCount -eq 0) {
-    Write-Host '  Nothing to fix.' -ForegroundColor Green
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.Nothing')) -ForegroundColor Green
     if ($infoCount -gt 0) {
         Write-Host "  $tally" -ForegroundColor Cyan
     }
@@ -1099,27 +1144,27 @@ else {
 
 if ($Mode -eq 'PreFlight') {
     if ($errorCount -eq 0) {
-        Write-Host '  Ready to upload.' -ForegroundColor Green
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.Ready')) -ForegroundColor Green
         if ($NextStep) {
             Write-Host "  $NextStep" -ForegroundColor Gray
         }
     }
     else {
-        Write-Host '  Fix the errors first: SharePoint will refuse or mangle those files.' -ForegroundColor Red
+        Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.FixErrors')) -ForegroundColor Red
     }
 }
 
 Write-Host ''
-Write-Host "  Reports: $((Resolve-Path $OutputPath).Path)" -ForegroundColor Green
+Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.Reports' (Resolve-Path $OutputPath).Path)) -ForegroundColor Green
 
 # Nothing opens the report by itself, so the one worth reading is named here
 # rather than left to be picked out of a folder of three files.
 $mainReport = Join-Path $OutputPath $(if ($Mode -eq 'PreFlight') { 'preflight.html' } else { 'verify.html' })
 if (Test-Path -LiteralPath $mainReport) {
-    Write-Host "  Open $(Split-Path -Leaf $mainReport) in a browser to read them." -ForegroundColor Gray
+    Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.Open' (Split-Path -Leaf $mainReport))) -ForegroundColor Gray
 }
 
-Write-Host '  Nothing was changed, locally or in SharePoint.' -ForegroundColor Gray
+Write-Host ('  ' + (Get-ScriptString 'TestUpload.Result.NothingChanged')) -ForegroundColor Gray
 
 $failed = switch ($FailOn) {
     'Error' { $errorCount -gt 0 }

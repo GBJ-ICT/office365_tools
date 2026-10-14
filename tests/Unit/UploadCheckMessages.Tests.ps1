@@ -90,7 +90,8 @@ BeforeAll {
             [string]$Folder = $script:Upload,
             [string[]]$Answer,
             [switch]$NoWindow,
-            [string]$SettingsFile
+            [string]$SettingsFile,
+            [string]$ReportFolder
         )
 
         $settings = Join-Path $script:Folder 'upload-check.xml'
@@ -104,6 +105,7 @@ BeforeAll {
         if ($NoWindow) { $arguments += '-MTA' }
         $arguments += @('-ExecutionPolicy', 'Bypass', '-File', $script:Script, '-SettingsPath', $settings)
         if ($Folder) { $arguments += @('-Folder', $Folder) }
+        if ($ReportFolder) { $arguments += @('-ReportFolder', $ReportFolder) }
         if (-not $Answer) { $arguments += '-NoPrompt' }
 
         # The saved language is the person's own file. These runs write to a file
@@ -357,5 +359,33 @@ Describe 'The upload checker launcher, offering a language' -Skip:(-not $canRunW
         $result = Invoke-Launcher -Xml $script:WithDestination -Language 'en' -SettingsFile $script:Saved
 
         $result.Text | Should -Not -BeLike '*L = change*'
+    }
+}
+
+Describe 'The upload checker launcher, handing its language to the checker' -Skip:(-not $canRunWindowsPowerShell) {
+
+    BeforeAll {
+        # Checks the folder for real, offline: no sign-in, and nothing to find in
+        # an empty folder, so it ends with "nothing to fix".
+        $script:PreFlight = '<UploadCheck><Mode>PreFlight</Mode></UploadCheck>'
+    }
+
+    It 'has the checker report in English when the launcher is in English' {
+        $reports = Join-Path $script:Folder "reports-$([guid]::NewGuid().ToString('N'))"
+        $result = Invoke-Launcher -Xml $script:PreFlight -Language 'en' -ReportFolder $reports
+
+        $result.Code | Should -Be 0
+        $result.Text | Should -BeLike '*Pre-flight:*'
+        $result.Text | Should -BeLike '*Ready to upload.*'
+    }
+
+    It 'has the checker report in German when the launcher is in German' {
+        $reports = Join-Path $script:Folder "reports-$([guid]::NewGuid().ToString('N'))"
+        $result = Invoke-Launcher -Xml $script:PreFlight -Language 'de' -ReportFolder $reports
+
+        $result.Code | Should -Be 0
+        $result.Text | Should -BeLike '*Vorabpr*fung:*'
+        $result.Text | Should -BeLike '*Bereit zum Hochladen.*'
+        $result.Text | Should -BeLike '*starte die Pr*fung nochmals*'
     }
 }
