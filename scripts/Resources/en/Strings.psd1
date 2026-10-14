@@ -247,4 +247,174 @@ offered the folders that exist.'
     'DocSetRepair.RerunLine1'               = 'Re-run ./scripts/Test-DocumentSetSync.ps1 to confirm, and check the'
 
     'DocSetRepair.RerunLine2'               = 'configuration findings there so the drift does not simply return.'
+
+    'DocSetRegister.Connected'              = 'Connected to {0}'
+
+    'DocSetRegister.PlanningHeading'        = '=== Planning ==='
+
+    'DocSetRegister.NothingToDo'            = 'Nothing to do: ''{0}'' is in step with every Document Set in {1}.'
+
+    'DocSetRegister.PlanRow'                = '  {0,-24} {1,-8} {2,4} row(s)'
+
+    'DocSetRegister.Moved'                  = '  {0} row(s) belong to a Document Set that has moved library:'
+
+    'DocSetRegister.MovedRow'               = '    {0,-6} {1} -- {2} -> {3}'
+
+    'DocSetRegister.Columns'                = '  register columns: {0}'
+
+    'DocSetRegister.PlanWritten'            = 'Plan written to: {0}'
+
+    'DocSetRegister.NothingChanged'         = 'Nothing was changed.'
+
+    'DocSetRegister.ReadIt'                 = 'Read it, edit the values you want different, then:'
+
+    'DocSetRegister.PlanNotFound'           = 'Plan file ''{0}'' was not found. Run the script without -Plan to generate one.'
+
+    'DocSetRegister.PlanEmpty'              = 'Plan ''{0}'' has no rows.'
+
+    'DocSetRegister.PlanNoColumns'          = 'Plan ''{0}'' has rows to create but no register columns, only provenance ones ({1}). It is probably the wrong file.'
+
+    'DocSetRegister.PlanNoColumn'           = 'Plan ''{0}'' has no ''{1}'' column. Generate a plan by running this script without -Plan, rather than writing one by hand.'
+
+    'DocSetRegister.WritingHeading'         = '=== Writing entries ==='
+
+    'DocSetRegister.RowsFrom'               = '  {0} row(s) from {1}'
+
+    'DocSetRegister.ValueColumns'           = '  columns: {0}'
+
+    'DocSetRegister.AlreadyHolds'           = '  ''{0}'' already holds {1} row(s) with a Document ID'
+
+    'DocSetRegister.SkippedAction'          = '  skipped {0} -- Action ''{1}'' is not one this script writes'
+
+    'DocSetRegister.NoRow'                  = 'No row in ''{0}'' for Document ID ''{1}''. It may have been deleted since the plan was written; re-plan.'
+
+    'DocSetRegister.Missing'                = '  MISSING {0} -- no such row any more; re-plan'
+
+    'DocSetRegister.Ok'                     = '  ok      {0,-6} {1} -- already {2}'
+
+    'DocSetRegister.WouldUpdate'            = '  would update   {0,-6} {1} -- {2}'
+
+    'DocSetRegister.Updated'                = '  updated {0,-6} {1} -- {2} -> {3}'
+
+    'DocSetRegister.Failed'                 = '  FAILED  {0} -- {1}'
+
+    'DocSetRegister.SkippedPresent'         = '  skipped {0,-6} {1} -- already in the register'
+
+    'DocSetRegister.DefaultContentType'     = 'default content type'
+
+    'DocSetRegister.WouldCreate'            = '  would create   {0} -- {1}'
+
+    'DocSetRegister.Created'                = '  created {0,-6} {1}'
+
+    'DocSetRegister.SkipLinkText'           = 'Skipping the link text pass (-SkipLinkText).'
+
+    'DocSetRegister.PassTwoWould'           = 'Pass two would set ''{0}'' text from ''{1}'' on the rows created above.'
+
+    'DocSetRegister.NoLinkText'             = 'Nothing was written, so there is no link text to set.'
+
+    'DocSetRegister.LinkTextHeading'        = '=== Setting link text ==='
+
+    'DocSetRegister.SummaryHeading'         = '=== Summary ==='
+
+    'DocSetRegister.SumCreated'             = '  entries created  : {0}'
+
+    'DocSetRegister.SumUpdated'             = '  entries updated  : {0}'
+
+    'DocSetRegister.SumPresent'             = '  already present  : {0}'
+
+    'DocSetRegister.SumCorrect'             = '  already correct  : {0}'
+
+    'DocSetRegister.SumNotFound'            = '  rows not found   : {0}'
+
+    'DocSetRegister.SumFailed'              = '  entries failed   : {0}'
+
+    'DocSetRegister.SumLabelled'            = '  links labelled   : {0}'
+
+    'DocSetRegister.ReportsWritten'         = 'Reports written to: {0}'
+
+    'DocSetRegister.SomeFailed1'            = 'Some rows failed. written.csv has the reason for each. Fix the plan and re-run the same'
+
+    'DocSetRegister.SomeFailed2'            = 'file: rows that succeeded are matched by Document ID and will not be written twice.'
+
+    'ListToPdf.Printing'                    = 'Printing ''{0}'' ...'
+
+    'ListToPdf.WouldPrint'                  = 'Would print {0} row(s) and {1} column(s) to {2}'
+
+    'ListToPdf.Counts'                      = '  {0} row(s), {1} column(s), {2} page(s), digest {3}'
+
+    'ListToPdf.Links'                       = '  {0} clickable link(s)'
+
+    'ListToPdf.Columns'                     = '  columns: {0}'
+
+    'ListToPdf.NotVerified'                 = '  not verified (-SkipVerification)'
+
+    'ListToPdf.ReportTitle'                 = 'Verification of {0} row(s) in {1}'
+
+    'ListToPdf.Verified'                    = '  Verified: every printed value was found in the PDF.'
+
+    'ListToPdf.NotFullyVerified'            = '  Not fully verified. See verification.html -- the PDF may still be correct.'
+
+    'ListToPdf.Failed'                      = '  {0} value(s) or check(s) failed. The PDF is missing data:'
+
+    'ListToPdf.More'                        = '    ... and {0} more'
+
+    'ListToPdf.UsualCause'                  = '  Usual cause: too many columns for the paper. Lower -FontSize, use -PaperSize A3, or print fewer columns.'
+
+    'ListToPdf.ReportIn'                    = '  Report and log in {0}'
+
+    'FieldValue.ListNotFound'               = 'List or library ''{0}'' was not found on {1}.'
+
+    'FieldValue.Blank'                      = '(blank)'
+
+    'FieldValue.Found'                      = '''{0}'': {1} item(s) with {2} = {3} -> ''{4}''.'
+
+    'FieldValue.Action'                     = 'Set {0} = ''{1}'' (was {2}) on item {3}'
+
+    'FieldValue.Failed'                     = 'Failed to update item {0} in ''{1}'': {2}'
+
+    'FieldValue.Done'                       = 'Done. {0} item(s) updated, {1} failed.'
+
+    'ListSchema.Reading'                    = '''{0}'' wird gelesen ...'
+
+    'ListSchema.NoSourceView'               = 'Source list ''{0}'' has no default view; -CopyDefaultView will be skipped.'
+
+    'ListSchema.ReadOnly'                   = 'Read {0} column(s) from ''{1}''. Nothing written.'
+
+    'ListSchema.SchemaWritten'              = 'Schema written to {0}'
+
+    'ListSchema.RerunApply'                 = 'Re-run with -Apply to create these columns on the target.'
+
+    'ListSchema.Writing'                    = 'Writing to ''{0}'' ...'
+
+    'ListSchema.NoTargetView'               = 'Target list ''{0}'' has no default view.'
+
+    'ListSchema.ViewAction'                 = 'Set view columns to {0}'
+
+    'ListSchema.ViewNow'                    = 'Default view now shows: {0}'
+
+    'ListSchema.Done'                       = 'Done. Log and schema in {0}'
+
+    'Register.NeedsSiteUrl'                 = '-ProfileName requires -SiteUrl so the profile knows which site to connect to.'
+
+    'Register.Installing'                   = 'Installing PnP.PowerShell...'
+
+    'Register.Action'                       = 'Register Entra ID application ''{0}'' with {1}'
+
+    'Register.Registering'                  = 'Registering ''{0}'' in {1}...'
+
+    'Register.BrowserWillOpen'              = 'A browser window will open for sign-in and consent.'
+
+    'Register.Complete'                     = 'Registration complete.'
+
+    'Register.ClientId'                     = '  Client ID: {0}'
+
+    'Register.Consent1'                     = 'Consent can take a few minutes to propagate. If the first connection'
+
+    'Register.Consent2'                     = 'fails with an authorisation error, wait and retry.'
+
+    'Register.ProfileDescription'           = 'Registered by Register-PnPApplication.ps1 on {0}'
+
+    'Register.ProfileSaved'                 = 'Saved profile ''{0}''. Connect with: Connect-O365 -ProfileName {0}'
+
+    'Register.SaveAsProfile'                = 'Save it as a profile with:'
 }

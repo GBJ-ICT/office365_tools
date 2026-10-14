@@ -61,18 +61,33 @@ param(
 
     [Parameter()]
     [ValidatePattern('^https://')]
-    [string]$SiteUrl
+    [string]$SiteUrl,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# The module is imported first, whatever else happens, so that everything this
+# script says can be said in the language in use. -Language applies to this
+# session only, and the texts of this script live in scripts\Resources.
+Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
+
 if ($ProfileName -and -not $SiteUrl) {
-    throw '-ProfileName requires -SiteUrl so the profile knows which site to connect to.'
+    throw (Get-ScriptString 'Register.NeedsSiteUrl')
 }
 
 if (-not (Get-Module -ListAvailable PnP.PowerShell)) {
-    Write-Host 'Installing PnP.PowerShell...' -ForegroundColor Yellow
+    Write-Host (Get-ScriptString 'Register.Installing') -ForegroundColor Yellow
     Install-Module PnP.PowerShell -Scope CurrentUser -Force -AllowClobber
 }
 
@@ -81,13 +96,13 @@ Import-Module PnP.PowerShell
 $version = (Get-Module -ListAvailable PnP.PowerShell | Sort-Object Version -Descending | Select-Object -First 1).Version
 Write-Host "PnP.PowerShell $version" -ForegroundColor Gray
 
-if (-not $PSCmdlet.ShouldProcess($Tenant, "Register Entra ID application '$ApplicationName' with $($Permission -join ', ')")) {
+if (-not $PSCmdlet.ShouldProcess($Tenant, (Get-ScriptString 'Register.Action' $ApplicationName ($Permission -join ', ')))) {
     return
 }
 
 Write-Host ''
-Write-Host "Registering '$ApplicationName' in $Tenant..." -ForegroundColor Cyan
-Write-Host 'A browser window will open for sign-in and consent.' -ForegroundColor Gray
+Write-Host (Get-ScriptString 'Register.Registering' $ApplicationName $Tenant) -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'Register.BrowserWillOpen') -ForegroundColor Gray
 Write-Host ''
 
 $result = Register-PnPEntraIDAppForInteractiveLogin `
@@ -96,26 +111,24 @@ $result = Register-PnPEntraIDAppForInteractiveLogin `
     -Tenant $Tenant
 
 Write-Host ''
-Write-Host 'Registration complete.' -ForegroundColor Green
-Write-Host "  Client ID: $($result.'AzureAppId/ClientId')" -ForegroundColor White
+Write-Host (Get-ScriptString 'Register.Complete') -ForegroundColor Green
+Write-Host (Get-ScriptString 'Register.ClientId' $result.'AzureAppId/ClientId') -ForegroundColor White
 Write-Host ''
-Write-Host 'Consent can take a few minutes to propagate. If the first connection' -ForegroundColor Gray
-Write-Host 'fails with an authorisation error, wait and retry.' -ForegroundColor Gray
+Write-Host (Get-ScriptString 'Register.Consent1') -ForegroundColor Gray
+Write-Host (Get-ScriptString 'Register.Consent2') -ForegroundColor Gray
 
 if ($ProfileName) {
-    Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
-
     Set-O365Profile -Name $ProfileName `
         -SiteUrl $SiteUrl `
         -ClientId $result.'AzureAppId/ClientId' `
         -Tenant $Tenant `
-        -Description "Registered by Register-PnPApplication.ps1 on $(Get-Date -Format 'yyyy-MM-dd')"
+        -Description (Get-ScriptString 'Register.ProfileDescription' $(Get-Date -Format 'yyyy-MM-dd'))
 
     Write-Host ''
-    Write-Host "Saved profile '$ProfileName'. Connect with: Connect-O365 -ProfileName $ProfileName" -ForegroundColor Green
+    Write-Host (Get-ScriptString 'Register.ProfileSaved' $ProfileName) -ForegroundColor Green
 }
 else {
     Write-Host ''
-    Write-Host 'Save it as a profile with:' -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'Register.SaveAsProfile') -ForegroundColor Cyan
     Write-Host "  Set-O365Profile -Name prod -SiteUrl <your-site> -ClientId $($result.'AzureAppId/ClientId') -Tenant $Tenant" -ForegroundColor White
 }

@@ -122,12 +122,25 @@ param(
     [switch]$Interactive,
 
     [Parameter()]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..' 'src' 'Office365Tools') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 if (-not $OutputPath) {
     $OutputPath = Join-Path $PSScriptRoot '..' 'out' "list-schema-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
@@ -154,7 +167,7 @@ try {
         Connect-O365 -Interactive:$Interactive
     }
 
-    Write-Host "Reading '$SourceList' ..." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'ListSchema.Reading' $SourceList) -ForegroundColor Cyan
 
     $schema = @(Get-SpoListFieldSchema -Library $SourceList -DropCustomFormatter:$DropCustomFormatter |
             Where-Object { $_.InternalName -notin $ExcludeField })
@@ -166,7 +179,7 @@ try {
             $sourceViewFields = @($sourceView.ViewFields)
         }
         else {
-            Write-Warning "Source list '$SourceList' has no default view; -CopyDefaultView will be skipped."
+            Write-Warning (Get-ScriptString 'ListSchema.NoSourceView' $SourceList)
         }
     }
 
@@ -188,9 +201,9 @@ try {
     }
 
     if (-not $Apply) {
-        Write-Host "Read $($schema.Count) column(s) from '$SourceList'. Nothing written." -ForegroundColor Yellow
-        Write-Host "Schema written to $OutputPath"
-        Write-Host 'Re-run with -Apply to create these columns on the target.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ListSchema.ReadOnly' $schema.Count $SourceList) -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ListSchema.SchemaWritten' $OutputPath)
+        Write-Host (Get-ScriptString 'ListSchema.RerunApply') -ForegroundColor Yellow
         return
     }
 
@@ -207,7 +220,7 @@ try {
         Connect-O365 -Interactive:$Interactive
     }
 
-    Write-Host "Writing to '$TargetList' ..." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'ListSchema.Writing' $TargetList) -ForegroundColor Cyan
 
     # -WhatIf on this script does not reach into the module by itself: a
     # function defined in a module reads $WhatIfPreference in the module's
@@ -221,7 +234,7 @@ try {
         $targetView = Get-PnPView -List $TargetList | Where-Object { $_.DefaultView } | Select-Object -First 1
 
         if (-not $targetView) {
-            Write-Warning "Target list '$TargetList' has no default view."
+            Write-Warning (Get-ScriptString 'ListSchema.NoTargetView' $TargetList)
         }
         else {
             # Only the columns that actually exist on the target: the source
@@ -230,15 +243,15 @@ try {
             $present = @(Get-PnPField -List $TargetList | ForEach-Object { $_.InternalName })
             $wanted  = @($sourceViewFields | Where-Object { $_ -in $present })
 
-            if ($PSCmdlet.ShouldProcess("$TargetList / $($targetView.Title)", "Set view columns to $($wanted -join ', ')")) {
+            if ($PSCmdlet.ShouldProcess("$TargetList / $($targetView.Title)", (Get-ScriptString 'ListSchema.ViewAction' ($wanted -join ', ')))) {
                 Set-PnPView -List $TargetList -Identity $targetView.Id -Fields $wanted | Out-Null
-                Write-Host "Default view now shows: $($wanted -join ', ')" -ForegroundColor Green
+                Write-Host (Get-ScriptString 'ListSchema.ViewNow' ($wanted -join ', ')) -ForegroundColor Green
             }
         }
     }
 
     Write-Host ''
-    Write-Host "Done. Log and schema in $OutputPath" -ForegroundColor Green
+    Write-Host (Get-ScriptString 'ListSchema.Done' $OutputPath) -ForegroundColor Green
 }
 finally {
     Stop-O365Log | Out-Null

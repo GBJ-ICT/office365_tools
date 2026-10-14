@@ -193,12 +193,25 @@ param(
     [switch]$Interactive,
 
     [Parameter()]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..' 'src' 'Office365Tools') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 if (-not $OutputPath) {
     $OutputPath = Join-Path $PSScriptRoot '..' 'out' "list-pdf-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
@@ -277,23 +290,23 @@ try {
     if ($ItemLink) { $arguments['ItemLink'] = $ItemLink }
     if ($links.Count -gt 0) { $arguments['LinkColumn'] = $links }
 
-    Write-Host "Printing '$List' ..." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'ListToPdf.Printing' $List) -ForegroundColor Cyan
 
     $export = Export-SpoListPdf @arguments
 
     if (-not $export.Printed) {
-        Write-Host "Would print $($export.RowCount) row(s) and $($export.ColumnCount) column(s) to $pdfPath" -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ListToPdf.WouldPrint' $export.RowCount $export.ColumnCount $pdfPath) -ForegroundColor Yellow
         return
     }
 
     Write-Host ''
     Write-Host "  $($export.Path)" -ForegroundColor Green
-    Write-Host "  $($export.RowCount) row(s), $($export.ColumnCount) column(s), $($export.PageCount) page(s), digest $($export.Digest)"
-    if ($export.LinkCount -gt 0) { Write-Host "  $($export.LinkCount) clickable link(s)" }
-    Write-Host "  columns: $($export.Column -join ', ')"
+    Write-Host (Get-ScriptString 'ListToPdf.Counts' $export.RowCount $export.ColumnCount $export.PageCount $export.Digest)
+    if ($export.LinkCount -gt 0) { Write-Host (Get-ScriptString 'ListToPdf.Links' $export.LinkCount) }
+    Write-Host (Get-ScriptString 'ListToPdf.Columns' ($export.Column -join ', '))
 
     if ($SkipVerification) {
-        Write-Host '  not verified (-SkipVerification)' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ListToPdf.NotVerified') -ForegroundColor Yellow
         return
     }
 
@@ -301,25 +314,25 @@ try {
     $errors = @($findings | Where-Object Severity -eq 'Error')
 
     $reportPath = Join-Path $OutputPath 'verification.html'
-    $findings | Export-SpoReport -Path $reportPath -Title "Verification of $($export.RowCount) row(s) in $List" -WhatIf:$false
+    $findings | Export-SpoReport -Path $reportPath -Title (Get-ScriptString 'ListToPdf.ReportTitle' $export.RowCount $List) -WhatIf:$false
 
     Write-Host ''
     if ($errors.Count -eq 0 -and $export.Verified) {
-        Write-Host '  Verified: every printed value was found in the PDF.' -ForegroundColor Green
+        Write-Host (Get-ScriptString 'ListToPdf.Verified') -ForegroundColor Green
     }
     elseif ($errors.Count -eq 0) {
-        Write-Host '  Not fully verified. See verification.html -- the PDF may still be correct.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ListToPdf.NotFullyVerified') -ForegroundColor Yellow
         $findings | Where-Object Severity -ne 'Info' | ForEach-Object { Write-Host "    $($_.RuleId): $($_.Message)" -ForegroundColor Yellow }
     }
     else {
-        Write-Host "  $($errors.Count) value(s) or check(s) failed. The PDF is missing data:" -ForegroundColor Red
+        Write-Host (Get-ScriptString 'ListToPdf.Failed' $errors.Count) -ForegroundColor Red
         $errors | Select-Object -First 10 | ForEach-Object { Write-Host "    $($_.Message)" -ForegroundColor Red }
-        if ($errors.Count -gt 10) { Write-Host "    ... and $($errors.Count - 10) more" -ForegroundColor Red }
-        Write-Host '  Usual cause: too many columns for the paper. Lower -FontSize, use -PaperSize A3, or print fewer columns.' -ForegroundColor Yellow
+        if ($errors.Count -gt 10) { Write-Host (Get-ScriptString 'ListToPdf.More' ($errors.Count - 10)) -ForegroundColor Red }
+        Write-Host (Get-ScriptString 'ListToPdf.UsualCause') -ForegroundColor Yellow
     }
 
     Write-Host ''
-    Write-Host "  Report and log in $OutputPath"
+    Write-Host (Get-ScriptString 'ListToPdf.ReportIn' $OutputPath)
 }
 finally {
     Stop-O365Log | Out-Null
