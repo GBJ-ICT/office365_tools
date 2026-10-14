@@ -593,11 +593,11 @@ Start at [docs/README.md](docs/README.md). In short:
 **User guide** (`docs/user/`)
 
 - [Tools at a glance](docs/user/tools.md) — which tool does what, and how to start it
-- [Language](docs/user/language.md) — using the tools in English or German (planned)
+- [Language](docs/user/language.md) — using the tools in English or German (auf Deutsch: [Sprache](docs/user/language.de.md))
 
 **Developer docs** (`docs/dev/`)
 
-- [Multi-language design](docs/dev/multilanguage.md) — how translation works and how to add a language (planned)
+- [Multi-language design](docs/dev/multilanguage.md) — how translation works and how to add a language
 
 **Sandbox** (`docs/sandbox/`) — the detailed guides from before the split, kept
 unchanged until they are cleaned up: [Getting started](docs/sandbox/getting-started.md),

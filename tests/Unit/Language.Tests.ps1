@@ -555,6 +555,38 @@ Describe 'The string tables' {
     }
 }
 
+Describe 'The user guide' {
+
+    It 'has every page in German as well, written beside the English one as name.de.md' {
+        $english = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'docs/user') -Filter '*.md' -File |
+                Where-Object { $_.Name -notmatch '\.de\.md$' })
+
+        $english.Count | Should -BeGreaterThan 0
+
+        $missing = @($english | Where-Object {
+                -not (Test-Path -LiteralPath (Join-Path $_.DirectoryName ($_.BaseName + '.de.md')))
+            } | ForEach-Object Name)
+
+        $missing | Should -BeNullOrEmpty -Because "no German version of: $($missing -join ', ')"
+    }
+
+    It 'has a German index of the documentation' {
+        Test-Path -LiteralPath (Join-Path $script:RepoRoot 'docs/README.de.md') | Should -BeTrue
+    }
+
+    It 'addresses the reader with du in the German pages, not Sie' {
+        $formal = foreach ($page in (Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'docs') -Filter '*.de.md' -Recurse -File)) {
+            $text = Get-Content -LiteralPath $page.FullName -Raw -Encoding utf8
+            if ($text -cmatch '\b(Sie|Ihnen|Ihre|Ihr|Ihrem|Ihren)\b') { $page.Name }
+        }
+
+        $formal | Should -BeNullOrEmpty -Because "the German pages use du: $($formal -join ', ')"
+    }
+
+    It 'has the hand-out read-me in German as well' {
+        Test-Path -LiteralPath (Join-Path $script:RepoRoot 'packaging/UploadCheck/READ-ME-FIRST.de.txt') | Should -BeTrue
+    }
+}
 Describe 'The packaged tools' {
 
     It 'have a title and a description in English and in German, for the tool menu' {

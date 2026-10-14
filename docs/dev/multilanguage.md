@@ -502,7 +502,11 @@ yet converted keep their English text until their turn.
 4. Module commands, by group: connection, library, permissions, content types,
    document sets, reports.
 5. HTML report text, rule titles and fixes.
-6. Documentation, German READ-ME, packaging.
+6. **Done for the upload checker, which is what exists as a tool:** the user
+   guide in German (`docs/user/*.de.md`, with a test that no page is missing one),
+   the hand-out read-me in German (`READ-ME-FIRST.de.txt`, which `build.ps1`
+   puts beside the English one), the site's language switch, and the docs index
+   in both languages. The sandbox and the developer documents stay English.
 
 ## Decisions
 
