@@ -85,18 +85,17 @@ function Update-SpoListItem {
     process {
         if ($Values.Count -eq 0 -and -not $ContentType) {
             throw [System.ArgumentException]::new(
-                "Nothing to update on item $Id in '$Library': -Values is empty and -ContentType was not given. " +
-                "Supply the fields to set, a content type to reclassify the item as, or both."
+                (Get-O365String 'ListItem.Update.Nothing' $Id $Library)
             )
         }
 
         $list = Resolve-SpoList -Identity $Library
 
         $changes = @()
-        if ($Values.Count -gt 0) { $changes += "fields: $($Values.Keys -join ', ')" }
-        if ($ContentType) { $changes += "content type: $ContentType" }
+        if ($Values.Count -gt 0) { $changes += (Get-O365String 'ListItem.Update.ChangeFields' ($Values.Keys -join ', ')) }
+        if ($ContentType) { $changes += (Get-O365String 'ListItem.Update.ChangeContentType' $ContentType) }
 
-        $description = "Update item $Id ($($changes -join '; '))"
+        $description = (Get-O365String 'ListItem.Update.Action' $Id ($changes -join '; '))
 
         if (-not $PSCmdlet.ShouldProcess($list.Title, $description)) {
             return
@@ -120,20 +119,20 @@ function Update-SpoListItem {
 
             $item = Set-PnPListItem @params
             $updated++
-            Write-O365Log "Updated item $Id in '$($list.Title)'." 'Success'
+            Write-O365Log (Get-O365String 'ListItem.Update.Updated' $Id $list.Title) 'Success'
 
             if ($PassThru) {
                 $item
             }
         }
         catch {
-            Write-Error -Message "Failed to update item $Id in '$($list.Title)': $($_.Exception.Message)" -TargetObject $Id
+            Write-Error -Message (Get-O365String 'ListItem.Update.Failed' $Id $list.Title $_.Exception.Message) -TargetObject $Id
         }
     }
 
     end {
         if ($updated -gt 0) {
-            Write-O365Log "Updated $updated item(s)." 'Info'
+            Write-O365Log (Get-O365String 'ListItem.Update.Done' $updated) 'Info'
         }
     }
 }

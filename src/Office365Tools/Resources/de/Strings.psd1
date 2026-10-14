@@ -393,4 +393,84 @@
     'Rule.DocumentSet.SharedColumnMissingFromChildContentType' = 'Der Inhaltstyp ''{0}'' ist in ''{1}'' erlaubt, aber ihm fehlen {2} freigegebene Spalte(n): {3}. Die Werte werden gespeichert, erscheinen aber nicht im Formular des Dokuments.'
 
     'DocumentSet.Shared.Done'                                  = 'Die Prüfung der freigegebenen Dokumentsatz-Spalten ist abgeschlossen.'
+
+    'ListItem.Add.UnknownFields'                               = 'Feld(er) in der Liste ''{0}'' nicht gefunden: {1}. Beachte: Es müssen interne Namen sein, nicht Anzeigetitel. Führe aus: Get-PnPField -List ''{0}'' | Select-Object InternalName, Title'
+
+    'ListItem.Add.NoTitle'                                     = '(ohne Titel)'
+
+    'ListItem.Add.Action'                                      = 'Listenelement hinzufügen'
+
+    'ListItem.Add.Added'                                       = 'Element {0} wurde zu ''{1}'' hinzugefügt.'
+
+    'ListItem.Add.Failed'                                      = 'Das Element konnte nicht zu ''{0}'' hinzugefügt werden: {1}'
+
+    'ListItem.Add.Done'                                        = '{0} Element(e) hinzugefügt.'
+
+    'ListItem.Export.Exporting'                                = '{0} Feld(er) aus ''{1}'' werden exportiert.'
+
+    'ListItem.Export.Done'                                     = 'Der Export von ''{0}'' ist abgeschlossen.'
+
+    'ListItem.Import.FileMissing'                              = 'Die Datei ''{0}'' gibt es nicht.'
+
+    'ListItem.Import.UnsupportedType'                          = 'Der Dateityp ''{0}'' wird nicht unterstützt. Nimm .csv, .tsv oder .json.'
+
+    'ListItem.Import.NoRows'                                   = 'Die Datei ''{0}'' enthält keine Zeilen; es gibt nichts zu importieren.'
+
+    'ListItem.Import.UnknownColumns'                           = 'Spalte(n) in ''{0}'' passen zu keinem beschreibbaren Feld der Liste ''{1}'': {2}. Feldnamen müssen interne Namen sein. Führe aus: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title. Mit -Mapping ordnest du Spaltennamen zu.'
+
+    'ListItem.Import.RequiredMissing'                          = 'Die Liste ''{0}'' hat Pflichtfeld(er), die in der Datei fehlen: {1}. Der Server weist Zeilen möglicherweise ab.'
+
+    'ListItem.Import.Validated'                                = '{0} Zeile(n) gegen ''{1}'' geprüft. Spalten: {2}.'
+
+    'ListItem.Import.Action'                                   = '{0} Element(e) aus ''{1}'' anlegen'
+
+    'ListItem.Import.Activity'                                 = 'Import nach {0}'
+
+    'ListItem.Import.RowEmpty'                                 = 'Zeile {0} ist leer; übersprungen.'
+
+    'ListItem.Import.RowFailed'                                = 'Zeile {0} ist fehlgeschlagen: {1}'
+
+    'ListItem.Import.Stopped'                                  = '{0} Der Import wurde nach {1} erfolgreichen Zeile(n) gestoppt, weil -StopOnError angegeben war.'
+
+    'ListItem.Import.Done'                                     = 'Import abgeschlossen: {0} angelegt, {1} fehlgeschlagen, von {2} Zeile(n).'
+
+    'ListItem.Update.Nothing'                                  = 'Auf Element {0} in ''{1}'' gibt es nichts zu aktualisieren: -Values ist leer und -ContentType wurde nicht angegeben. Gib die zu setzenden Felder an, einen Inhaltstyp, auf den das Element umgestellt wird, oder beides.'
+
+    'ListItem.Update.ChangeFields'                             = 'Felder: {0}'
+
+    'ListItem.Update.ChangeContentType'                        = 'Inhaltstyp: {0}'
+
+    'ListItem.Update.Action'                                   = 'Element {0} aktualisieren ({1})'
+
+    'ListItem.Update.Updated'                                  = 'Element {0} in ''{1}'' aktualisiert.'
+
+    'ListItem.Update.Failed'                                   = 'Element {0} in ''{1}'' konnte nicht aktualisiert werden: {2}'
+
+    'ListItem.Update.Done'                                     = '{0} Element(e) aktualisiert.'
+
+    'ListItem.LinkText.ColumnNotFound'                         = 'Die Spalte ''{0}'' wurde in der Liste ''{1}'' nicht gefunden. Beachte: Es muss der interne Name sein, nicht der Anzeigetitel. Führe aus: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title'
+
+    'ListItem.LinkText.NotUrl'                                 = 'Die Spalte ''{0}'' der Liste ''{1}'' hat den Typ ''{2}'', nicht URL. Nur eine Hyperlink-Spalte hat einen Anzeigetext zum Setzen; für alles andere nimm Update-SpoListItem.'
+
+    'ListItem.LinkText.TextColumnNotFound'                     = 'Die Spalte ''{0}'' wurde in der Liste ''{1}'' nicht gefunden. Führe aus: Get-PnPField -List ''{1}'' | Select-Object InternalName, Title'
+
+    'ListItem.LinkText.Considering'                            = '{0} Element(e) in ''{1}'' werden für den Linktext aus ''{2}'' betrachtet.'
+
+    'ListItem.LinkText.NoUrl'                                  = 'Element {0} hat in ''{1}'' keine URL; es gibt keinen Link zu beschriften.'
+
+    'ListItem.LinkText.NoText'                                 = 'Element {0} hat in ''{1}'' keinen Wert; der Linktext bleibt unberührt, statt geleert zu werden.'
+
+    'ListItem.LinkText.Action'                                 = 'Text von ''{0}'' auf ''{1}'' setzen'
+
+    'ListItem.LinkText.Set'                                    = 'Der Text von ''{0}'' auf Element {1} wurde auf ''{2}'' gesetzt.'
+
+    'ListItem.LinkText.Failed'                                 = 'Der Text von ''{0}'' auf Element {1} konnte nicht gesetzt werden: {2}'
+
+    'ListItem.LinkText.FailedIn'                               = 'Der Text von ''{0}'' auf Element {1} in ''{2}'' konnte nicht gesetzt werden: {3}'
+
+    'ListItem.LinkText.Done'                                   = 'Linktext-Durchgang abgeschlossen: {0} aktualisiert, {1} bereits richtig, {2} übersprungen, {3} fehlgeschlagen.'
+
+    'Schedule.NeedsWeekday'                                    = '-WeekOfMonth braucht einen Wochentag zum Zählen: der "erste" was? Gib -DayOfWeek an, zum Beispiel: -WeekOfMonth First -DayOfWeek Sunday'
+
+    'Schedule.UntilBeforeStart'                                = '-Until ({0}) liegt vor -Start ({1}).'
 }

@@ -116,7 +116,7 @@ function Export-SpoListItem {
                     ForEach-Object { $_.InternalName })
         }
 
-        Write-O365Log "Exporting $(@($selected).Count) field(s) from '$($list.Title)'." 'Info'
+        Write-O365Log (Get-O365String 'ListItem.Export.Exporting' @($selected).Count $list.Title) 'Info'
 
         # PnP puts -Query and -PageSize in different parameter sets, so
         # passing both fails rather than paging the query.
@@ -134,6 +134,6 @@ function Export-SpoListItem {
             [pscustomobject]$record
         }
 
-        Write-O365Log "Export of '$($list.Title)' complete." 'Success'
+        Write-O365Log (Get-O365String 'ListItem.Export.Done' $list.Title) 'Success'
     }
 }
