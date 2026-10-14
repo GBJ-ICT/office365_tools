@@ -80,6 +80,115 @@ function Write-Problem {
     Write-Host ''
 }
 
+# -- Language ----------------------------------------------------------------
+# One language per run, chosen the same way for every tool: the environment,
+# the language saved for the user, the Windows display language. The lookup is
+# the very file the module and the tools use, so none of them can drift.
+$languageFile = Join-Path $Root 'src\Office365Tools\Private\Shared\Language.ps1'
+
+# Nothing can be said in a language until this file is there, so this one
+# message is English only.
+if (-not (Test-Path -LiteralPath $languageFile)) {
+    Write-Problem -Title 'Part of the tools is missing.' -Detail @(
+        'Not found: src\Office365Tools\Private\Shared\Language.ps1',
+        '',
+        'Show this window to whoever sent you this file.')
+    exit $SETUP_PROBLEM
+}
+
+. $languageFile
+
+$menuResources = @(
+    (Join-Path $Root 'src\Office365Tools\Resources'),
+    (Join-Path (Join-Path $Root $ToolFolder) 'Resources'))
+
+# Set when the menu changes the language: the tool is then told, so the rest of
+# the run is in it whatever else is set, saved or not. A choice made just now
+# beats the saved one, an environment variable and a language in the tool's own
+# settings file; when nothing was chosen here, none of them is overridden.
+$script:ExplicitLanguage = ''
+
+function Select-MenuLanguage {
+    param(
+        [string]$Requested
+    )
+
+    $script:LanguageInUse = Resolve-O365Language -Language $Requested
+    $script:Strings = Import-O365StringTable -Language $script:LanguageInUse.Language -Path $menuResources
+}
+
+function Get-MenuString {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
+}
+
+# A text of several lines, for Write-Problem: one line per line of the text.
+function Get-MenuLines {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    $text = Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments
+
+    return @($text -split "`r?`n")
+}
+
+Select-MenuLanguage -Requested ''
+
+# German umlauts need a console that decodes UTF-8. The .cmd launcher already
+# switched the code page; this covers a start from anywhere else.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
+
+# What a tool shows of itself -- its title and its description -- in the
+# language in use: the tool's own words from its Resources folder, and what
+# tool.psd1 says where it has none. One entry per tool, in the same order. The
+# tool.psd1 data itself stays as it was read; it is what the menu's choice is an
+# index into.
+function Get-ToolDisplay {
+    param(
+        [object[]]$Tools
+    )
+
+    foreach ($entry in $Tools) {
+        $table = Import-O365StringTable -Language $script:LanguageInUse.Language -Path (Join-Path $entry.Folder 'Resources')
+
+        $title = [string]$entry['Title']
+        $description = [string]$entry['Description']
+
+        if ($table.ContainsKey("Tool.$($entry.Name).Title")) { $title = [string]$table["Tool.$($entry.Name).Title"] }
+        if ($table.ContainsKey("Tool.$($entry.Name).Description")) { $description = [string]$table["Tool.$($entry.Name).Description"] }
+
+        @{ Name = $entry.Name; Title = $title; Description = $description }
+    }
+}
+
+# What happens once a language has been chosen in the menu: the rest of the run
+# is in it, the tool is told, and if it could not be remembered, a line says so.
+function Use-MenuLanguageChoice {
+    param(
+        [string]$Choice,
+        [bool]$Saved
+    )
+
+    Select-MenuLanguage -Requested $Choice
+    $script:ExplicitLanguage = $script:LanguageInUse.Language
+
+    if (-not $Saved) {
+        Write-Host ('  ' + (Get-MenuString 'Language.NotSaved' (Get-O365SettingsPath))) -ForegroundColor Yellow
+    }
+}
+
 # A tool.psd1 is read as data -- the way Import-PowerShellDataFile reads one,
 # which a Windows PowerShell started from PowerShell 7 can fail to find. Plain
 # values only; anything that would have to run to produce a value is refused.
@@ -240,13 +349,13 @@ function New-ToolWindow {
     $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
     $heading = New-Object System.Windows.Forms.Label
-    $heading.Text = 'What would you like to do?'
+    $heading.Text = Get-MenuString 'Menu.Heading'
     $heading.Font = New-Object System.Drawing.Font('Segoe UI', 12)
     $heading.AutoSize = $true
     $heading.Location = New-Object System.Drawing.Point($margin, $margin)
 
     $explain = New-Object System.Windows.Forms.Label
-    $explain.Text = 'Click one to start it. It runs in the window behind this one.'
+    $explain.Text = Get-MenuString 'Menu.Explain'
     $explain.AutoSize = $true
     $explain.ForeColor = [System.Drawing.SystemColors]::GrayText
     $explain.Location = New-Object System.Drawing.Point(($margin + 2), ($margin + (ConvertTo-Pixel 32)))
@@ -362,13 +471,43 @@ function New-ToolWindow {
     $list.Size = New-Object System.Drawing.Size($width, ([Math]::Min($listHeight - $gap, $maxHeight)))
 
     $close = New-Object System.Windows.Forms.Button
-    $close.Text = 'Close'
+    $close.Text = Get-MenuString 'Menu.Close'
     $close.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $close.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
     $closeTop = $listTop + $list.Height + $gap
     $close.Location = New-Object System.Drawing.Point(($margin + $width - $close.Width), $closeTop)
 
-    $form.Controls.AddRange(@($heading, $explain, $list, $close))
+    # Language, bottom left. The label is in both languages so it can be found
+    # by someone who cannot read the one in use. Choosing one closes the window
+    # with Retry; Select-Tool saves the choice and opens it again in it.
+    $languageLabel = New-Object System.Windows.Forms.Label
+    $languageLabel.Text = Get-MenuString 'Menu.Language.Label'
+    $languageLabel.AutoSize = $true
+    $languageLabel.Location = New-Object System.Drawing.Point($margin, ($closeTop + (ConvertTo-Pixel 5)))
+
+    $languageBox = New-Object System.Windows.Forms.ComboBox
+    $languageBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+    [void]$languageBox.Items.Add((Get-MenuString 'Language.Name.en'))
+    [void]$languageBox.Items.Add((Get-MenuString 'Language.Name.de'))
+    [void]$languageBox.Items.Add((Get-MenuString 'Language.Follow'))
+    $languageBox.Location = New-Object System.Drawing.Point(($margin + (ConvertTo-Pixel 130)), $closeTop)
+    $languageBox.Width = ConvertTo-Pixel 150
+
+    # What is saved, not what is in use: "Follow Windows" when nothing is saved.
+    $savedLanguage = Read-O365Setting -Name 'language'
+    $languageBox.SelectedIndex = 2
+    if ($savedLanguage -eq 'en') { $languageBox.SelectedIndex = 0 }
+    if ($savedLanguage -eq 'de') { $languageBox.SelectedIndex = 1 }
+
+    $languageBox.Add_SelectionChangeCommitted({
+            param($source)
+
+            $owner = $source.FindForm()
+            $owner.Tag = 'language:' + @('en', 'de', 'auto')[$source.SelectedIndex]
+            $owner.DialogResult = [System.Windows.Forms.DialogResult]::Retry
+        })
+
+    $form.Controls.AddRange(@($heading, $explain, $list, $languageLabel, $languageBox, $close))
     $form.CancelButton = $close
     $form.ClientSize = New-Object System.Drawing.Size(($width + 2 * $margin), ($closeTop + $close.Height + $margin))
 
@@ -383,6 +522,46 @@ function New-ToolWindow {
     return $form
 }
 
+# The numbered list, for where no window can open. L changes the language, as
+# the box in the window does.
+function Read-ToolFromList {
+    param(
+        [object[]]$Tools
+    )
+
+    $choice = 0
+    while ($choice -lt 1 -or $choice -gt $Tools.Count) {
+        $display = @(Get-ToolDisplay -Tools $Tools)
+
+        Write-Host ''
+        Write-Host ('  ' + (Get-O365LanguageLine -Table $script:Strings -Language $script:LanguageInUse.Language)) -ForegroundColor DarkGray
+        Write-Host ''
+        Write-Host ('  ' + (Get-MenuString 'Menu.Heading')) -ForegroundColor Cyan
+        for ($i = 0; $i -lt $Tools.Count; $i++) {
+            Write-Host ('    {0}) {1}' -f ($i + 1), $display[$i].Title)
+            if ($display[$i].Description) {
+                Write-Host "       $($display[$i].Description)" -ForegroundColor Gray
+            }
+        }
+
+        Write-Host ''
+        $answer = "$(Read-Host ('  ' + (Get-MenuString 'Menu.List.Prompt')))".Trim()
+        if (-not $answer) { $answer = '1' }
+
+        if ($answer -eq 'l') {
+            $result = Read-O365LanguageChoice -Table $script:Strings
+            if ($result) { Use-MenuLanguageChoice -Choice $result.Choice -Saved $result.Saved }
+            $choice = 0
+            continue
+        }
+
+        $choice = 0
+        [void][int]::TryParse($answer, [ref]$choice)
+    }
+
+    return $Tools[$choice - 1]
+}
+
 function Select-Tool {
     param(
         [object[]]$Tools,
@@ -394,17 +573,13 @@ function Select-Tool {
             if ($entry.Name -eq $Pinned) { return $entry }
         }
 
-        Write-Problem -Title "This launcher runs '$Pinned', and the copy it found does not have that." -Detail @(
-            "There is no $ToolFolder\$Pinned\tool.psd1 in",
-            "    $Root",
-            '',
-            'Show this window to whoever sent you this file.')
+        Write-Problem -Title (Get-MenuString 'Menu.Pinned.Missing.Title' $Pinned) `
+            -Detail (Get-MenuLines 'Menu.Pinned.Missing.Body' "$ToolFolder\$Pinned\tool.psd1" $Root)
         exit $SETUP_PROBLEM
     }
 
     if ($Tools.Count -eq 0) {
-        Write-Problem -Title "There are no tools in $ToolFolder\, so there is nothing to run." -Detail @(
-            'Show this window to whoever sent you this file.')
+        Write-Problem -Title (Get-MenuString 'Menu.None.Title' "$ToolFolder\") -Detail (Get-MenuLines 'Menu.ShowThis')
         exit $SETUP_PROBLEM
     }
 
@@ -413,22 +588,37 @@ function Select-Tool {
     # the numbered list below if not, or if it fails to open. Closed without a
     # choice is an answer, not a failure.
     if (Test-WindowPossible) {
-        $form = $null
         $opened = $false
         $picked = -1
-        try {
-            $form = New-ToolWindow -Tools $Tools
-            $result = $form.ShowDialog()
-            $opened = $true
-            if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                $picked = [int]$form.Tag
+
+        # Round again each time the language is changed in the window: it is
+        # drawn afresh in the new one.
+        $again = $true
+        while ($again) {
+            $again = $false
+            $form = $null
+
+            try {
+                $form = New-ToolWindow -Tools @(Get-ToolDisplay -Tools $Tools)
+                $result = $form.ShowDialog()
+                $opened = $true
+
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $picked = [int]$form.Tag
+                }
+                elseif ($result -eq [System.Windows.Forms.DialogResult]::Retry) {
+                    $choice = ([string]$form.Tag) -replace '^language:', ''
+                    $saved = Write-O365Setting -Name 'language' -Value $choice
+                    Use-MenuLanguageChoice -Choice $choice -Saved $saved
+                    $again = $true
+                }
             }
-        }
-        catch {
-            Write-Host "  (Could not open a window: $($_.Exception.Message))" -ForegroundColor DarkGray
-        }
-        finally {
-            if ($form) { $form.Dispose() }
+            catch {
+                Write-Host ('  ' + (Get-MenuString 'Menu.Window.Failed' $_.Exception.Message)) -ForegroundColor DarkGray
+            }
+            finally {
+                if ($form) { $form.Dispose() }
+            }
         }
 
         if ($picked -ge 0) {
@@ -437,45 +627,28 @@ function Select-Tool {
 
         if ($opened) {
             Write-Host ''
-            Write-Host '  Nothing chosen, so nothing was run.' -ForegroundColor Gray
+            Write-Host ('  ' + (Get-MenuString 'Menu.NothingChosen')) -ForegroundColor Gray
             exit 0
         }
     }
 
-    Write-Host ''
-    Write-Host '  What would you like to do?' -ForegroundColor Cyan
-    for ($i = 0; $i -lt $Tools.Count; $i++) {
-        Write-Host ('    {0}) {1}' -f ($i + 1), $Tools[$i].Title)
-        if ($Tools[$i]['Description']) {
-            Write-Host "       $($Tools[$i]['Description'])" -ForegroundColor Gray
-        }
-    }
-
-    $choice = 0
-    while ($choice -lt 1 -or $choice -gt $Tools.Count) {
-        Write-Host ''
-        $answer = "$(Read-Host '  Number [1]')".Trim()
-        if (-not $answer) { $answer = '1' }
-        $choice = 0
-        [void][int]::TryParse($answer, [ref]$choice)
-    }
-
-    return $Tools[$choice - 1]
+    return (Read-ToolFromList -Tools $Tools)
 }
-
 try {
     $chosen = Select-Tool -Tools @(Get-ToolSet -Pinned $Tool) -Pinned $Tool
 
     # The launcher keeps each release in a folder named for its tag, so that
     # name is the version. A checkout is not a release and has none.
     $version = Split-Path -Leaf $Root
-    if ($version -cnotmatch '^v\d+\.\d+$') { $version = '(not a release)' }
+    if ($version -cnotmatch '^v\d+\.\d+$') { $version = Get-MenuString 'Menu.NotRelease' }
 
-    try { $Host.UI.RawUI.WindowTitle = "$($chosen.Title) $version" } catch { Write-Verbose $_ }
+    $shown = @(Get-ToolDisplay -Tools @($chosen))[0]
+
+    try { $Host.UI.RawUI.WindowTitle = "$($shown.Title) $version" } catch { Write-Verbose $_ }
 
     Write-Host ''
-    Write-Host "  $($chosen.Title) $version" -ForegroundColor Cyan
-    Write-Host "  from $Root" -ForegroundColor DarkGray
+    Write-Host "  $($shown.Title) $version" -ForegroundColor Cyan
+    Write-Host ('  ' + (Get-MenuString 'Menu.From' $Root)) -ForegroundColor DarkGray
 
     $entryPath = Join-Path $chosen.Folder $chosen.Entry
 
@@ -487,8 +660,8 @@ try {
     if (-not (Test-Path -LiteralPath $settingsPath)) {
         Copy-Item -LiteralPath (Join-Path $chosen.Folder $chosen.Settings) -Destination $settingsPath
         Write-Host ''
-        Write-Host "  Created $settingsName beside $(Split-Path -Leaf $LauncherPath). Your settings go in there;" -ForegroundColor Cyan
-        Write-Host '  open it in Notepad to fill them in. Until then, you are asked.' -ForegroundColor Cyan
+        Write-Host ('  ' + (Get-MenuString 'Menu.Created' $settingsName (Split-Path -Leaf $LauncherPath))) -ForegroundColor Cyan
+        Write-Host ('  ' + (Get-MenuString 'Menu.Created.Hint')) -ForegroundColor Cyan
     }
 
     $arguments = @{
@@ -500,13 +673,24 @@ try {
         $arguments.Folder = $Dropped
     }
 
+    # Only when the menu changed the language. Passed always, it would stop the
+    # tool's own settings file from naming a language.
+    if ($script:ExplicitLanguage) {
+        $arguments.Language = $script:ExplicitLanguage
+    }
+
     & $entryPath @arguments
     exit $LASTEXITCODE
 }
 catch {
-    Write-Problem -Title 'This stopped unexpectedly.' -Detail @(
-        $_.Exception.Message,
-        '',
-        'Show this window to whoever sent you this file.')
+    # Said in the language in use, if it got that far; English if not.
+    $stopped = 'This stopped unexpectedly.'
+    $showThis = 'Show this window to whoever sent you this file.'
+    if ($script:Strings) {
+        $stopped = Get-MenuString 'Menu.Failed.Title'
+        $showThis = Get-MenuString 'Menu.ShowThis'
+    }
+
+    Write-Problem -Title $stopped -Detail @($_.Exception.Message, '', $showThis)
     exit $SETUP_PROBLEM
 }

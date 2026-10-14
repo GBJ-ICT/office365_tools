@@ -1,7 +1,7 @@
 # Multi-language design
 
-> **Status: step 1 and the upload checker's launcher (step 2, parts a and b) are
-> built**; the tool menu and everything after it is planned. Where the implementation
+> **Status: steps 1 and 2 are built** (the language support, the upload checker's
+> launcher and the tool menu); the rest is planned. Where the implementation
 > differs from the design, this document is updated in the same commit. See
 > [Rollout](#rollout). The user-facing view is [language.md](../user/language.md).
 
@@ -462,7 +462,15 @@ yet converted keep their English text until their turn.
      window and folder picker -- and the **L** picker. Only the message about
      the shared files themselves stays English. Four commits, because each had
      to pass the pipelines on its own.
-   - **2c:** the tool menu window in `Start-Tool.ps1`.
+   - **2c, done:** the tool menu in `Start-Tool.ps1`, in two commits: the picker
+     moved into the shared language file so the menu and the upload checker use
+     one implementation, then the menu itself. The window has a language box (English,
+     Deutsch, Follow Windows) and draws itself again in the language chosen; the
+     numbered list takes **L**. Each tool's title and description come from its
+     own `Resources\`, falling back to `tool.psd1`. A language chosen in the
+     menu is always passed to the tool as `-Language`, so it beats an environment
+     variable and a language in the tool's settings file for that run. Only the
+     message that the shared language file itself is missing stays English.
 3. `scripts/Test-Upload.ps1` console output and `-Language`.
 4. Module commands, by group: connection, library, permissions, content types,
    document sets, reports.
