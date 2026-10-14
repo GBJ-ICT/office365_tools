@@ -84,9 +84,7 @@ function Connect-O365 {
 
         if (-not $store.Exists) {
             throw [System.InvalidOperationException]::new(
-                "No profile store found at '$($store.Path)'. " +
-                "Copy config/profiles.example.json to config/profiles.json and fill in your tenant, " +
-                "or connect explicitly: Connect-O365 -SiteUrl <url> -ClientId <guid>."
+                (Get-O365String 'Connection.NoProfileStore' $store.Path)
             )
         }
 
@@ -94,15 +92,13 @@ function Connect-O365 {
 
         if (-not $resolvedProfile) {
             throw [System.InvalidOperationException]::new(
-                "No profile specified and no 'defaultProfile' set in '$($store.Path)'. " +
-                "Available profiles: $(@($store.Profiles.Keys) -join ', ')."
+                (Get-O365String 'Connection.NoDefaultProfile' $store.Path (@($store.Profiles.Keys) -join ', '))
             )
         }
 
         if (-not $store.Profiles.ContainsKey($resolvedProfile)) {
             throw [System.InvalidOperationException]::new(
-                "Profile '$resolvedProfile' is not defined in '$($store.Path)'. " +
-                "Available profiles: $(@($store.Profiles.Keys) -join ', ')."
+                (Get-O365String 'Connection.ProfileUnknown' $resolvedProfile $store.Path (@($store.Profiles.Keys) -join ', '))
             )
         }
 
@@ -118,7 +114,7 @@ function Connect-O365 {
     # being told to install a module.
     Assert-SpoPnPModule
 
-    Write-O365Log "Connecting to '$SiteUrl' with client ID '$ClientId'." 'Info'
+    Write-O365Log (Get-O365String 'Connection.Connecting' $SiteUrl $ClientId) 'Info'
 
     $connectParams = @{
         Url      = $SiteUrl
@@ -133,9 +129,7 @@ function Connect-O365 {
     }
     catch {
         throw [System.InvalidOperationException]::new(
-            "Failed to connect to '$SiteUrl': $($_.Exception.Message) " +
-            "Check that the client ID is registered in this tenant and that you have access to the site. " +
-            "See docs/sandbox/authentication.md.",
+            (Get-O365String 'Connection.Failed' $SiteUrl $_.Exception.Message),
             $_.Exception
         )
     }
@@ -152,7 +146,7 @@ function Connect-O365 {
     # changed since; a fresh connection starts with a fresh view of it.
     $script:O365DocumentSetTemplateCache.Clear()
 
-    Write-O365Log "Connected to '$SiteUrl'." 'Success'
+    Write-O365Log (Get-O365String 'Connection.Connected' $SiteUrl) 'Success'
 
     if ($PassThru) {
         $connection

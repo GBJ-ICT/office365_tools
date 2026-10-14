@@ -81,7 +81,7 @@ function Publish-SpoFileDraft {
     process {
         foreach ($required in 'ServerRelativeUrl', 'List', 'ItemId', 'Version', 'Publishable') {
             if ($required -notin $InputObject.PSObject.Properties.Name) {
-                Write-Error "Input object is missing the '$required' property. Pipe output from Get-SpoFileDraft."
+                Write-Error (Get-O365String 'Library.Publish.MissingProperty' $required)
                 return
             }
         }
@@ -90,7 +90,7 @@ function Publish-SpoFileDraft {
 
         if (-not $InputObject.Publishable) {
             $skipped++
-            Write-O365Log "Skipping '$url': $($InputObject.Reason)." 'Info'
+            Write-O365Log (Get-O365String 'Library.Publish.SkipReason' $url $InputObject.Reason) 'Info'
             & $emit $InputObject 'Skipped' '' $null
             return
         }
@@ -101,7 +101,7 @@ function Publish-SpoFileDraft {
         }
         catch {
             $failed++
-            Write-Error -Message "Could not re-read '$url': $($_.Exception.Message)" -TargetObject $url
+            Write-Error -Message (Get-O365String 'Library.Publish.ReadFailed' $url $_.Exception.Message) -TargetObject $url
             & $emit $InputObject 'Failed' '' $_.Exception.Message
             return
         }
@@ -111,19 +111,19 @@ function Publish-SpoFileDraft {
 
         if ($nowVersion -ne $InputObject.Version) {
             $skipped++
-            Write-O365Log "Skipping '$url': version changed from $($InputObject.Version) to $nowVersion since the scan; somebody has edited it." 'Warning'
+            Write-O365Log (Get-O365String 'Library.Publish.SkipChanged' $url $InputObject.Version $nowVersion) 'Warning'
             & $emit $InputObject 'SkippedChangedSinceScan' $nowVersion $null
             return
         }
 
         if ($null -ne $nowCheckout) {
             $skipped++
-            Write-O365Log "Skipping '$url': checked out to $($nowCheckout.LookupValue) since the scan." 'Warning'
+            Write-O365Log (Get-O365String 'Library.Publish.SkipCheckedOut' $url $nowCheckout.LookupValue) 'Warning'
             & $emit $InputObject 'SkippedCheckedOut' $nowVersion $null
             return
         }
 
-        if (-not $PSCmdlet.ShouldProcess($url, "Publish draft $nowVersion as a major version")) {
+        if (-not $PSCmdlet.ShouldProcess($url, (Get-O365String 'Library.Publish.Action' $nowVersion))) {
             return
         }
 
@@ -133,18 +133,18 @@ function Publish-SpoFileDraft {
             Invoke-PnPQuery -ErrorAction Stop
 
             $published++
-            Write-O365Log "Published '$url' (was $nowVersion)." 'Success'
+            Write-O365Log (Get-O365String 'Library.Publish.Published' $url $nowVersion) 'Success'
             & $emit $InputObject 'Published' '' $null
         }
         catch {
             $failed++
-            Write-O365Log "Failed to publish '$url': $($_.Exception.Message)" 'Error'
-            Write-Error -Message "Failed to publish '$url': $($_.Exception.Message)" -TargetObject $url
+            Write-O365Log (Get-O365String 'Library.Publish.Failed' $url $_.Exception.Message) 'Error'
+            Write-Error -Message (Get-O365String 'Library.Publish.Failed' $url $_.Exception.Message) -TargetObject $url
             & $emit $InputObject 'Failed' '' $_.Exception.Message
         }
     }
 
     end {
-        Write-O365Log "Publish complete: $published published, $skipped skipped, $failed failed." 'Info'
+        Write-O365Log (Get-O365String 'Library.Publish.Done' $published $skipped $failed) 'Info'
     }
 }
