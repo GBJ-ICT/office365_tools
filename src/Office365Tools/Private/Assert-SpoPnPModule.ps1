@@ -33,9 +33,6 @@ function Assert-SpoPnPModule {
     }
 
     throw [System.InvalidOperationException]::new(
-        "This command talks to SharePoint, which needs the PnP.PowerShell module. " +
-        "Install it once with: Install-Module PnP.PowerShell -Scope CurrentUser " +
-        "-- or use only the offline commands (Test-SpoFileName, Get-SpoRecurringDate, " +
-        "Export-SpoReport, and scripts/Test-Upload.ps1 without -Library), which need nothing extra."
+        (Get-O365String 'Connection.PnpMissing')
     )
 }

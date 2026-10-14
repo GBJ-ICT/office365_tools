@@ -61,7 +61,7 @@ function Test-SpoPathLength {
     process {
         $list = Resolve-SpoList -Identity $Library
 
-        Write-O365Log "Checking path lengths in '$($list.Title)' against a limit of $Limit." 'Info'
+        Write-O365Log (Get-O365String 'Library.Paths.Checking' $list.Title $Limit) 'Info'
 
         $items = Get-PnPListItem -List $list -PageSize $PageSize
 
@@ -77,17 +77,17 @@ function Test-SpoPathLength {
             if ($remaining -lt 0) {
                 New-SpoFinding -RuleId 'PathLength.Exceeded' -Severity Error -Scope Item `
                     -Target $url -List $list.Title `
-                    -Message "Path is $length characters, $([Math]::Abs($remaining)) over the $Limit character limit." `
+                    -Message (Get-O365String 'Rule.PathLength.Exceeded' $length ([Math]::Abs($remaining)) $Limit) `
                     -Detail @{ Length = $length; Limit = $Limit; Remaining = $remaining; ItemId = $item.Id }
             }
             elseif ($remaining -le $WarnAt) {
                 New-SpoFinding -RuleId 'PathLength.NearLimit' -Severity Warning -Scope Item `
                     -Target $url -List $list.Title `
-                    -Message "Path is $length characters, only $remaining short of the $Limit character limit." `
+                    -Message (Get-O365String 'Rule.PathLength.NearLimit' $length $remaining $Limit) `
                     -Detail @{ Length = $length; Limit = $Limit; Remaining = $remaining; ItemId = $item.Id }
             }
         }
 
-        Write-O365Log "Path length check for '$($list.Title)' complete." 'Success'
+        Write-O365Log (Get-O365String 'Library.Paths.Done' $list.Title) 'Success'
     }
 }

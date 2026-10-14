@@ -36,7 +36,7 @@ function Stop-O365Log {
         ) -Encoding utf8
     }
     catch {
-        Write-Warning "Could not write log footer: $($_.Exception.Message)"
+        Write-Warning (Get-O365String 'Connection.LogFooterFailed' $_.Exception.Message)
     }
 
     $script:O365State.LogPath = $null

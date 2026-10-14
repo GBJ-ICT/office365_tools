@@ -27,15 +27,13 @@ function Assert-SpoConnection {
     }
     catch {
         throw [System.InvalidOperationException]::new(
-            "Not connected to SharePoint. Run 'Connect-O365' first " +
-            "(for example: Connect-O365 -Profile prod, or " +
-            "Connect-O365 -SiteUrl https://contoso.sharepoint.com/sites/team -ClientId <guid>)."
+            (Get-O365String 'Connection.NotConnectedHelp')
         )
     }
 
     if (-not $connection) {
         throw [System.InvalidOperationException]::new(
-            "Not connected to SharePoint. Run 'Connect-O365' first."
+            (Get-O365String 'Connection.NotConnected')
         )
     }
 

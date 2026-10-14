@@ -26,7 +26,7 @@ function Get-O365Connection {
     }
 
     if (-not $live -and -not $script:O365State.Connection) {
-        Write-O365Log "Not connected. Run 'Connect-O365' to connect." 'Info'
+        Write-O365Log (Get-O365String 'Connection.NotConnectedShort') 'Info'
         return
     }
 

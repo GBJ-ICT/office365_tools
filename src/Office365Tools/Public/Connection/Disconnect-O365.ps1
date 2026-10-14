@@ -14,18 +14,18 @@ function Disconnect-O365 {
     param()
 
     if (-not $script:O365State.Connection) {
-        Write-O365Log 'No active connection to disconnect.' 'Info'
+        Write-O365Log (Get-O365String 'Connection.NothingToDisconnect') 'Info'
         return
     }
 
     $target = $script:O365State.SiteUrl
 
-    if ($PSCmdlet.ShouldProcess($target, 'Disconnect')) {
+    if ($PSCmdlet.ShouldProcess($target, (Get-O365String 'Connection.DisconnectAction'))) {
         try {
             Disconnect-PnPOnline -ErrorAction Stop
         }
         catch {
-            Write-O365Log "PnP reported an error while disconnecting: $($_.Exception.Message)" 'Warning'
+            Write-O365Log (Get-O365String 'Connection.DisconnectError' $_.Exception.Message) 'Warning'
         }
 
         $script:O365State.Connection  = $null
@@ -36,6 +36,6 @@ function Disconnect-O365 {
 
         $script:O365DocumentSetTemplateCache.Clear()
 
-        Write-O365Log "Disconnected from '$target'." 'Success'
+        Write-O365Log (Get-O365String 'Connection.Disconnected' $target) 'Success'
     }
 }

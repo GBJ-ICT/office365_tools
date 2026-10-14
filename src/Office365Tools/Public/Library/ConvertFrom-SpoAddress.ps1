@@ -67,14 +67,12 @@ function ConvertFrom-SpoAddress {
             $uri.Scheme -notin 'http', 'https') {
 
             throw [System.ArgumentException]::new(
-                "'$text' is not a web address. Open the folder in SharePoint and copy the whole " +
-                'address from the browser, starting with https://')
+                (Get-O365String 'Library.Address.NotAddress' $text))
         }
 
         if ($uri.Host -like '*teams.microsoft.com') {
             throw [System.ArgumentException]::new(
-                'That is a Teams link, and it does not say where the files are. In Teams, open the ' +
-                'Files tab, choose "Open in SharePoint", and copy the address from the browser there.')
+                (Get-O365String 'Library.Address.TeamsLink'))
         }
 
         # Sharing links -- https://contoso.sharepoint.com/:f:/s/team/Ex4kQ... --
@@ -82,8 +80,7 @@ function ConvertFrom-SpoAddress {
         # honest answer is to ask for the other address rather than to guess.
         if ($uri.AbsolutePath -match '^/:[a-z]:/' -or $uri.AbsolutePath -like '*/guestaccess.aspx') {
             throw [System.ArgumentException]::new(
-                'That is a sharing link ("Copy link"), which does not name the folder. Open the ' +
-                'folder in SharePoint and copy the address out of the browser address bar instead.')
+                (Get-O365String 'Library.Address.SharingLink'))
         }
 
         # The view's id= holds the real folder, fully spelled out. RootFolder=
@@ -124,8 +121,7 @@ function ConvertFrom-SpoAddress {
 
         if ($segments -contains '_layouts') {
             throw [System.ArgumentException]::new(
-                'That address is a SharePoint page rather than a folder. Open the library, click ' +
-                'into the folder the files are in, and copy the address from there.')
+                (Get-O365String 'Library.Address.PageNotFolder'))
         }
 
         # A page is never a folder, so a trailing .aspx is view machinery left

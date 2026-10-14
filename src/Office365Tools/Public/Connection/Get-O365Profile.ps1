@@ -32,8 +32,7 @@ function Get-O365Profile {
 
     if (-not $store.Exists) {
         Write-O365Log (
-            "No profile store at '$($store.Path)'. " +
-            'Copy config/profiles.example.json to config/profiles.json to create one.'
+            (Get-O365String 'Connection.NoStoreShort' $store.Path)
         ) 'Warning'
         return
     }

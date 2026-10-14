@@ -80,7 +80,7 @@ function Compare-SpoFolder {
         [Parameter(Mandatory, Position = 0)]
         [ValidateScript({
                 if (-not (Test-Path -LiteralPath $_ -PathType Container)) {
-                    throw "Local folder '$_' does not exist."
+                    throw (Get-O365String 'Library.Compare.LocalMissing' $_)
                 }
                 $true
             })]
@@ -128,7 +128,7 @@ function Compare-SpoFolder {
         $rootUrl
     }
 
-    Write-O365Log "Comparing '$LocalPath' with '$scopeUrl'." 'Info'
+    Write-O365Log (Get-O365String 'Library.Compare.Comparing' $LocalPath $scopeUrl) 'Info'
 
     # -- Local side ---------------------------------------------------------
     $localRoot  = (Resolve-Path -LiteralPath $LocalPath).Path.TrimEnd('\')
@@ -139,7 +139,7 @@ function Compare-SpoFolder {
         $localFiles[$relative] = $file
     }
 
-    Write-O365Log "Found $($localFiles.Count) local file(s)." 'Info'
+    Write-O365Log (Get-O365String 'Library.Compare.LocalFound' $localFiles.Count) 'Info'
 
     # -- Remote side --------------------------------------------------------
     # One paged call over the whole library, filtered to the scope, beats
@@ -219,23 +219,23 @@ function Compare-SpoFolder {
                 } |
                 Select-Object -First 5)
 
-        $message = "There is no folder '$wanted' in '$($list.Title)', so there was nothing to compare against."
+        $message = (Get-O365String 'Library.Compare.NoFolder' $wanted $list.Title)
 
         if ($near.Count -gt 0) {
-            $message += " Did you mean: $($near -join ', ')?"
+            $message += (Get-O365String 'Library.Compare.DidYouMean' ($near -join ', '))
         }
         elseif ($existing.Count -gt 0) {
             $top = @($existing | Where-Object { $_ -notmatch '/' } | Select-Object -First 10)
-            $message += " Folders at the top level of the library: $($top -join ', ')."
+            $message += (Get-O365String 'Library.Compare.TopLevel' ($top -join ', '))
         }
         else {
-            $message += ' That library has no folders in it at all.'
+            $message += (Get-O365String 'Library.Compare.NoFolders')
         }
 
         throw $message
     }
 
-    Write-O365Log "Found $($remoteFiles.Count) remote file(s) under '$scopeUrl'." 'Info'
+    Write-O365Log (Get-O365String 'Library.Compare.RemoteFound' $remoteFiles.Count $scopeUrl) 'Info'
 
     # -- Compare ------------------------------------------------------------
     # Paths are compared case-insensitively, matching SharePoint's own
@@ -326,5 +326,5 @@ function Compare-SpoFolder {
             })
     }
 
-    Write-O365Log 'Comparison complete.' 'Success'
+    Write-O365Log (Get-O365String 'Library.Compare.Done') 'Success'
 }

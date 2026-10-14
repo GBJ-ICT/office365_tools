@@ -25,11 +25,11 @@ function Remove-O365Profile {
         $store = Get-O365ProfileStore
 
         if (-not $store.Profiles.ContainsKey($Name)) {
-            Write-O365Log "Profile '$Name' does not exist; nothing to remove." 'Warning'
+            Write-O365Log (Get-O365String 'Connection.ProfileMissing' $Name) 'Warning'
             return
         }
 
-        if ($PSCmdlet.ShouldProcess($Name, 'Remove profile')) {
+        if ($PSCmdlet.ShouldProcess($Name, (Get-O365String 'Connection.RemoveProfileAction'))) {
             $store.Profiles.Remove($Name)
 
             if ($store.DefaultProfile -eq $Name) {
@@ -42,7 +42,7 @@ function Remove-O365Profile {
             }
 
             Save-O365ProfileStore -Store $store
-            Write-O365Log "Removed profile '$Name'." 'Success'
+            Write-O365Log (Get-O365String 'Connection.ProfileRemoved' $Name) 'Success'
         }
     }
 }

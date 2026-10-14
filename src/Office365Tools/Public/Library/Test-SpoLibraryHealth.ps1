@@ -107,7 +107,7 @@ function Test-SpoLibraryHealth {
         $root    = Get-PnPProperty -ClientObject $list -Property RootFolder
         $rootUrl = $root.ServerRelativeUrl
 
-        Write-O365Log "Running health check on '$($list.Title)' with rules: $($Rule -join ', ')." 'Info'
+        Write-O365Log (Get-O365String 'Library.Health.Running' $list.Title ($Rule -join ', ')) 'Info'
 
         # Findings are collected, then filtered by severity on the way out, so
         # every rule can emit freely and the filter lives in one place.
@@ -133,7 +133,7 @@ function Test-SpoLibraryHealth {
         $items = @(Get-PnPListItem -List $list -PageSize $PageSize)
 
         if ($items.Count -eq 0) {
-            Write-O365Log "Library '$($list.Title)' is empty." 'Warning'
+            Write-O365Log (Get-O365String 'Library.Health.Empty' $list.Title) 'Warning'
         }
 
         $nameIndex        = @{}   # leaf name -> list of URLs, for the Duplicate rule
@@ -181,13 +181,13 @@ function Test-SpoLibraryHealth {
                 if ($remaining -lt 0) {
                     $findings.Add((New-SpoFinding -RuleId 'PathLength.Exceeded' -Severity Error -Scope Item `
                                 -Target $url -List $list.Title `
-                                -Message "Path is $($url.Length) characters, $([Math]::Abs($remaining)) over the 400 character limit." `
+                                -Message (Get-O365String 'Rule.PathLength.Exceeded400' $url.Length ([Math]::Abs($remaining))) `
                                 -Detail @{ Length = $url.Length; Remaining = $remaining }))
                 }
                 elseif ($remaining -le 50) {
                     $findings.Add((New-SpoFinding -RuleId 'PathLength.NearLimit' -Severity Warning -Scope Item `
                                 -Target $url -List $list.Title `
-                                -Message "Path is $($url.Length) characters, only $remaining short of the 400 character limit." `
+                                -Message (Get-O365String 'Rule.PathLength.NearLimit400' $url.Length $remaining) `
                                 -Detail @{ Length = $url.Length; Remaining = $remaining }))
                 }
             }
@@ -207,7 +207,7 @@ function Test-SpoLibraryHealth {
                     $who = if ($checkoutUser.LookupValue) { $checkoutUser.LookupValue } else { $checkoutUser }
                     $findings.Add((New-SpoFinding -RuleId 'File.CheckedOut' -Severity Warning -Scope Item `
                                 -Target $url -List $list.Title `
-                                -Message "File is checked out to $who; other users may not see the latest content." `
+                                -Message (Get-O365String 'Rule.File.CheckedOut' $who) `
                                 -Detail @{ CheckedOutTo = "$who"; ItemId = $item.Id }))
                 }
             }
@@ -222,7 +222,7 @@ function Test-SpoLibraryHealth {
                 if ('LargeFile' -in $Rule -and $size -gt ($LargeFileThresholdMb * 1MB)) {
                     $findings.Add((New-SpoFinding -RuleId 'File.Large' -Severity Info -Scope Item `
                                 -Target $url -List $list.Title `
-                                -Message "File is $([Math]::Round($size / 1MB, 1)) MB, over the $LargeFileThresholdMb MB threshold." `
+                                -Message (Get-O365String 'Rule.File.Large' ([Math]::Round($size / 1MB, 1)) $LargeFileThresholdMb) `
                                 -Detail @{ SizeBytes = $size; SizeMb = [Math]::Round($size / 1MB, 1) }))
                 }
 
@@ -240,7 +240,7 @@ function Test-SpoLibraryHealth {
                             TotalSizeBytes = $totalSize
                             Ratio          = [Math]::Round($totalSize / $size, 1)
                         }
-                        $message = "Version history occupies $([Math]::Round($totalSize / 1MB, 1)) MB for a $([Math]::Round($size / 1MB, 1)) MB file."
+                        $message = (Get-O365String 'Rule.File.VersionBloat' ([Math]::Round($totalSize / 1MB, 1)) ([Math]::Round($size / 1MB, 1)))
                         $findings.Add((New-SpoFinding -RuleId 'File.VersionBloat' -Severity Info -Scope Item `
                                     -Target $url -List $list.Title -Message $message -Detail $detail))
                     }
@@ -254,7 +254,7 @@ function Test-SpoLibraryHealth {
                     if ($null -eq $value -or ($value -is [string] -and [string]::IsNullOrWhiteSpace($value))) {
                         $findings.Add((New-SpoFinding -RuleId 'Item.RequiredFieldEmpty' -Severity Warning -Scope Item `
                                     -Target $url -List $list.Title `
-                                    -Message "Required column '$($field.Title)' has no value." `
+                                    -Message (Get-O365String 'Rule.Item.RequiredFieldEmpty' $field.Title) `
                                     -Detail @{ Field = $field.InternalName; Title = $field.Title; ItemId = $item.Id }))
                     }
                 }
@@ -266,12 +266,12 @@ function Test-SpoLibraryHealth {
                     if (Get-PnPProperty -ClientObject $item -Property HasUniqueRoleAssignments) {
                         $findings.Add((New-SpoFinding -RuleId 'Permission.DeepUniqueAssignment' -Severity Warning -Scope Item `
                                     -Target $url -List $list.Title `
-                                    -Message "Unique permissions at depth $($pathInfo.Depth); this is easy to lose track of." `
+                                    -Message (Get-O365String 'Rule.Permission.DeepUniqueAssignment' $pathInfo.Depth) `
                                     -Detail @{ Depth = $pathInfo.Depth; ItemId = $item.Id }))
                     }
                 }
                 catch {
-                    Write-O365Log "Could not read permission state of '$url': $($_.Exception.Message)" 'Warning'
+                    Write-O365Log (Get-O365String 'Library.Health.PermissionReadFailed' $url $_.Exception.Message) 'Warning'
                 }
             }
         }
@@ -285,7 +285,7 @@ function Test-SpoLibraryHealth {
                 if ($entry.Value.Count -gt 1) {
                     $findings.Add((New-SpoFinding -RuleId 'File.DuplicateName' -Severity Info -Scope List `
                                 -Target $entry.Key -List $list.Title `
-                                -Message "'$($entry.Key)' appears $($entry.Value.Count) times in different folders." `
+                                -Message (Get-O365String 'Rule.File.DuplicateName' $entry.Key $entry.Value.Count) `
                                 -Detail @{ Count = $entry.Value.Count; Paths = @($entry.Value) }))
                 }
             }
@@ -296,7 +296,7 @@ function Test-SpoLibraryHealth {
                 if ($folderChildCount[$folderUrl] -eq 0) {
                     $findings.Add((New-SpoFinding -RuleId 'Folder.Empty' -Severity Info -Scope Folder `
                                 -Target $folderUrl -List $list.Title `
-                                -Message 'Folder contains no items.' `
+                                -Message (Get-O365String 'Rule.Folder.Empty') `
                                 -Detail @{}))
                 }
             }

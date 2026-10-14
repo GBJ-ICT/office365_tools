@@ -107,13 +107,12 @@ function Get-SpoFileDraft {
                     }
                 }
             }
-            Write-O365Log "Change record covers $($record.Count) item(s)." 'Info'
+            Write-O365Log (Get-O365String 'Library.Draft.RecordCovers' $record.Count) 'Info'
         }
 
         if (-not $IgnoreChangeRecord -and $record.Count -eq 0) {
             throw [System.InvalidOperationException]::new(
-                'No change record was loaded. Pass -ChangeRecord with the before.csv written by the repair, ' +
-                'or -IgnoreChangeRecord to judge drafts on the version rule alone.'
+                (Get-O365String 'Library.Draft.NoRecord')
             )
         }
     }

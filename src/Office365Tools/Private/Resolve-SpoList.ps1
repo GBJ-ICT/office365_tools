@@ -43,14 +43,14 @@ function Resolve-SpoList {
                 Sort-Object)
 
         $hint = if ($available.Count -gt 0) {
-            "Available lists on $($script:O365State.SiteUrl): $($available -join ', ')"
+            (Get-O365String 'Connection.ListsAvailable' $script:O365State.SiteUrl ($available -join ', '))
         }
         else {
-            'No visible lists were found on the connected site. Check that you connected to the right site.'
+            (Get-O365String 'Connection.ListsNone')
         }
 
         throw [System.InvalidOperationException]::new(
-            "List or library '$Identity' was not found. $hint"
+            (Get-O365String 'Connection.ListNotFound' $Identity $hint)
         )
     }
 
