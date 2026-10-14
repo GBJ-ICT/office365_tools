@@ -5,7 +5,8 @@
     The language is the first of these that is set to something other than
     'auto':
 
-      Parameter     a -Language argument
+      Parameter     a language given for this session (Set-O365Language
+                    -SessionOnly, which scripts use for their -Language)
       Environment   the O365_LANGUAGE environment variable
       SavedSetting  the choice saved by Set-O365Language or the launcher
       Windows       the Windows display language
@@ -29,7 +30,7 @@ function Get-O365Language {
     [OutputType([pscustomobject])]
     param()
 
-    $resolved = Resolve-O365Language
+    $resolved = Resolve-O365Language -Language $script:O365State.LanguageOverride
 
     # Anything cached under another language is stale.
     if ($script:O365State.Language -ne $resolved.Language) {

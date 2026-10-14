@@ -34,6 +34,7 @@
         # --- Language -------------------------------------------------------
         'Get-O365Language'
         'Set-O365Language'
+        'Get-O365String'
 
         # --- Permissions ----------------------------------------------------
         'Get-SpoPermissionMismatch'
