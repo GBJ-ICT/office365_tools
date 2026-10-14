@@ -4,11 +4,11 @@ Die Werkzeuge sprechen **Englisch** oder **Deutsch**. Standardmässig nehmen sie
 die Sprache, auf die dein Windows eingestellt ist, die meisten müssen also
 nichts ändern.
 
-!!! note "Was heute in beiden Sprachen vorliegt"
-    Die **Upload-Prüfung** (der Starter, das Werkzeug-Menü, die Prüfung selbst und
-    ihre Berichte) und die **Prüfungen der Dateinamen** gibt es auf Englisch und
-    Deutsch. Die übrigen Skripte und PowerShell-Befehle sprechen noch nur
-    Englisch; sie folgen.
+!!! note "Was in beiden Sprachen vorliegt"
+    Alles: die **Upload-Prüfung** (der Starter, das Werkzeug-Menü, die Prüfung
+    selbst und ihre Berichte), die **Prüfungen der Dateinamen**, alle **Skripte**
+    und die **PowerShell-Befehle**. Namen von Befehlen und Parametern und die
+    Spaltennamen in CSV-Dateien bleiben bewusst englisch.
 
 ## Die Sprache ändern
 

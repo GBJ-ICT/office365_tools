@@ -1,8 +1,8 @@
 # Multi-language design
 
-> **Status: steps 1 and 2 are built** (the language support, the upload checker's
-> launcher and the tool menu); the rest is planned. Where the implementation
-> differs from the design, this document is updated in the same commit. See
+> **Status: built.** All steps of the [rollout](#rollout) are done: the language
+> support, the upload checker, the module commands and every script. Where the
+> implementation differs from the design, this document says so. See
 > [Rollout](#rollout). The user-facing view is [language.md](../user/language.md).
 
 Every tool in the repository supports **English (`en`) and German (`de`)**. The
@@ -500,9 +500,13 @@ yet converted keep their English text until their turn.
    template filled in at once. Findings saved as JSON are therefore in the
    language they were made in; their `RuleId` is not. Checking an empty
    folder also stopped the script before; that is fixed.
-4. Module commands, by group: connection, library, permissions, content types,
-   document sets, reports.
-5. HTML report text, rule titles and fixes.
+4. **Done:** the module commands, by group: connection, library, permissions,
+   content types, document sets, list items, schedules, PDF and reports. Their
+   texts are in src/Office365Tools/Resources; reason codes stay data.
+5. **Done:** HTML report text, rule titles and fixes, and all eleven scripts in
+   scripts/ (each takes -Language and reads scripts/Resources). The
+   interactive menu of Manage-ContentType.ps1 also accepts the German answers
+   (j, ja, z, ) next to the English ones.
 6. **Done for the upload checker, which is what exists as a tool:** the user
    guide in German (`docs/user/*.de.md`, with a test that no page is missing one),
    the hand-out read-me in German (`READ-ME-FIRST.de.txt`, which `build.ps1`
