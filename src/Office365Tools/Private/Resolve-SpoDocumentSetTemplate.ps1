@@ -180,7 +180,7 @@ function Resolve-SpoDocumentSetTemplate {
                     })
         }
         catch {
-            Write-O365Log "Could not read columns of content type '$ContentTypeId': $($_.Exception.Message)" 'Warning'
+            Write-O365Log (Get-O365String 'Helper.DocSetTemplate.ColumnsFailed' $ContentTypeId $_.Exception.Message) 'Warning'
             @()
         }
     }
@@ -198,7 +198,7 @@ function Resolve-SpoDocumentSetTemplate {
                 @(Get-PnPProperty -ClientObject $template -Property $property -ErrorAction Stop)
             }
             catch {
-                Write-O365Log "Could not read $property of Document Set template '$ContentTypeId': $($_.Exception.Message)" 'Warning'
+                Write-O365Log (Get-O365String 'Helper.DocSetTemplate.PropertyFailed' $property $ContentTypeId $_.Exception.Message) 'Warning'
                 @()
             }
 
@@ -210,7 +210,7 @@ function Resolve-SpoDocumentSetTemplate {
         }
     }
     else {
-        Write-O365Log "No Document Set template resolved for content type '$ContentTypeId'. Tried: $($candidates -join ', ')." 'Warning'
+        Write-O365Log (Get-O365String 'Helper.DocSetTemplate.NotResolved' $ContentTypeId ($candidates -join ', ')) 'Warning'
     }
 
     $result = [pscustomobject]@{

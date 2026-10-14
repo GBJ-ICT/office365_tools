@@ -43,8 +43,7 @@ function Get-O365ProfileStore {
     }
     catch {
         throw [System.InvalidOperationException]::new(
-            "Profile file '$Path' is not valid JSON: $($_.Exception.Message). " +
-            "Compare it against config/profiles.example.json."
+            (Get-O365String 'Helper.ProfileStore.NotJson' $Path $_.Exception.Message)
         )
     }
 

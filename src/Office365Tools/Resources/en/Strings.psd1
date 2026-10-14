@@ -593,4 +593,38 @@
     'Pdf.Test.Checked'                                         = 'Checked {0} value(s) against ''{1}'': {2} missing, {3} wrapped{4}'
 
     'Pdf.Test.LinksMissing'                                    = ', {0} link(s) missing.'
+
+    'Helper.FieldXml.NotWellFormed'                            = 'SchemaXml is not well-formed XML: {0}'
+
+    'Helper.FieldXml.NotField'                                 = 'Expected a <Field> element, got <{0}>.'
+
+    'Helper.Browser.NotFound'                                  = 'No Chromium-based browser was found, and one is what renders the PDF. Looked for msedge.exe and chrome.exe under ''{0}'', ''{1}'' and ''{2}'', then on PATH. Pass -BrowserPath with the full path to msedge.exe or chrome.exe.'
+
+    'Helper.ProfileStore.NotJson'                              = 'Profile file ''{0}'' is not valid JSON: {1}. Compare it against config/profiles.example.json.'
+
+    'Helper.ProfileStore.Saved'                                = 'Saved profile store to ''{0}''.'
+
+    'Helper.Pdf.PdftotextFailed'                               = 'pdftotext failed, falling back to the built-in reader: {0}'
+
+    'Helper.Print.NoBrowserAt'                                 = 'No browser at ''{0}''. Point -BrowserPath at msedge.exe or chrome.exe, or omit it to search the usual locations.'
+
+    'Helper.Print.Printing'                                    = 'Printing with {0} ({1}).'
+
+    'Helper.Print.Timeout'                                     = 'The browser did not finish printing within {0} seconds. Raise -TimeoutSecond, or print fewer rows per file.'
+
+    'Helper.Print.NoPdf'                                       = '{0} produced no PDF (exit {1}). {2}'
+
+    'Helper.Print.Failed'                                      = '''{0}'' exited without writing ''{1}'' in either headless mode. Run the same command by hand without --headless to see what it says, or pass -KeepHtml and print the HTML from a browser.'
+
+    'Helper.DocSetMap.Reading'                                 = 'Reading items of ''{0}''.'
+
+    'Helper.DocSetMap.Read'                                    = 'Read {0} item(s) from ''{1}''.'
+
+    'Helper.DocSetMap.Found'                                   = 'Found {0} Document Set(s) in ''{1}''.'
+
+    'Helper.DocSetTemplate.ColumnsFailed'                      = 'Could not read columns of content type ''{0}'': {1}'
+
+    'Helper.DocSetTemplate.PropertyFailed'                     = 'Could not read {0} of Document Set template ''{1}'': {2}'
+
+    'Helper.DocSetTemplate.NotResolved'                        = 'No Document Set template resolved for content type ''{0}''. Tried: {1}.'
 }

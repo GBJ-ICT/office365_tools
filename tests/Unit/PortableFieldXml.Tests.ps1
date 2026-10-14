@@ -11,6 +11,10 @@
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
 
+    # The refusals are asserted by their English wording. Pinned for the session,
+    # so they hold on a machine whose Windows is German.
+    Set-O365Language -Language en -SessionOnly
+
     # Private helpers are not exported, so reach into the module scope for it.
     $script:Convert = {
         param([hashtable]$Splat)
@@ -150,6 +154,17 @@ Describe 'ConvertTo-SpoPortableFieldXml' {
         It 'rejects an element that is not a Field' {
             { & $script:Convert @{ SchemaXml = '<View Name="x" />' } } |
                 Should -Throw -ExpectedMessage '*<Field>*'
+        }
+
+        It 'says in German that the XML is not well-formed, and what it expected instead' {
+            Set-O365Language -Language de -SessionOnly
+            try {
+                { & $script:Convert @{ SchemaXml = '<Field oops' } } | Should -Throw -ExpectedMessage '*wohlgeformtes XML*'
+                { & $script:Convert @{ SchemaXml = '<View Name="x" />' } } | Should -Throw -ExpectedMessage '*<Field>-Element*<View>*'
+            }
+            finally {
+                Set-O365Language -Language en -SessionOnly
+            }
         }
     }
 }
