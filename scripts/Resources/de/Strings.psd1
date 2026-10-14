@@ -417,4 +417,62 @@ damit dir die vorhandenen Ordner angeboten werden.'
     'Register.ProfileSaved'                 = 'Das Profil ''{0}'' wurde gespeichert. Verbinde dich mit: Connect-O365 -ProfileName {0}'
 
     'Register.SaveAsProfile'                = 'Speichere sie als Profil mit:'
+
+    'DateSeries.DefaultNotJson'             = '-Default konnte nicht als JSON gelesen werden: {0} Aus einer Shell gibst du es als JSON an: -Default ''{{"Status":"terminiert"}}''. In einer PowerShell-Eingabe geht auch eine Hashtable: -Default @{{ Status = ''terminiert'' }}'
+
+    'DateSeries.DefaultNotObject'           = '-Default muss ein JSON-Objekt sein, zum Beispiel: -Default ''{"Status":"terminiert"}'''
+
+    'DateSeries.DefaultWrongType'           = '-Default muss eine Hashtable oder ein JSON-Objekt sein, nicht {0}.'
+
+    'DateSeries.NeedsEnd'                   = 'Gib der Serie ein Ende: entweder -Until <Datum> oder -Count <n>.'
+
+    'DateSeries.NoDates'                    = 'Diese Wiederholung trifft auf kein Datum zu. Es gibt nichts zu planen.'
+
+    'DateSeries.Planned'                    = '{0} Eintrag/Einträge für ''{1}'' geplant.'
+
+    'DateSeries.PlanPath'                   = 'Plan: {0}'
+
+    'DateSeries.ReadIt'                     = 'Lies ihn, ändere ihn und schreibe ihn dann:'
+
+    'DateSeries.PlanNotFound'               = 'Die Plandatei ''{0}'' wurde nicht gefunden.'
+
+    'DateSeries.PlanEmpty'                  = 'Der Plan ''{0}'' hat keine Zeilen.'
+
+    'DateSeries.ReadingColumns'             = 'Die Spalten von ''{0}'' werden gelesen ...'
+
+    'DateSeries.ListNotFound'               = 'Die Liste ''{0}'' wurde nicht gefunden. Diese Site hat: {1}'
+
+    'DateSeries.AmbiguousColumn'            = '''{0}'' ist der Anzeigename von mehr als einer Spalte in ''{1}'': {2}. Nenne sie stattdessen beim internen Namen.'
+
+    'DateSeries.DateFieldUnknown'           = '-DateField ''{0}'' passt zu keiner Spalte in ''{1}''. Vorhandene Spalten sind: {2}'
+
+    'DateSeries.PlanColumnUnknown'          = 'Die Plan-Spalte ''{0}'' passt zu keiner Spalte in ''{1}''. Vorhandene Spalten sind: {2}. Anzeigenamen und interne Namen werden beide akzeptiert; um eine Spalte im Plan zu behalten, ohne sie zu schreiben, benenne sie mit einem Unterstrich am Anfang um.'
+
+    'DateSeries.PlanNoDateColumn'           = 'Der Plan hat keine Spalte ''{0}''. Die Wertspalten sind: {1}. Gib bei -DateField den Namen an, den der Plan wirklich verwendet.'
+
+    'DateSeries.KeyLeftOut'                 = '  ''{0}'' ist hier keine Spalte; sie bleibt aus der Duplikatprüfung heraus.'
+
+    'DateSeries.KeyUnknown'                 = '-DuplicateKey nennt ''{0}'', das zu keiner Spalte in ''{1}'' passt. Vorhandene Spalten sind: {2}'
+
+    'DateSeries.NoKeyColumns'               = 'Keine der -DuplicateKey-Spalten gibt es in ''{0}''. Gib -AllowDuplicate an, um ohne die Prüfung zu schreiben.'
+
+    'DateSeries.DuplicateCheck'             = '  Duplikatprüfung: {0}'
+
+    'DateSeries.KeyNotPlanned'              = 'Die Duplikatprüfung verwendet {0}, wofür der Plan keine Spalte hat. Eine Planzeile ist dort leer und kann darum nur zu einem Eintrag passen, der dort ebenfalls leer ist -- in der Praxis wird nichts als Duplikat erkannt.'
+
+    'DateSeries.ReadingEntries'             = 'Bestehende Einträge aus ''{0}'' werden gelesen ...'
+
+    'DateSeries.ExistingKeys'               = '  {0} vorhandene(r) Eintragsschlüssel.'
+
+    'DateSeries.NotADate'                   = 'Zeile ''{0}'' ist kein Datum, das gelesen werden kann; sie wird übersprungen.'
+
+    'DateSeries.Skip'                       = '  übersprungen {0} -- steht schon in der Liste'
+
+    'DateSeries.Created'                    = '  angelegt {0}'
+
+    'DateSeries.WouldCreate'                = '{0} Eintrag/Einträge würden angelegt; {1} übersprungen.'
+
+    'DateSeries.Done'                       = '{0} Eintrag/Einträge angelegt; {1} übersprungen.'
+
+    'DateSeries.Log'                        = 'Protokoll: {0}'
 }

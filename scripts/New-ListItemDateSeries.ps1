@@ -276,12 +276,25 @@ param(
     [switch]$Interactive,
 
     [Parameter()]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..' 'src' 'Office365Tools') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 if (-not $OutputPath) {
     $OutputPath = Join-Path $PSScriptRoot '..' 'out' "item-series-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
@@ -314,19 +327,17 @@ elseif ($Default -is [string] -and -not [string]::IsNullOrWhiteSpace($Default)) 
         $parsed = $Default | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     }
     catch {
-        throw ("-Default could not be read as JSON: $($_.Exception.Message) " +
-            'From a shell, pass it as JSON: -Default ''{"Status":"terminiert"}''. ' +
-            'From a PowerShell prompt, a hashtable works: -Default @{ Status = ''terminiert'' }')
+        throw (Get-ScriptString 'DateSeries.DefaultNotJson' $_.Exception.Message)
     }
 
     if ($parsed -isnot [System.Collections.IDictionary]) {
-        throw '-Default must be a JSON object, for example: -Default ''{"Status":"terminiert"}'''
+        throw (Get-ScriptString 'DateSeries.DefaultNotObject')
     }
 
     foreach ($entry in $parsed.GetEnumerator()) { $defaultValue[$entry.Key] = $entry.Value }
 }
 elseif ($null -ne $Default -and $Default -isnot [string]) {
-    throw "-Default must be a hashtable or a JSON object, not $($Default.GetType().Name)."
+    throw (Get-ScriptString 'DateSeries.DefaultWrongType' $Default.GetType().Name)
 }
 
 # Column names carrying context for the reader rather than values for the list.
@@ -354,7 +365,7 @@ try {
         if ($PSCmdlet.ParameterSetName -eq 'Count') { $recurrence['Count'] = $Count }
         else {
             if (-not $PSBoundParameters.ContainsKey('Until')) {
-                throw "Give the series an end: either -Until <date> or -Count <n>."
+                throw (Get-ScriptString 'DateSeries.NeedsEnd')
             }
             $recurrence['Until'] = $Until
         }
@@ -367,7 +378,7 @@ try {
         $dates = @(Get-SpoRecurringDate @recurrence)
 
         if ($dates.Count -eq 0) {
-            Write-Warning 'That recurrence matches no dates. Nothing to plan.'
+            Write-Warning (Get-ScriptString 'DateSeries.NoDates')
             return
         }
 
@@ -399,10 +410,10 @@ try {
 
         $rows | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
 
-        Write-Host "Planned $($dates.Count) entry(s) for '$List'." -ForegroundColor Cyan
-        Write-Host "Plan: $planPath" -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DateSeries.Planned' $dates.Count $List) -ForegroundColor Cyan
+        Write-Host (Get-ScriptString 'DateSeries.PlanPath' $planPath) -ForegroundColor Yellow
         Write-Host ''
-        Write-Host 'Read it, edit it, then write it:' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DateSeries.ReadIt') -ForegroundColor Yellow
         Write-Host "  ./scripts/New-ListItemDateSeries.ps1 -List '$List' -DateField '$DateField' -Plan '$planPath' -WhatIf"
         Write-Host "  ./scripts/New-ListItemDateSeries.ps1 -List '$List' -DateField '$DateField' -Plan '$planPath'"
         return
@@ -412,13 +423,13 @@ try {
     # Pass two: write the plan.
     # -------------------------------------------------------------------------
     if (-not (Test-Path -LiteralPath $Plan)) {
-        throw "Plan file '$Plan' was not found."
+        throw (Get-ScriptString 'DateSeries.PlanNotFound' $Plan)
     }
 
     $planRows = @(Import-Csv -LiteralPath $Plan -Encoding utf8BOM)
 
     if ($planRows.Count -eq 0) {
-        Write-Warning "Plan '$Plan' has no rows."
+        Write-Warning (Get-ScriptString 'DateSeries.PlanEmpty' $Plan)
         return
     }
 
@@ -441,7 +452,7 @@ try {
     # to type. So both spellings are accepted and translated here, at the first
     # point where there is a list to ask.
     # -------------------------------------------------------------------------
-    Write-Host "Reading the columns of '$List' ..." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DateSeries.ReadingColumns' $List) -ForegroundColor Cyan
 
     # Resolved to a list object first, and by URL name as well as by title.
     # Get-PnPList -Identity matches the title and the GUID but not the folder
@@ -460,7 +471,7 @@ try {
     if (-not $targetList) {
         $visible = @(Get-PnPList | Where-Object { -not $_.Hidden } |
                 ForEach-Object { "$($_.Title) [$(& $urlNameOf $_)]" } | Sort-Object)
-        throw "List '$List' was not found. This site has: $($visible -join '; ')"
+        throw (Get-ScriptString 'DateSeries.ListNotFound' $List ($visible -join '; '))
     }
 
     $listField = @(Get-PnPField -List $targetList)
@@ -495,8 +506,7 @@ try {
 
             # SharePoint allows two columns to share a display name. When they
             # do, the display name is not an answer to which one is meant.
-            throw ("'$wanted' is the display name of more than one column on '$List': " +
-                "$($candidate -join ', '). Name it by its internal name instead.")
+            throw (Get-ScriptString 'DateSeries.AmbiguousColumn' $wanted $List ($candidate -join ', '))
         }
 
         return $null
@@ -504,25 +514,20 @@ try {
 
     $dateColumn = & $resolveColumn $DateField
     if (-not $dateColumn) {
-        throw ("-DateField '$DateField' matches no column on '$List'. " +
-            "Its columns are: $($writable -join '; ')")
+        throw (Get-ScriptString 'DateSeries.DateFieldUnknown' $DateField $List ($writable -join '; '))
     }
 
     $columnOf = @{}     # plan header -> internal name
     foreach ($header in $valueColumn) {
         $resolved = & $resolveColumn $header
         if (-not $resolved) {
-            throw ("The plan column '$header' matches no column on '$List'. " +
-                "Its columns are: $($writable -join '; '). " +
-                "Display names and internal names are both accepted; to keep a " +
-                "column in the plan without writing it, rename it with a leading underscore.")
+            throw (Get-ScriptString 'DateSeries.PlanColumnUnknown' $header $List ($writable -join '; '))
         }
         $columnOf[$header] = $resolved
     }
 
     if ($dateColumn -notin $columnOf.Values) {
-        throw ("The plan has no '$DateField' column. Its value columns are: $($valueColumn -join ', '). " +
-            "Pass -DateField with the name the plan actually uses.")
+        throw (Get-ScriptString 'DateSeries.PlanNoDateColumn' $DateField ($valueColumn -join ', '))
     }
 
     $duplicateColumn = @()
@@ -531,28 +536,25 @@ try {
 
         if (-not $resolved) {
             if ($keyWasDefaulted) {
-                Write-Host "  '$keyName' is not a column here; leaving it out of the duplicate check." -ForegroundColor DarkGray
+                Write-Host (Get-ScriptString 'DateSeries.KeyLeftOut' $keyName) -ForegroundColor DarkGray
                 continue
             }
-            throw ("-DuplicateKey names '$keyName', which matches no column on '$List'. " +
-                "Its columns are: $($writable -join '; ')")
+            throw (Get-ScriptString 'DateSeries.KeyUnknown' $keyName $List ($writable -join '; '))
         }
 
         if ($resolved -notin $duplicateColumn) { $duplicateColumn += $resolved }
     }
 
     if (-not $AllowDuplicate -and $duplicateColumn.Count -eq 0) {
-        throw "None of the -DuplicateKey columns exist on '$List'. Pass -AllowDuplicate to write without the check."
+        throw (Get-ScriptString 'DateSeries.NoKeyColumns' $List)
     }
 
     if (-not $AllowDuplicate) {
-        Write-Host "  duplicate check: $($duplicateColumn -join ' + ')" -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'DateSeries.DuplicateCheck' ($duplicateColumn -join ' + ')) -ForegroundColor DarkGray
 
         $keyNotPlanned = @($duplicateColumn | Where-Object { $_ -notin $columnOf.Values })
         if ($keyNotPlanned.Count -gt 0) {
-            Write-Warning ("The duplicate check uses $($keyNotPlanned -join ', '), which the plan has no column for. " +
-                'A plan row is empty there, so it can only match an entry that is empty there too -- ' +
-                'in practice nothing will be recognised as a duplicate.')
+            Write-Warning (Get-ScriptString 'DateSeries.KeyNotPlanned' ($keyNotPlanned -join ', '))
         }
     }
 
@@ -588,7 +590,7 @@ try {
 
     $existingKeys = @{}
     if (-not $AllowDuplicate) {
-        Write-Host "Reading existing entries from '$List' ..." -ForegroundColor Cyan
+        Write-Host (Get-ScriptString 'DateSeries.ReadingEntries' $List) -ForegroundColor Cyan
 
         foreach ($item in (Get-PnPListItem -List $targetList -PageSize 500)) {
             $parts = foreach ($column in $duplicateColumn) {
@@ -597,7 +599,7 @@ try {
             $existingKeys[($parts -join '||')] = $true
         }
 
-        Write-Host "  $($existingKeys.Count) existing entry key(s)." -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'DateSeries.ExistingKeys' $existingKeys.Count) -ForegroundColor DarkGray
     }
 
     $created = 0
@@ -616,7 +618,7 @@ try {
                 $parsed = [datetime]::MinValue
                 if (-not [datetime]::TryParse([string]$raw, [cultureinfo]::InvariantCulture,
                         [System.Globalization.DateTimeStyles]::None, [ref]$parsed)) {
-                    Write-Warning "Row '$raw' is not a date this can read; skipping it."
+                    Write-Warning (Get-ScriptString 'DateSeries.NotADate' $raw)
                     $skipped++
                     $values = $null
                     break
@@ -645,7 +647,7 @@ try {
             $key = $parts -join '||'
 
             if ($existingKeys.ContainsKey($key)) {
-                Write-Host "  skip $label -- already on the list" -ForegroundColor DarkGray
+                Write-Host (Get-ScriptString 'DateSeries.Skip' $label) -ForegroundColor DarkGray
                 $skipped++
                 continue
             }
@@ -672,18 +674,18 @@ try {
         $created++
 
         if (-not $WhatIfPreference) {
-            Write-Host "  created $label" -ForegroundColor Green
+            Write-Host (Get-ScriptString 'DateSeries.Created' $label) -ForegroundColor Green
         }
     }
 
     Write-Host ''
     if ($WhatIfPreference) {
-        Write-Host "Would create $created entry(s); $skipped skipped." -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DateSeries.WouldCreate' $created $skipped) -ForegroundColor Yellow
     }
     else {
-        Write-Host "Created $created entry(s); $skipped skipped." -ForegroundColor Green
+        Write-Host (Get-ScriptString 'DateSeries.Done' $created $skipped) -ForegroundColor Green
     }
-    Write-Host "Log: $OutputPath"
+    Write-Host (Get-ScriptString 'DateSeries.Log' $OutputPath)
 }
 finally {
     Stop-O365Log | Out-Null

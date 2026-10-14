@@ -417,4 +417,62 @@ offered the folders that exist.'
     'Register.ProfileSaved'                 = 'Saved profile ''{0}''. Connect with: Connect-O365 -ProfileName {0}'
 
     'Register.SaveAsProfile'                = 'Save it as a profile with:'
+
+    'DateSeries.DefaultNotJson'             = '-Default could not be read as JSON: {0} From a shell, pass it as JSON: -Default ''{{"Status":"terminiert"}}''. From a PowerShell prompt, a hashtable works: -Default @{{ Status = ''terminiert'' }}'
+
+    'DateSeries.DefaultNotObject'           = '-Default must be a JSON object, for example: -Default ''{"Status":"terminiert"}'''
+
+    'DateSeries.DefaultWrongType'           = '-Default must be a hashtable or a JSON object, not {0}.'
+
+    'DateSeries.NeedsEnd'                   = 'Give the series an end: either -Until <date> or -Count <n>.'
+
+    'DateSeries.NoDates'                    = 'That recurrence matches no dates. Nothing to plan.'
+
+    'DateSeries.Planned'                    = 'Planned {0} entry(s) for ''{1}''.'
+
+    'DateSeries.PlanPath'                   = 'Plan: {0}'
+
+    'DateSeries.ReadIt'                     = 'Read it, edit it, then write it:'
+
+    'DateSeries.PlanNotFound'               = 'Plan file ''{0}'' was not found.'
+
+    'DateSeries.PlanEmpty'                  = 'Plan ''{0}'' has no rows.'
+
+    'DateSeries.ReadingColumns'             = 'Reading the columns of ''{0}'' ...'
+
+    'DateSeries.ListNotFound'               = 'List ''{0}'' was not found. This site has: {1}'
+
+    'DateSeries.AmbiguousColumn'            = '''{0}'' is the display name of more than one column on ''{1}'': {2}. Name it by its internal name instead.'
+
+    'DateSeries.DateFieldUnknown'           = '-DateField ''{0}'' matches no column on ''{1}''. Its columns are: {2}'
+
+    'DateSeries.PlanColumnUnknown'          = 'The plan column ''{0}'' matches no column on ''{1}''. Its columns are: {2}. Display names and internal names are both accepted; to keep a column in the plan without writing it, rename it with a leading underscore.'
+
+    'DateSeries.PlanNoDateColumn'           = 'The plan has no ''{0}'' column. Its value columns are: {1}. Pass -DateField with the name the plan actually uses.'
+
+    'DateSeries.KeyLeftOut'                 = '  ''{0}'' is not a column here; leaving it out of the duplicate check.'
+
+    'DateSeries.KeyUnknown'                 = '-DuplicateKey names ''{0}'', which matches no column on ''{1}''. Its columns are: {2}'
+
+    'DateSeries.NoKeyColumns'               = 'None of the -DuplicateKey columns exist on ''{0}''. Pass -AllowDuplicate to write without the check.'
+
+    'DateSeries.DuplicateCheck'             = '  duplicate check: {0}'
+
+    'DateSeries.KeyNotPlanned'              = 'The duplicate check uses {0}, which the plan has no column for. A plan row is empty there, so it can only match an entry that is empty there too -- in practice nothing will be recognised as a duplicate.'
+
+    'DateSeries.ReadingEntries'             = 'Reading existing entries from ''{0}'' ...'
+
+    'DateSeries.ExistingKeys'               = '  {0} existing entry key(s).'
+
+    'DateSeries.NotADate'                   = 'Row ''{0}'' is not a date this can read; skipping it.'
+
+    'DateSeries.Skip'                       = '  skip {0} -- already on the list'
+
+    'DateSeries.Created'                    = '  created {0}'
+
+    'DateSeries.WouldCreate'                = 'Would create {0} entry(s); {1} skipped.'
+
+    'DateSeries.Done'                       = 'Created {0} entry(s); {1} skipped.'
+
+    'DateSeries.Log'                        = 'Log: {0}'
 }
