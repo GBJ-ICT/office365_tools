@@ -475,4 +475,216 @@ damit dir die vorhandenen Ordner angeboten werden.'
     'DateSeries.Done'                       = '{0} Eintrag/Einträge angelegt; {1} übersprungen.'
 
     'DateSeries.Log'                        = 'Protokoll: {0}'
+
+    'ContentTypeMenu.Equivalent'            = '  Gleichwertiger Befehl:'
+
+    'ContentTypeMenu.NothingToChoose'       = '  Es gibt nichts zur Auswahl.'
+
+    'ContentTypeMenu.FilterActive'          = '  Filter: ''{0}'' ({1} von {2})'
+
+    'ContentTypeMenu.NoMatches'             = '  Keine Treffer.'
+
+    'ContentTypeMenu.MoreRows'              = '        ... und {0} weitere. Mit /Text eingrenzen.'
+
+    'ContentTypeMenu.PickMany'              = 'Gib Nummern ein (1,3,5 oder 2-6 oder alle), /Text zum Filtern oder Z für zurück.'
+
+    'ContentTypeMenu.PickOne'               = 'Gib eine Nummer ein, /Text zum Filtern oder Z für zurück.'
+
+    'ContentTypeMenu.BadSelection'          = '  Das ist keine gültige Auswahl.'
+
+    'ContentTypeMenu.OutOfRange'            = '  Ausserhalb des Bereichs: {0}'
+
+    'ContentTypeMenu.PickJustOne'           = '  Wähle nur eines.'
+
+    'ContentTypeMenu.LoadingTypes'          = '  Inhaltstypen werden geladen...'
+
+    'ContentTypeMenu.NoCustomTypes'         = '  Auf dieser Site gibt es keine eigenen Inhaltstypen.'
+
+    'ContentTypeMenu.NoCustomTypesHint'     = 'Lege mit Option 3 einen an oder weite den Filter mit -Group.'
+
+    'ContentTypeMenu.LoadingColumns'        = '  Spalten werden geladen...'
+
+    'ContentTypeMenu.Sealed'                = '  Versiegelt:  ja (kann nicht geändert werden)'
+
+    'ContentTypeMenu.DetailGroup'           = '  Gruppe:      {0}'
+
+    'ContentTypeMenu.DetailDescription'     = '  Beschreibung: {0}'
+
+    'ContentTypeMenu.DetailColumns'         = '  Spalten ({0}):'
+
+    'ContentTypeMenu.None'                  = '    (keine)'
+
+    'ContentTypeMenu.HeaderInternal'        = 'INTERNER NAME'
+
+    'ContentTypeMenu.HeaderDisplay'         = 'ANZEIGENAME'
+
+    'ContentTypeMenu.HeaderType'            = 'TYP'
+
+    'ContentTypeMenu.HeaderRequired'        = 'PFL'
+
+    'ContentTypeMenu.ListTitle'             = 'Website-Inhaltstypen ({0})'
+
+    'ContentTypeMenu.Loading'               = '  Wird geladen...'
+
+    'ContentTypeMenu.NoneFound'             = '  Keine gefunden.'
+
+    'ContentTypeMenu.BuiltInHidden'         = 'Eingebaute Typen sind ausgeblendet. Get-SpoContentType -IncludeBuiltIn zeigt alles.'
+
+    'ContentTypeMenu.WhichType'             = 'Welcher Inhaltstyp?'
+
+    'ContentTypeMenu.CreateTypeTitle'       = 'Inhaltstyp anlegen'
+
+    'ContentTypeMenu.PromptName'            = '  Name'
+
+    'ContentTypeMenu.ParentHint'            = 'Der übergeordnete Typ bestimmt, wo der Inhaltstyp verwendet werden kann.'
+
+    'ContentTypeMenu.ParentDocument'        = '  Document - für Dokumentbibliotheken'
+
+    'ContentTypeMenu.ParentItem'            = '  Item     - für einfache Listen'
+
+    'ContentTypeMenu.PromptParent'          = '  Übergeordneter Typ'
+
+    'ContentTypeMenu.PromptGroup'           = '  Gruppe'
+
+    'ContentTypeMenu.PromptDescription'     = '  Beschreibung (optional)'
+
+    'ContentTypeMenu.AboutToCreate'         = '  Folgendes wird angelegt:'
+
+    'ContentTypeMenu.SummaryName'           = '    Name:         {0}'
+
+    'ContentTypeMenu.SummaryParent'         = '    Übergeordnet: {0}'
+
+    'ContentTypeMenu.SummaryGroup'          = '    Gruppe:       {0}'
+
+    'ContentTypeMenu.SummaryDescription'    = '    Beschreibung: {0}'
+
+    'ContentTypeMenu.CreateIt'              = '  Anlegen?'
+
+    'ContentTypeMenu.Cancelled'             = '  Abgebrochen.'
+
+    'ContentTypeMenu.TypeCreated'           = '  ''{0}'' wurde angelegt.'
+
+    'ContentTypeMenu.TypeCreatedHint'       = 'Füge mit Option 4 Spalten hinzu.'
+
+    'ContentTypeMenu.Failed'                = '  Fehlgeschlagen: {0}'
+
+    'ContentTypeMenu.CreateFieldTitle'      = 'Website-Spalte anlegen'
+
+    'ContentTypeMenu.PromptDisplayName'     = '  Anzeigename'
+
+    'ContentTypeMenu.PromptType'            = '  Typ'
+
+    'ContentTypeMenu.OptionsHint'           = 'Gib die Auswahlmöglichkeiten ein, durch Kommas getrennt.'
+
+    'ContentTypeMenu.PromptOptions'         = '  Auswahlmöglichkeiten'
+
+    'ContentTypeMenu.NeedsOption'           = '  Eine {0}-Spalte braucht mindestens eine Auswahlmöglichkeit. Abgebrochen.'
+
+    'ContentTypeMenu.InternalNameHint'      = 'Der interne Name ist dauerhaft und muss eindeutig sein. Lass das Feld leer, um ihn abzuleiten.'
+
+    'ContentTypeMenu.PromptInternalName'    = '  Interner Name (optional)'
+
+    'ContentTypeMenu.PromptRequired'        = '  Pflichtfeld?'
+
+    'ContentTypeMenu.SummaryDisplayName'    = '    Anzeigename:   {0}'
+
+    'ContentTypeMenu.SummaryInternalName'   = '    Interner Name: {0}'
+
+    'ContentTypeMenu.SummaryType'           = '    Typ:           {0}'
+
+    'ContentTypeMenu.SummaryFieldGroup'     = '    Gruppe:        {0}'
+
+    'ContentTypeMenu.SummaryRequired'       = '    Pflichtfeld:   {0}'
+
+    'ContentTypeMenu.SummaryOptions'        = '    Auswahl:       {0}'
+
+    'ContentTypeMenu.FieldCreated'          = '  Die Spalte ''{0}'' wurde angelegt.'
+
+    'ContentTypeMenu.FieldCreatedHint'      = 'Hänge sie mit Option 4 an einen Inhaltstyp an.'
+
+    'ContentTypeMenu.AddToWhich'            = 'Zu welchem Inhaltstyp sollen Spalten hinzugefügt werden?'
+
+    'ContentTypeMenu.SealedError'           = '  Dieser Inhaltstyp ist versiegelt und kann nicht geändert werden.'
+
+    'ContentTypeMenu.ModeExisting'          = '  [1] Aus vorhandenen Website-Spalten wählen'
+
+    'ContentTypeMenu.ModeNew'               = '  [2] Neue Spalte anlegen und hinzufügen'
+
+    'ContentTypeMenu.ModeBack'              = '  [Z] Zurück'
+
+    'ContentTypeMenu.LoadingSiteColumns'    = '  Website-Spalten werden geladen...'
+
+    'ContentTypeMenu.AllColumnsPresent'     = '  Jede Website-Spalte ist schon in diesem Inhaltstyp.'
+
+    'ContentTypeMenu.WhichColumns'          = 'Welche Spalten? ({0} verfügbar)'
+
+    'ContentTypeMenu.CopiesHint1'           = 'Bestehende Listen mit diesem Inhaltstyp haben eigene Kopien.'
+
+    'ContentTypeMenu.CopiesHint2'           = 'Wenn du sie aktualisierst, bleibt alles gleich; sonst laufen sie auseinander.'
+
+    'ContentTypeMenu.PromptUpdateCopies'    = '  Auch bestehende Listenkopien aktualisieren?'
+
+    'ContentTypeMenu.SummaryUpdateCopies'   = '  Listenkopien aktualisieren: {0}'
+
+    'ContentTypeMenu.Apply'                 = '  Anwenden?'
+
+    'ContentTypeMenu.RemoveFromWhich'       = 'Aus welchem Inhaltstyp sollen Spalten entfernt werden?'
+
+    'ContentTypeMenu.NoRemovable'           = '  Es gibt keine Spalten, die entfernt werden können.'
+
+    'ContentTypeMenu.WhichToRemove'         = 'Welche Spalten sollen entfernt werden?'
+
+    'ContentTypeMenu.Warning'               = '  ACHTUNG'
+
+    'ContentTypeMenu.RemoveWarn1'           = 'Die Website-Spalte und ihre gespeicherten Daten werden nicht gelöscht, aber die Spalte'
+
+    'ContentTypeMenu.RemoveWarn2'           = 'erscheint für diesen Inhaltstyp nicht mehr in Formularen und Ansichten. Benutzer'
+
+    'ContentTypeMenu.RemoveWarn3'           = 'erleben das als Datenverlust.'
+
+    'ContentTypeMenu.AboutToRemove'         = '  Folgendes wird aus {0} entfernt:'
+
+    'ContentTypeMenu.TypeNameToConfirm'     = '  Tippe zur Bestätigung den Namen des Inhaltstyps (''{0}'') ein'
+
+    'ContentTypeMenu.NameMismatch'          = '  Stimmt nicht überein. Abgebrochen.'
+
+    'ContentTypeMenu.ColumnRemoved'         = '    {0}: entfernt'
+
+    'ContentTypeMenu.ColumnRemoveFailed'    = '    {0}: fehlgeschlagen -- {1}'
+
+    'ContentTypeMenu.Connecting'            = 'Verbindung wird aufgebaut...'
+
+    'ContentTypeMenu.ManagerTitle'          = 'Inhaltstyp-Verwaltung'
+
+    'ContentTypeMenu.Site'                  = '  Site: {0}'
+
+    'ContentTypeMenu.GroupFilter'           = '  Gruppenfilter: {0}'
+
+    'ContentTypeMenu.Menu1'                 = '  [1] Inhaltstypen auflisten'
+
+    'ContentTypeMenu.Menu2'                 = '  [2] Einen Inhaltstyp ansehen'
+
+    'ContentTypeMenu.Menu3'                 = '  [3] Einen Inhaltstyp anlegen'
+
+    'ContentTypeMenu.Menu4'                 = '  [4] Spalten zu einem Inhaltstyp hinzufügen'
+
+    'ContentTypeMenu.Menu5'                 = '  [5] Spalten aus einem Inhaltstyp entfernen'
+
+    'ContentTypeMenu.Menu6'                 = '  [6] Eine Website-Spalte anlegen'
+
+    'ContentTypeMenu.MenuQuit'              = '  [E] Ende'
+
+    'ContentTypeMenu.Bye'                   = '  Tschüss.'
+
+    'ContentTypeMenu.NotAnOption'           = '  Das ist keine Option.'
+
+    'ContentTypeMenu.PressEnter'            = '  Drücke die Eingabetaste, um fortzufahren'
+
+    'ContentTypeMenu.Yes'                   = 'ja'
+
+    'ContentTypeMenu.No'                    = 'nein'
+
+    'ContentTypeMenu.YesNo'                 = '(j/N)'
+
+    'ContentTypeMenu.AboutToAdd'            = '  Folgendes wird zu {0} hinzugefügt:'
 }

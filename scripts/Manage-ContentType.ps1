@@ -46,13 +46,26 @@ param(
     [string]$ProfileName,
 
     [Parameter()]
-    [string]$Group
+    [string]$Group,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 # ---------------------------------------------------------------------------
 # Console helpers
@@ -76,7 +89,7 @@ function Write-Hint {
 function Write-Equivalent {
     param([string]$Command)
     Write-Host ''
-    Write-Host '  Equivalent command:' -ForegroundColor DarkGray
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Equivalent') -ForegroundColor DarkGray
     Write-Host "    $Command" -ForegroundColor DarkGray
 }
 
@@ -93,8 +106,8 @@ function Read-Choice {
 
 function Confirm-Action {
     param([string]$Prompt = 'Proceed?')
-    $answer = Read-Host "$Prompt (y/N)"
-    return $answer -match '^(y|yes)$'
+    $answer = Read-Host "$Prompt $(Get-ScriptString 'ContentTypeMenu.YesNo')"
+    return $answer -match '^(y|yes|j|ja)$'
 }
 
 <#
@@ -111,7 +124,7 @@ function Select-Item {
     )
 
     if ($Item.Count -eq 0) {
-        Write-Host '  Nothing to choose from.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.NothingToChoose') -ForegroundColor Yellow
         return $null
     }
 
@@ -122,12 +135,12 @@ function Select-Item {
         Write-Host ''
         Write-Host "  $Title" -ForegroundColor White
         if ($filter) {
-            Write-Host "  filter: '$filter' ($($filtered.Count) of $($Item.Count))" -ForegroundColor DarkGray
+            Write-Host (Get-ScriptString 'ContentTypeMenu.FilterActive' $filter $filtered.Count $Item.Count) -ForegroundColor DarkGray
         }
         Write-Host ''
 
         if ($filtered.Count -eq 0) {
-            Write-Host '  No matches.' -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.NoMatches') -ForegroundColor Yellow
         }
         else {
             $shown = [Math]::Min($filtered.Count, $PageSize)
@@ -136,22 +149,22 @@ function Select-Item {
                 Write-Host ('   {0,3}) {1}' -f ($i + 1), $text)
             }
             if ($filtered.Count -gt $shown) {
-                Write-Host "        ... and $($filtered.Count - $shown) more. Narrow with /text." -ForegroundColor DarkGray
+                Write-Host (Get-ScriptString 'ContentTypeMenu.MoreRows' ($filtered.Count - $shown)) -ForegroundColor DarkGray
             }
         }
 
         Write-Host ''
         if ($Multiple) {
-            Write-Hint 'Enter numbers (1,3,5 or 2-6 or all), /text to filter, or B to go back.'
+            Write-Hint (Get-ScriptString 'ContentTypeMenu.PickMany')
         }
         else {
-            Write-Hint 'Enter a number, /text to filter, or B to go back.'
+            Write-Hint (Get-ScriptString 'ContentTypeMenu.PickOne')
         }
 
         $answer = Read-Choice -Prompt '  >'
 
         if (-not $answer) { continue }
-        if ($answer -match '^(b|back|q|quit)$') { return $null }
+        if ($answer -match '^(b|back|z|q|quit)$') { return $null }
 
         if ($answer.StartsWith('/')) {
             $filter = $answer.Substring(1).Trim()
@@ -164,7 +177,7 @@ function Select-Item {
             continue
         }
 
-        if ($Multiple -and $answer -match '^all$') {
+        if ($Multiple -and $answer -match '^(all|alle)$') {
             return $filtered
         }
 
@@ -192,20 +205,20 @@ function Select-Item {
         }
 
         if (-not $valid -or $indices.Count -eq 0) {
-            Write-Host '  Not a valid selection.' -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.BadSelection') -ForegroundColor Yellow
             continue
         }
 
         $outOfRange = @($indices | Where-Object { $_ -lt 1 -or $_ -gt $filtered.Count })
         if ($outOfRange.Count -gt 0) {
-            Write-Host "  Out of range: $($outOfRange -join ', ')" -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.OutOfRange' ($outOfRange -join ', ')) -ForegroundColor Yellow
             continue
         }
 
         $selected = @($indices | Sort-Object -Unique | ForEach-Object { $filtered[$_ - 1] })
 
         if (-not $Multiple -and $selected.Count -gt 1) {
-            Write-Host '  Pick one.' -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.PickJustOne') -ForegroundColor Yellow
             continue
         }
 
@@ -223,12 +236,12 @@ function Get-ContentTypeChoice {
     $params = @{}
     if ($Group) { $params['Group'] = $Group }
 
-    Write-Host '  Loading content types...' -ForegroundColor DarkGray
+    Write-Host (Get-ScriptString 'ContentTypeMenu.LoadingTypes') -ForegroundColor DarkGray
     $contentTypes = @(Get-SpoContentType @params | Sort-Object Group, Name)
 
     if ($contentTypes.Count -eq 0) {
-        Write-Host '  No custom content types found on this site.' -ForegroundColor Yellow
-        Write-Hint 'Use option 3 to create one, or -Group to widen the filter.'
+        Write-Host (Get-ScriptString 'ContentTypeMenu.NoCustomTypes') -ForegroundColor Yellow
+        Write-Hint (Get-ScriptString 'ContentTypeMenu.NoCustomTypesHint')
         return $null
     }
 
@@ -240,29 +253,29 @@ function Get-ContentTypeChoice {
 function Show-ContentTypeDetail {
     param([Parameter(Mandatory)]$ContentType)
 
-    Write-Host '  Loading columns...' -ForegroundColor DarkGray
+    Write-Host (Get-ScriptString 'ContentTypeMenu.LoadingColumns') -ForegroundColor DarkGray
     $detail = Get-SpoContentType -Name $ContentType.Name -IncludeFields | Select-Object -First 1
 
     Write-Title "$($detail.Name)"
-    Write-Host "  Group:       $($detail.Group)"
+    Write-Host (Get-ScriptString 'ContentTypeMenu.DetailGroup' $detail.Group)
     Write-Host "  ID:          $($detail.Id)"
     if ($detail.Description) {
-        Write-Host "  Description: $($detail.Description)"
+        Write-Host (Get-ScriptString 'ContentTypeMenu.DetailDescription' $detail.Description)
     }
     if ($detail.Sealed) {
-        Write-Host '  Sealed:      yes (cannot be modified)' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Sealed') -ForegroundColor Yellow
     }
     Write-Host ''
-    Write-Host "  Columns ($($detail.FieldCount)):" -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.DetailColumns' $detail.FieldCount) -ForegroundColor White
     Write-Host ''
 
     if ($detail.FieldCount -eq 0) {
-        Write-Host '    (none)' -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'ContentTypeMenu.None') -ForegroundColor DarkGray
     }
     else {
-        Write-Host ('    {0,-32} {1,-30} {2,-13} {3}' -f 'INTERNAL NAME', 'DISPLAY NAME', 'TYPE', 'REQ') -ForegroundColor DarkGray
+        Write-Host ('    {0,-32} {1,-30} {2,-13} {3}' -f (Get-ScriptString 'ContentTypeMenu.HeaderInternal'), (Get-ScriptString 'ContentTypeMenu.HeaderDisplay'), (Get-ScriptString 'ContentTypeMenu.HeaderType'), (Get-ScriptString 'ContentTypeMenu.HeaderRequired')) -ForegroundColor DarkGray
         foreach ($field in ($detail.Fields | Sort-Object InternalName)) {
-            $required = if ($field.Required) { 'yes' } else { '' }
+            $required = if ($field.Required) { Get-ScriptString 'ContentTypeMenu.Yes' } else { '' }
             Write-Host ('    {0,-32} {1,-30} {2,-13} {3}' -f $field.InternalName, $field.DisplayName, $field.Type, $required)
         }
     }
@@ -279,14 +292,14 @@ function Invoke-ListContentTypes {
     $params = @{}
     if ($Group) { $params['Group'] = $Group }
 
-    Write-Host '  Loading...' -ForegroundColor DarkGray
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Loading') -ForegroundColor DarkGray
     $contentTypes = @(Get-SpoContentType @params | Sort-Object Group, Name)
 
-    Write-Title "Site content types ($($contentTypes.Count))"
+    Write-Title (Get-ScriptString 'ContentTypeMenu.ListTitle' $contentTypes.Count)
 
     if ($contentTypes.Count -eq 0) {
-        Write-Host '  None found.' -ForegroundColor Yellow
-        Write-Hint 'Built-in types are hidden. Get-SpoContentType -IncludeBuiltIn shows everything.'
+        Write-Host (Get-ScriptString 'ContentTypeMenu.NoneFound') -ForegroundColor Yellow
+        Write-Hint (Get-ScriptString 'ContentTypeMenu.BuiltInHidden')
         return
     }
 
@@ -303,43 +316,43 @@ function Invoke-ListContentTypes {
 }
 
 function Invoke-InspectContentType {
-    $contentType = Get-ContentTypeChoice -Title 'Which content type?'
+    $contentType = Get-ContentTypeChoice -Title (Get-ScriptString 'ContentTypeMenu.WhichType')
     if (-not $contentType) { return }
     Show-ContentTypeDetail -ContentType $contentType | Out-Null
 }
 
 function Invoke-CreateContentType {
-    Write-Title 'Create a content type'
+    Write-Title (Get-ScriptString 'ContentTypeMenu.CreateTypeTitle')
 
-    $name = Read-Choice -Prompt '  Name'
+    $name = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptName')
     if (-not $name) {
-        Write-Host '  Cancelled.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Cancelled') -ForegroundColor Yellow
         return
     }
 
     Write-Host ''
-    Write-Hint 'The parent decides where the content type can be used.'
-    Write-Hint "  Document - for document libraries"
-    Write-Hint "  Item     - for plain lists"
-    $parent = Read-Choice -Prompt '  Parent' -Default 'Item'
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.ParentHint')
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.ParentDocument')
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.ParentItem')
+    $parent = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptParent') -Default 'Item'
 
-    $group = Read-Choice -Prompt '  Group' -Default 'Custom Content Types'
-    $description = Read-Choice -Prompt '  Description (optional)'
+    $group = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptGroup') -Default 'Custom Content Types'
+    $description = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptDescription')
 
     Write-Host ''
-    Write-Host '  About to create:' -ForegroundColor White
-    Write-Host "    Name:        $name"
-    Write-Host "    Parent:      $parent"
-    Write-Host "    Group:       $group"
-    if ($description) { Write-Host "    Description: $description" }
+    Write-Host (Get-ScriptString 'ContentTypeMenu.AboutToCreate') -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryName' $name)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryParent' $parent)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryGroup' $group)
+    if ($description) { Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryDescription' $description) }
 
     $command = "New-SpoContentType -Name '$name' -Parent '$parent' -Group '$group'"
     if ($description) { $command += " -Description '$description'" }
     Write-Equivalent $command
 
     Write-Host ''
-    if (-not (Confirm-Action '  Create it?')) {
-        Write-Host '  Cancelled.' -ForegroundColor Yellow
+    if (-not (Confirm-Action (Get-ScriptString 'ContentTypeMenu.CreateIt'))) {
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Cancelled') -ForegroundColor Yellow
         return
     }
 
@@ -353,59 +366,59 @@ function Invoke-CreateContentType {
 
     try {
         New-SpoContentType @params
-        Write-Host "  Created '$name'." -ForegroundColor Green
-        Write-Hint 'Add columns to it with option 4.'
+        Write-Host (Get-ScriptString 'ContentTypeMenu.TypeCreated' $name) -ForegroundColor Green
+        Write-Hint (Get-ScriptString 'ContentTypeMenu.TypeCreatedHint')
     }
     catch {
-        Write-Host "  Failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Failed' $_.Exception.Message) -ForegroundColor Red
     }
 }
 
 function Invoke-CreateField {
-    Write-Title 'Create a site column'
+    Write-Title (Get-ScriptString 'ContentTypeMenu.CreateFieldTitle')
 
-    $displayName = Read-Choice -Prompt '  Display name'
+    $displayName = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptDisplayName')
     if (-not $displayName) {
-        Write-Host '  Cancelled.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Cancelled') -ForegroundColor Yellow
         return
     }
 
     Write-Host ''
     Write-Hint 'Types: Text, Note, Number, Currency, DateTime, Boolean, Choice,'
     Write-Hint '       MultiChoice, User, UserMulti, URL, Integer'
-    $type = Read-Choice -Prompt '  Type' -Default 'Text'
+    $type = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptType') -Default 'Text'
 
     $choices = $null
     if ($type -in 'Choice', 'MultiChoice') {
         Write-Host ''
-        Write-Hint 'Enter the options, separated by commas.'
-        $raw = Read-Choice -Prompt '  Options'
+        Write-Hint (Get-ScriptString 'ContentTypeMenu.OptionsHint')
+        $raw = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptOptions')
         $choices = @($raw -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
         if ($choices.Count -eq 0) {
-            Write-Host "  A $type column needs at least one option. Cancelled." -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.NeedsOption' $type) -ForegroundColor Yellow
             return
         }
     }
 
-    $group = Read-Choice -Prompt '  Group' -Default 'Custom Columns'
+    $group = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptGroup') -Default 'Custom Columns'
 
     Write-Host ''
-    Write-Hint 'Internal name is permanent and must be unique. Leave blank to derive it.'
-    $internalName = Read-Choice -Prompt '  Internal name (optional)'
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.InternalNameHint')
+    $internalName = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.PromptInternalName')
 
-    $required = Confirm-Action '  Required?'
+    $required = Confirm-Action (Get-ScriptString 'ContentTypeMenu.PromptRequired')
 
     $derivedName = if ($internalName) { $internalName } else { ($displayName -replace '[^A-Za-z0-9]', '') }
 
     Write-Host ''
-    Write-Host '  About to create:' -ForegroundColor White
-    Write-Host "    Display name:  $displayName"
-    Write-Host "    Internal name: $derivedName"
-    Write-Host "    Type:          $type"
-    Write-Host "    Group:         $group"
-    Write-Host "    Required:      $(if ($required) { 'yes' } else { 'no' })"
-    if ($choices) { Write-Host "    Options:       $($choices -join ', ')" }
+    Write-Host (Get-ScriptString 'ContentTypeMenu.AboutToCreate') -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryDisplayName' $displayName)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryInternalName' $derivedName)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryType' $type)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryFieldGroup' $group)
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryRequired' $(if ($required) { Get-ScriptString 'ContentTypeMenu.Yes' } else { Get-ScriptString 'ContentTypeMenu.No' }))
+    if ($choices) { Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryOptions' ($choices -join ', ')) }
 
     $command = "New-SpoField -DisplayName '$displayName' -Type $type -Group '$group'"
     if ($internalName) { $command += " -InternalName '$internalName'" }
@@ -414,8 +427,8 @@ function Invoke-CreateField {
     Write-Equivalent $command
 
     Write-Host ''
-    if (-not (Confirm-Action '  Create it?')) {
-        Write-Host '  Cancelled.' -ForegroundColor Yellow
+    if (-not (Confirm-Action (Get-ScriptString 'ContentTypeMenu.CreateIt'))) {
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Cancelled') -ForegroundColor Yellow
         return
     }
 
@@ -431,31 +444,31 @@ function Invoke-CreateField {
 
     try {
         New-SpoField @params
-        Write-Host "  Created column '$displayName'." -ForegroundColor Green
-        Write-Hint 'Attach it to a content type with option 4.'
+        Write-Host (Get-ScriptString 'ContentTypeMenu.FieldCreated' $displayName) -ForegroundColor Green
+        Write-Hint (Get-ScriptString 'ContentTypeMenu.FieldCreatedHint')
         return $derivedName
     }
     catch {
-        Write-Host "  Failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Failed' $_.Exception.Message) -ForegroundColor Red
     }
 }
 
 function Invoke-AddColumns {
-    $contentType = Get-ContentTypeChoice -Title 'Add columns to which content type?'
+    $contentType = Get-ContentTypeChoice -Title (Get-ScriptString 'ContentTypeMenu.AddToWhich')
     if (-not $contentType) { return }
 
     $detail = Show-ContentTypeDetail -ContentType $contentType
 
     if ($detail.Sealed) {
         Write-Host ''
-        Write-Host '  This content type is sealed and cannot be modified.' -ForegroundColor Red
+        Write-Host (Get-ScriptString 'ContentTypeMenu.SealedError') -ForegroundColor Red
         return
     }
 
     Write-Host ''
-    Write-Host '  [1] Pick from existing site columns' -ForegroundColor White
-    Write-Host '  [2] Create a new column and add it' -ForegroundColor White
-    Write-Host '  [B] Back'
+    Write-Host (Get-ScriptString 'ContentTypeMenu.ModeExisting') -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.ModeNew') -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.ModeBack')
     $mode = Read-Choice -Prompt '  >'
 
     $fieldNames = @()
@@ -466,17 +479,17 @@ function Invoke-AddColumns {
         $fieldNames = @($created)
     }
     elseif ($mode -eq '1') {
-        Write-Host '  Loading site columns...' -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'ContentTypeMenu.LoadingSiteColumns') -ForegroundColor DarkGray
 
         $present = @($detail.Fields | ForEach-Object { $_.InternalName })
         $available = @(Get-SpoField | Where-Object { $_.InternalName -notin $present } | Sort-Object Group, DisplayName)
 
         if ($available.Count -eq 0) {
-            Write-Host '  Every site column is already on this content type.' -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.AllColumnsPresent') -ForegroundColor Yellow
             return
         }
 
-        $selected = Select-Item -Item $available -Multiple -Title "Which columns? ($($available.Count) available)" -Label {
+        $selected = Select-Item -Item $available -Multiple -Title (Get-ScriptString 'ContentTypeMenu.WhichColumns' $available.Count) -Label {
             param($f) '{0,-30} {1,-28} {2,-12} {3}' -f $f.InternalName, $f.DisplayName, $f.Type, $f.Group
         }
 
@@ -488,26 +501,24 @@ function Invoke-AddColumns {
     }
 
     Write-Host ''
-    Write-Hint 'Existing lists using this content type hold independent copies.'
-    Write-Hint 'Updating them keeps everything in step; skipping causes drift.'
-    $updateChildren = Confirm-Action '  Update existing list copies too?'
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.CopiesHint1')
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.CopiesHint2')
+    $updateChildren = Confirm-Action (Get-ScriptString 'ContentTypeMenu.PromptUpdateCopies')
 
     Write-Host ''
-    Write-Host '  About to add to ' -NoNewline -ForegroundColor White
-    Write-Host "$($detail.Name)" -ForegroundColor Cyan -NoNewline
-    Write-Host ':' -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.AboutToAdd' $detail.Name) -ForegroundColor White
     foreach ($name in $fieldNames) {
         Write-Host "    + $name"
     }
-    Write-Host "  Update list copies: $(if ($updateChildren) { 'yes' } else { 'no' })"
+    Write-Host (Get-ScriptString 'ContentTypeMenu.SummaryUpdateCopies' $(if ($updateChildren) { Get-ScriptString 'ContentTypeMenu.Yes' } else { Get-ScriptString 'ContentTypeMenu.No' }))
 
     $command = "Add-SpoFieldToContentType -ContentType '$($detail.Name)' -Field $(($fieldNames | ForEach-Object { "'$_'" }) -join ', ')"
     if ($updateChildren) { $command += ' -UpdateChildren' }
     Write-Equivalent $command
 
     Write-Host ''
-    if (-not (Confirm-Action '  Apply?')) {
-        Write-Host '  Cancelled.' -ForegroundColor Yellow
+    if (-not (Confirm-Action (Get-ScriptString 'ContentTypeMenu.Apply'))) {
+        Write-Host (Get-ScriptString 'ContentTypeMenu.Cancelled') -ForegroundColor Yellow
         return
     }
 
@@ -533,37 +544,37 @@ function Invoke-AddColumns {
 }
 
 function Invoke-RemoveColumns {
-    $contentType = Get-ContentTypeChoice -Title 'Remove columns from which content type?'
+    $contentType = Get-ContentTypeChoice -Title (Get-ScriptString 'ContentTypeMenu.RemoveFromWhich')
     if (-not $contentType) { return }
 
     $detail = Show-ContentTypeDetail -ContentType $contentType
 
     if ($detail.Sealed) {
         Write-Host ''
-        Write-Host '  This content type is sealed and cannot be modified.' -ForegroundColor Red
+        Write-Host (Get-ScriptString 'ContentTypeMenu.SealedError') -ForegroundColor Red
         return
     }
 
     $removable = @($detail.Fields | Where-Object { -not $_.ReadOnly } | Sort-Object InternalName)
 
     if ($removable.Count -eq 0) {
-        Write-Host '  No removable columns.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.NoRemovable') -ForegroundColor Yellow
         return
     }
 
-    $selected = Select-Item -Item $removable -Multiple -Title 'Which columns to remove?' -Label {
+    $selected = Select-Item -Item $removable -Multiple -Title (Get-ScriptString 'ContentTypeMenu.WhichToRemove') -Label {
         param($f) '{0,-30} {1,-28} {2}' -f $f.InternalName, $f.DisplayName, $f.Type
     }
 
     if (-not $selected) { return }
 
     Write-Host ''
-    Write-Host '  WARNING' -ForegroundColor Red
-    Write-Hint 'The site column and its stored data are not deleted, but the column'
-    Write-Hint 'stops appearing on forms and views for this content type. Users'
-    Write-Hint 'experience that as data loss.'
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Warning') -ForegroundColor Red
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.RemoveWarn1')
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.RemoveWarn2')
+    Write-Hint (Get-ScriptString 'ContentTypeMenu.RemoveWarn3')
     Write-Host ''
-    Write-Host "  About to remove from $($detail.Name):" -ForegroundColor White
+    Write-Host (Get-ScriptString 'ContentTypeMenu.AboutToRemove' $detail.Name) -ForegroundColor White
     foreach ($field in $selected) {
         Write-Host "    - $($field.InternalName)  ($($field.DisplayName))" -ForegroundColor Yellow
     }
@@ -572,10 +583,10 @@ function Invoke-RemoveColumns {
     Write-Equivalent "Find-SpoContentTypeByColumn -ColumnName $names | Remove-SpoFieldFromContentType"
 
     Write-Host ''
-    $typed = Read-Choice -Prompt "  Type the content type name ('$($detail.Name)') to confirm"
+    $typed = Read-Choice -Prompt (Get-ScriptString 'ContentTypeMenu.TypeNameToConfirm' $detail.Name)
 
     if ($typed -ne $detail.Name) {
-        Write-Host '  Did not match. Cancelled.' -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'ContentTypeMenu.NameMismatch') -ForegroundColor Yellow
         return
     }
 
@@ -585,10 +596,10 @@ function Invoke-RemoveColumns {
                 -ContentTypeName $detail.Name `
                 -FieldInternalName $field.InternalName `
                 -Confirm:$false
-            Write-Host "    $($field.InternalName): removed" -ForegroundColor Green
+            Write-Host (Get-ScriptString 'ContentTypeMenu.ColumnRemoved' $field.InternalName) -ForegroundColor Green
         }
         catch {
-            Write-Host "    $($field.InternalName): failed -- $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host (Get-ScriptString 'ContentTypeMenu.ColumnRemoveFailed' $field.InternalName $_.Exception.Message) -ForegroundColor Red
         }
     }
 }
@@ -600,7 +611,7 @@ function Invoke-RemoveColumns {
 $connection = Get-O365Connection -ErrorAction SilentlyContinue
 
 if (-not $connection -or -not $connection.IsLive) {
-    Write-Host 'Connecting...' -ForegroundColor DarkGray
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Connecting') -ForegroundColor DarkGray
     if ($ProfileName) {
         Connect-O365 -ProfileName $ProfileName
     }
@@ -611,19 +622,19 @@ if (-not $connection -or -not $connection.IsLive) {
 }
 
 while ($true) {
-    Write-Title 'Content type manager'
-    Write-Host "  Site: $($connection.SiteUrl)" -ForegroundColor DarkGray
+    Write-Title (Get-ScriptString 'ContentTypeMenu.ManagerTitle')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Site' $connection.SiteUrl) -ForegroundColor DarkGray
     if ($Group) {
-        Write-Host "  Group filter: $Group" -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'ContentTypeMenu.GroupFilter' $Group) -ForegroundColor DarkGray
     }
     Write-Host ''
-    Write-Host '  [1] List content types'
-    Write-Host '  [2] Inspect a content type'
-    Write-Host '  [3] Create a content type'
-    Write-Host '  [4] Add columns to a content type'
-    Write-Host '  [5] Remove columns from a content type'
-    Write-Host '  [6] Create a site column'
-    Write-Host '  [Q] Quit'
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu1')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu2')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu3')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu4')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu5')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.Menu6')
+    Write-Host (Get-ScriptString 'ContentTypeMenu.MenuQuit')
     Write-Host ''
 
     $choice = Read-Choice -Prompt '  >'
@@ -635,16 +646,16 @@ while ($true) {
         '4' { Invoke-AddColumns }
         '5' { Invoke-RemoveColumns }
         '6' { Invoke-CreateField | Out-Null }
-        { $_ -match '^(q|quit|exit)$' } {
+        { $_ -match '^(q|quit|exit|e|ende)$' } {
             Write-Host ''
-            Write-Host '  Bye.' -ForegroundColor DarkGray
+            Write-Host (Get-ScriptString 'ContentTypeMenu.Bye') -ForegroundColor DarkGray
             return
         }
         default {
-            Write-Host '  Not an option.' -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'ContentTypeMenu.NotAnOption') -ForegroundColor Yellow
         }
     }
 
     Write-Host ''
-    Read-Host '  Press Enter to continue' | Out-Null
+    Read-Host (Get-ScriptString 'ContentTypeMenu.PressEnter') | Out-Null
 }
