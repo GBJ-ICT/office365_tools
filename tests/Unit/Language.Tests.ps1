@@ -579,7 +579,7 @@ Describe 'Every message the code asks for' {
     BeforeAll {
         # The helpers that look a key up for everyone else. Their own calls pass
         # the key on as a variable, which is the point of them.
-        $helpers = 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Format-O365String'
+        $helpers = 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Get-ScriptString', 'Format-O365String'
 
         function Find-Enclosing {
             param($Node)
@@ -599,7 +599,7 @@ Describe 'Every message the code asks for' {
             $calls = $ast.FindAll({
                     param($node)
                     $node -is [System.Management.Automation.Language.CommandAst] -and
-                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Format-O365String'
+                    $node.GetCommandName() -in 'Get-O365String', 'Get-LauncherString', 'Get-LauncherLines', 'Get-MenuString', 'Get-MenuLines', 'Get-ScriptString', 'Format-O365String'
                 }, $true)
 
             foreach ($call in $calls) {
@@ -781,6 +781,7 @@ Describe 'Language commands' {
 
         InModuleScope Office365Tools {
             $script:O365State.Language = $null
+            $script:O365State.LanguageOverride = $null
             $script:O365State.Strings = $null
         }
 
@@ -819,6 +820,48 @@ Describe 'Language commands' {
 
         It 'rejects a language it does not know' {
             { Set-O365Language -Language 'fr' } | Should -Throw
+        }
+
+        It 'with -SessionOnly applies to this session and writes nothing' {
+            Set-O365Language -Language 'de' -SessionOnly
+
+            Test-Path -LiteralPath $env:O365_SETTINGS_PATH | Should -BeFalse
+            $result = Get-O365Language
+            $result.Language | Should -Be 'de'
+            $result.Source | Should -Be 'Parameter'
+        }
+
+        It 'with -SessionOnly outranks the saved choice and the environment, and leaves the saved choice alone' {
+            Set-O365Language -Language 'en'
+            $env:O365_LANGUAGE = 'en'
+
+            Set-O365Language -Language 'de' -SessionOnly
+
+            (Get-O365Language).Language | Should -Be 'de'
+            (Get-Content -LiteralPath $env:O365_SETTINGS_PATH -Raw | ConvertFrom-Json).language | Should -Be 'en'
+        }
+
+        It 'with -SessionOnly changes the texts that follow' {
+            Set-O365Language -Language 'en' -SessionOnly
+            $english = InModuleScope Office365Tools { Get-O365String 'Language.Save.Action' 'x' }
+
+            Set-O365Language -Language 'de' -SessionOnly
+            $german = InModuleScope Office365Tools { Get-O365String 'Language.Save.Action' 'x' }
+
+            $english | Should -Be 'Save the language "x"'
+            $german | Should -Be 'Sprache "x" speichern'
+        }
+
+        It 'with -SessionOnly and auto gives the session choice up again' {
+            Set-O365Language -Language 'de' -SessionOnly
+            Set-O365Language -Language 'auto' -SessionOnly
+
+            (Get-O365Language).Source | Should -Not -Be 'Parameter'
+        }
+
+        It 'with -SessionOnly needs no confirmation and ignores -WhatIf, since nothing is written' {
+            { Set-O365Language -Language 'de' -SessionOnly -WhatIf } | Should -Not -Throw
+            (Get-O365Language).Language | Should -Be 'de'
         }
 
         It 'applies the choice to this session, and warns, when it cannot be saved' {
@@ -883,6 +926,46 @@ Describe 'Language commands' {
             $english = InModuleScope Office365Tools { Get-O365String 'Language.Save.Action' 'en' }
 
             $german | Should -Not -Be $english
+        }
+
+        It 'reads the texts of a script from the folder it names, over the module''s' {
+            $folder = Get-ScratchFolder
+            try {
+                foreach ($code in 'en', 'de') {
+                    New-Item -Path (Join-Path $folder $code) -ItemType Directory -Force | Out-Null
+                }
+                Set-Content -LiteralPath (Join-Path $folder 'en/Strings.psd1') -Value "@{ 'Own.Key' = 'own english {0}'; 'Common.MessageUnavailable' = 'overridden ({0})' }"
+                Set-Content -LiteralPath (Join-Path $folder 'de/Strings.psd1') -Value "@{ 'Own.Key' = 'eigenes deutsch {0}' }"
+
+                Set-O365Language -Language 'en' -SessionOnly
+                $english = Get-O365String -ResourcePath $folder 'Own.Key' 'x'
+                Set-O365Language -Language 'de' -SessionOnly
+                $german = Get-O365String -ResourcePath $folder 'Own.Key' 'x'
+                $module = Get-O365String 'Language.Save.Action' 'x'
+
+                $english | Should -Be 'own english x'
+                $german | Should -Be 'eigenes deutsch x'
+                $module | Should -Be 'Sprache "x" speichern'
+            }
+            finally {
+                Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'does not show a script''s texts to a call that did not name its folder' {
+            $folder = Get-ScratchFolder
+            try {
+                New-Item -Path (Join-Path $folder 'en') -ItemType Directory -Force | Out-Null
+                Set-Content -LiteralPath (Join-Path $folder 'en/Strings.psd1') -Value "@{ 'Own.Only' = 'only here' }"
+
+                Set-O365Language -Language 'en' -SessionOnly
+
+                Get-O365String -ResourcePath $folder 'Own.Only' | Should -Be 'only here'
+                (Get-O365String 'Own.Only' -WarningAction SilentlyContinue) | Should -BeLike 'Message unavailable*'
+            }
+            finally {
+                Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
 
         It 'shows a neutral line and logs a warning for a key that does not exist' {

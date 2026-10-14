@@ -10,14 +10,26 @@
 
     If the file cannot be saved the choice still applies to the current session,
     and a warning says it was not saved.
+
+    With -SessionOnly nothing is saved at all: the language applies to this
+    PowerShell session only, and outranks every other source. This is what the
+    -Language parameter of the scripts does, so one run can be in the other
+    language without changing the saved choice.
 .PARAMETER Language
     en, de, or auto.
+.PARAMETER SessionOnly
+    Apply the language to this session only. Nothing is written. 'auto' removes
+    an earlier session choice.
 .PARAMETER PassThru
     Return the resulting language, as Get-O365Language shows it.
 .EXAMPLE
     Set-O365Language de
 
     Uses German from now on.
+.EXAMPLE
+    Set-O365Language en -SessionOnly
+
+    English for this session; the saved choice is untouched.
 .EXAMPLE
     Set-O365Language auto -PassThru
 
@@ -34,8 +46,26 @@ function Set-O365Language {
         [string]$Language,
 
         [Parameter()]
+        [switch]$SessionOnly,
+
+        [Parameter()]
         [switch]$PassThru
     )
+
+    if ($SessionOnly) {
+        # Applies to this session and nothing else, so there is nothing to
+        # preview and nothing to confirm.
+        $script:O365State.LanguageOverride = $null
+        if ($Language -ne 'auto') {
+            $script:O365State.LanguageOverride = $Language
+        }
+        $script:O365State.Strings = $null
+
+        if ($PassThru) {
+            Get-O365Language
+        }
+        return
+    }
 
     $path = Get-O365SettingsPath
 
@@ -46,13 +76,10 @@ function Set-O365Language {
         $script:O365State.Strings = $null
 
         if (-not $saved) {
-            # The choice cannot outlive this session, so apply it to it: the
-            # environment variable outranks the saved setting.
-            if ($Language -eq 'auto') {
-                Remove-Item Env:\O365_LANGUAGE -ErrorAction SilentlyContinue
-            }
-            else {
-                $env:O365_LANGUAGE = $Language
+            # The choice cannot outlive this session, so apply it to it.
+            $script:O365State.LanguageOverride = $null
+            if ($Language -ne 'auto') {
+                $script:O365State.LanguageOverride = $Language
             }
 
             Write-O365Log (Get-O365String 'Language.NotSaved' $path) 'Warning'

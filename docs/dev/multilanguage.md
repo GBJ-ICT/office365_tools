@@ -216,9 +216,9 @@ The merged table is cached for the session.
 
 | Function | Visibility | Purpose |
 |---|---|---|
-| `Get-O365String -Key <k> [-FormatArguments <object[]>]` | private | Text for the active language, formatted. See [Missing text](#missing-text) |
+| `Get-O365String <key> [<arguments>] [-ResourcePath <folders>]` | public | Text for the active language, formatted. A script passes its own `Resources` folder with `-ResourcePath` and its texts are laid over the module's. Public so the scripts in `scripts/` can use it. See [Missing text](#missing-text) |
 | `Get-O365Language` | public | The active language and where it came from. `Source` is one of `Parameter`, `Environment`, `SavedSetting`, `Windows`, `Default` |
-| `Set-O365Language -Language en\|de\|auto` | public | Writes the saved setting; supports `-WhatIf` |
+| `Set-O365Language -Language en\|de\|auto [-SessionOnly]` | public | Writes the saved setting; supports `-WhatIf`. With `-SessionOnly` nothing is written: the language holds for this PowerShell session and outranks every other source. This is how a script's `-Language` parameter is applied |
 | `Get-O365SupportedLanguage` | private, shared | The list of language codes |
 | `Resolve-O365Language` | private, shared | Implements the order above. Takes every input as a parameter, so tests can feed it any combination |
 | `ConvertTo-O365LanguageCode` | private, shared | Windows culture name to `en` or `de` |
@@ -240,9 +240,10 @@ people (reports, scripts). Plain pipeline commands use the active language and
 do not grow a parameter.
 
 The active language is cached for the session in `$script:O365State.Language`,
-and the merged table in `$script:O365State.Strings`, so a lookup in a hot loop is
-a hashtable read. `-Language` on a command sets it for that command's duration
-only and restores it afterwards.
+and the merged tables, one per set of folders, in `$script:O365State.Strings`, so a
+lookup in a hot loop is a hashtable read. A language given with `-SessionOnly` is
+kept in `$script:O365State.LanguageOverride` and is resolved as the `Parameter`
+source.
 
 ### Call sites
 

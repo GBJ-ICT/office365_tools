@@ -21,14 +21,15 @@ Set-StrictMode -Version Latest
 # restarts in ways that surprise people.
 # ---------------------------------------------------------------------------
 $script:O365State = [pscustomobject]@{
-    Connection  = $null   # PnP connection object returned by Connect-PnPOnline
-    SiteUrl     = $null   # URL we are connected to
-    ProfileName = $null   # Name of the profile used, if any
-    ClientId    = $null
-    LogPath     = $null   # Active transcript-style log file, if Start-O365Log ran
-    ConnectedAt = $null
-    Language    = $null   # Language code in use this session, resolved on first use
-    Strings     = $null   # Merged string table for that language, cached
+    Connection       = $null   # PnP connection object returned by Connect-PnPOnline
+    SiteUrl          = $null   # URL we are connected to
+    ProfileName      = $null   # Name of the profile used, if any
+    ClientId         = $null
+    LogPath          = $null   # Active transcript-style log file, if Start-O365Log ran
+    ConnectedAt      = $null
+    Language         = $null   # Language code in use this session, resolved on first use
+    LanguageOverride = $null   # Set by Set-O365Language -SessionOnly: wins over everything but is not saved
+    Strings          = $null   # Merged string table for that language, cached
 }
 
 # Document Set templates are read once per site and content type. Resolving one
