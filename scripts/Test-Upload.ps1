@@ -241,25 +241,12 @@ Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd
 
 # One language for this run: -Language if given, otherwise what the person chose
 # or Windows says. Applied to this session only, so the saved choice is left
-# alone.
+# alone. The texts of this script live in scripts\Resources, over the module's own.
 if ($Language) {
     Set-O365Language -Language $Language -SessionOnly
 }
 
-# The texts of this script live in scripts\Resources, over the module's own.
-function Get-ScriptString {
-    [CmdletBinding()]
-    [OutputType([string])]
-    param(
-        [Parameter(Mandatory, Position = 0)]
-        [string]$Key,
-
-        [Parameter(Position = 1, ValueFromRemainingArguments)]
-        [object[]]$FormatArguments = @()
-    )
-
-    Get-O365String -ResourcePath (Join-Path $PSScriptRoot 'Resources') $Key @FormatArguments
-}
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 if (-not $PSBoundParameters.ContainsKey('NextStep')) {
     $NextStep = Get-ScriptString 'TestUpload.NextStep.Default'

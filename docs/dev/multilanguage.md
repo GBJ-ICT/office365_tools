@@ -492,8 +492,9 @@ yet converted keep their English text until their turn.
    the saved choice is not touched; the upload checker launcher passes its own
    language on. All its console text, its prompts, its findings (`Upload.*`),
    and the labels, titles and verdicts of its reports come from
-   `scripts/Resources`, through a small `Get-ScriptString` that every script
-   uses for its own texts. The findings it makes are worded in the language of
+   `scripts/Resources`, through `Get-ScriptString`, a small helper in
+   `scripts/Shared/ScriptLanguage.ps1` that every script dot-sources for its own
+   texts. The findings it makes are worded in the language of
    the run when they are made, not when a report is drawn: a finding carries
    data such as names and counts that a sentence needs, so its text is a
    template filled in at once. Findings saved as JSON are therefore in the
