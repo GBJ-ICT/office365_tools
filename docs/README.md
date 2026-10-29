@@ -17,6 +17,7 @@ For people who change the tools.
 | Document | Read it when |
 |---|---|
 | [Multi-language design](dev/multilanguage.md) | You add a message, a command, or a language |
+| [Contribution workflow](dev/workflow.md) | You start a change: the issue, the review labels, the commits, the pull request and the Claude skills |
 | [Testing](dev/testing.md) | You write a test, or an issue that says how it is verified |
 
 ## Sandbox — [overview](sandbox/README.md)
