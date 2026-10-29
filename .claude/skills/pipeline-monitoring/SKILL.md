@@ -38,6 +38,21 @@ Do not poll CI yourself: no sleep loops, no `/loop`, no scheduled wake-ups, no r
    for the result in this turn.
 4. Never enable auto-merge unless the user asked for it.
 
+### Without the desktop app
+
+The `get_status` and `bind_pr` tools exist only in the Claude desktop app. If they are not
+available (Claude Code in a terminal or an IDE), wait for the checks with one blocking command
+instead of a loop:
+
+```bash
+gh pr checks <number> --watch --fail-fast
+```
+
+`gh` does the waiting and returns when every check has finished, or at the first failure. Run it
+once, with a timeout of about 10 minutes. If the timeout ends while checks are still running,
+say so and stop; do not start a second wait. Then continue with "On success" or "On failure". The
+ban on hand-made loops still applies.
+
 ## On success
 
 Report that the checks passed, with the pull request link, and stop.
