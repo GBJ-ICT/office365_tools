@@ -17,6 +17,7 @@ For people who change the tools.
 | Document | Read it when |
 |---|---|
 | [Multi-language design](dev/multilanguage.md) | You add a message, a command, or a language |
+| [Testing](dev/testing.md) | You write a test, or an issue that says how it is verified |
 
 ## Sandbox — [overview](sandbox/README.md)
 
