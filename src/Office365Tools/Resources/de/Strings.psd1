@@ -56,7 +56,7 @@
     'Rule.FileName.ReservedName'                               = '''{0}'' ist ein reservierter Name und kann nicht verwendet werden.'
     'Rule.FileName.ReservedPrefix'                             = 'Der Name beginnt mit einem reservierten Präfix (~$ oder _vti_).'
     'Rule.FileName.TooLong'                                    = 'Der Name ist {0} Zeichen lang; die Grenze liegt bei 255.'
-    'Rule.FileName.RiskyCharacter'                             = 'Der Name enthält {0}; das ist erlaubt, bringt aber manche nachgelagerten Werkzeuge durcheinander.'
+    'Rule.FileName.RiskyCharacter'                             = 'Der Name enthält {0}; das ist erlaubt, bringt aber manche nachgelagerten Tools durcheinander.'
 
     'Library.Compare.LocalMissing'                             = 'Den lokalen Ordner ''{0}'' gibt es nicht.'
 
@@ -146,7 +146,7 @@
 
     'Connection.NotConnected'                                  = 'Nicht mit SharePoint verbunden. Führe zuerst ''Connect-O365'' aus.'
 
-    'Connection.PnpMissing'                                    = 'Dieser Befehl spricht mit SharePoint und braucht dafür das Modul PnP.PowerShell. Installiere es einmalig mit: Install-Module PnP.PowerShell -Scope CurrentUser -- oder benutze nur die Offline-Befehle (Test-SpoFileName, Get-SpoRecurringDate, Export-SpoReport und scripts/Test-Upload.ps1 ohne -Library), die nichts zusätzlich brauchen.'
+    'Connection.PnpMissing'                                    = 'Dieser Befehl greift auf SharePoint zu und braucht dafür das Modul PnP.PowerShell. Installiere es einmalig mit: Install-Module PnP.PowerShell -Scope CurrentUser -- oder benutze nur die Offline-Befehle (Test-SpoFileName, Get-SpoRecurringDate, Export-SpoReport und scripts/Test-Upload.ps1 ohne -Library), die nichts zusätzlich brauchen.'
 
     'Connection.ListsAvailable'                                = 'Vorhandene Listen auf {0}: {1}'
 
