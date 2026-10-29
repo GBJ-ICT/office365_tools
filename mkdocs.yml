@@ -75,6 +75,7 @@ nav:
       - Language: user/language.md
   - Developer docs:
       - Multi-language design: dev/multilanguage.md
+      - Testing: dev/testing.md
   - Sandbox:
       - Overview: sandbox/README.md
       - Getting started: sandbox/getting-started.md
