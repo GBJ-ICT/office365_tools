@@ -53,7 +53,7 @@ nach der Anmeldung aus.'
     'TestUpload.Mode.Option2'               = 'Ich habe ihn schon hochgeladen -- prüfen, ob alles angekommen ist (mit Anmeldung)'
     'TestUpload.Mode.Option3'               = 'Beides: erst den Ordner prüfen, dann, was angekommen ist (mit Anmeldung)'
     'TestUpload.Mode.NeedsLibrary'          = '-Mode {0} vergleicht mit einer Bibliothek, darum ist -Destination oder -Library nötig.'
-    'TestUpload.Mode.OfflineOnly'           = '-Offline gilt nur für -Mode PreFlight; {0} muss mit dem Tenant sprechen.'
+    'TestUpload.Mode.OfflineOnly'           = '-Offline gilt nur für -Mode PreFlight; {0} braucht eine Verbindung zum Tenant.'
 
     'TestUpload.Site.Question'              = 'Welche SharePoint-Site? Zum Beispiel:'
     'TestUpload.Site.Label'                 = 'Site'

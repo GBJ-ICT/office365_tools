@@ -3,11 +3,17 @@
 What is in the box, and how to start each tool. Details for each one are in the
 [detailed guides](../sandbox/README.md).
 
-## Two ways to use the tools
+## Three ways to use the tools
 
-**Double-click.** For people who do not use PowerShell. You get a launcher file,
-double-click it, and answer a few questions. Today this is the
-**Upload checker**.
+**Double-click a single tool.** For people who do not use PowerShell. You get a
+launcher file for one tool, for example `Check-Upload.cmd`, double-click it, and
+answer a few questions. The tool starts straight away.
+
+**Double-click `Office365-Tools.cmd`.** Also for people who do not use PowerShell.
+You get this file when you receive several tools. A window opens with every
+available tool, each with a short description. Click the tool you want to start.
+Today this is the **Upload checker**; new tools appear in this window by themselves.
+At the bottom left, the **Language / Sprache** box changes the language.
 
 **PowerShell.** For everything else. Open PowerShell 7 in the repository folder
 and start a script, or use the commands directly.
@@ -18,6 +24,7 @@ Checks a folder **before** you upload it to SharePoint, and checks **afterwards*
 that everything arrived. It only looks; it never changes anything.
 
 1. Double-click `Check-Upload.cmd`, or drag the folder you want checked onto it.
+   With `Office365-Tools.cmd`, click **Upload checker** in the window instead.
 2. Pick the folder, then choose what to do: check before uploading, check that
    it arrived, or both.
 3. Read the report in the `Reports` folder next to the launcher. Red means fix it before uploading.

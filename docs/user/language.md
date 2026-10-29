@@ -1,7 +1,7 @@
 # Language
 
-The tools speak **English** or **German**. By default they use the language your
-Windows is set to, so most people never need to change anything.
+The tools are available in **English** and **German**. By default they use the language
+your Windows is set to, so most people never need to change anything.
 
 !!! note "What is in both languages"
     Everything: the **upload checker** (the launcher, the tool menu, the checker
@@ -11,18 +11,33 @@ Windows is set to, so most people never need to change anything.
 
 ## Change the language
 
-**In the tool window:** use the **Language / Sprache** box at the bottom left and
-pick English, Deutsch or Follow Windows. The window opens again in that language.
+You can change the language in two places.
 
-**In a text menu** (the upload checker's "What would you like to do?" and the
-numbered list), the top shows this line:
+**1. In the window where you pick a tool.** It appears when you double-click
+`Office365-Tools.cmd`. The **Language / Sprache** box is at the bottom left. Click it
+and pick **English**, **Deutsch** or **Follow Windows**. The window then opens again in
+that language.
 
-```
-Language: English        (L = change / ändern)
-```
+**2. In the upload checker.** It runs in a text window (black or blue) where you type
+numbers and letters:
 
-Press **L**, then pick **English**, **Deutsch** or **Follow Windows**. Press Enter
-to leave things as they are.
+1. Start the upload checker, for example with `Check-Upload.cmd`.
+2. Wait for the question **"What would you like to do?"** with the numbers 1, 2 and 3.
+   Right above it is this line:
+
+   ```
+   Language: English        (L = change / ändern)
+   ```
+
+3. After **Number [1]** type the letter **L** and press Enter.
+4. Type the number of the language you want (English, Deutsch or Follow Windows) and
+   press Enter. If you only press Enter, everything stays as it is.
+5. The question appears again, now in the language you chose. Pick 1, 2 or 3 as usual.
+
+The question "What would you like to do?" only appears when `<Mode>` in
+`upload-check.xml` is `ask` (the default). If it has a fixed value, the check starts
+straight away. Then change the language in the tool-picking window, or with
+`-Language` (see below).
 
 Your choice is remembered. Every tool starts in that language from now on, until
 you change it again.

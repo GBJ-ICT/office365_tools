@@ -5,7 +5,7 @@
 
 Was sie macht
 -------------
-Zwei Dinge, und sie fragt, welches du möchtest:
+Sie kann zwei Dinge tun und fragt dich, welches du möchtest:
 
   1. VOR dem Hochladen - sieht sich einen Ordner auf deinem Computer an und
      sagt dir, welche Dateien scheitern oder Ärger machen würden: Namen, die
@@ -25,7 +25,7 @@ So benutzt du sie
 1. Entpacke zuerst das ZIP (Rechtsklick, "Alle extrahieren..."). Doppelklicke
    dann im entstandenen Ordner auf  Check-Upload.cmd
    (oder ziehe den Ordner, den du prüfen willst, darauf, dann entfällt die
-   nächste Frage). Wenn du mehrere Werkzeuge auf einmal bekommen hast, heisst
+   nächste Frage). Wenn du mehrere Tools auf einmal bekommen hast, heisst
    die Datei stattdessen Office365-Tools.cmd und fragt zuerst, welches.
 
    Jedes Mal braucht sie kurz Internet: Sie holt vor dem Start die neueste
@@ -41,10 +41,10 @@ So benutzt du sie
    Strg+V in das Feld ein. Hast du sie kurz vor dem Start kopiert, steht sie
    schon darin. Danach folgt ein Microsoft-Anmeldefenster.
 
-   Kopieren ist besser als Tippen, und zwar deshalb: Auf einer Teams-Site
-   liegen die Dateien unter einem versteckten Kanalordner, der Ordner, der als
-   "Test" erscheint, ist also eigentlich "General/Test". Die Adresse enthält
-   das. Wer sie abtippt, vergisst es.
+   Kopieren ist besser als Tippen: Auf einer Teams-Site liegen die Dateien unter
+   einem versteckten Kanalordner. Der Ordner, der als "Test" erscheint, heisst in
+   Wirklichkeit "General/Test". Die Adresse enthält das; wer sie abtippt,
+   vergisst es leicht.
    Fügst du stattdessen die Adresse der Site oder der Bibliothek ein, bekommst
    du eine nummerierte Liste, in der du dich nach unten durchklickst.
 
@@ -60,15 +60,15 @@ So benutzt du sie
 
 Die Sprache
 -----------
-Die Prüfung spricht Deutsch oder Englisch. Standardmässig nimmt sie die
-Sprache deines Windows. Auf der Seite mit der Frage "Was möchtest du tun?"
+Die Prüfung ist auf Deutsch und Englisch verfügbar. Standardmässig verwendet sie
+die Sprache deines Windows. Auf der Seite mit der Frage "Was möchtest du tun?"
 siehst du oben die Zeile "Sprache: Deutsch (L = ändern / change)": Tippe L und
-wähle English, Deutsch oder "Windows folgen". Die Wahl wird gemerkt, für alle
-Werkzeuge. Im Werkzeug-Fenster gibt es dafür das Feld "Language / Sprache".
+wähle English, Deutsch oder "Windows folgen". Die Wahl wird gespeichert, für alle
+O365 Tools. Im O365-Tools-Fenster gibt es dafür das Feld "Language / Sprache".
 
 Die Berichte sind in der Sprache geschrieben, in der du die Prüfung gestartet
 hast. Die Namen der Regeln (zum Beispiel FileName.IllegalCharacter) bleiben
-englisch, damit Filter und Tabellen weiter funktionieren.
+auf Englisch, damit Filter und Tabellen weiter funktionieren.
 
 
 Die Berichte lesen
@@ -155,7 +155,7 @@ Kollegin schicken -- die HTML-Datei ist in sich geschlossen und öffnet sich
 Für die Person, die das einrichtet
 ----------------------------------
 Check-Upload.cmd ist packaging\Office365-Tools.cmd des Repositorys, auf dieses
-eine Werkzeug festgelegt. Sie holt das neueste Release aus GitHub (das neueste
+eine Tool festgelegt. Sie holt das neueste Release aus GitHub (das neueste
 Tag der Form vX.Y) nach %LOCALAPPDATA%\office365_tools\vX.Y, fällt auf das
 neueste vorhandene Release zurück, wenn GitHub nicht erreichbar ist, und
 übergibt an packaging\UploadCheck\Start-UploadCheck.ps1.

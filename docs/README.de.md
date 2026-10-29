@@ -6,16 +6,16 @@ die Dokumente für Entwickler und die ausführlichen Anleitungen im Bereich
 
 ## Benutzerhandbuch
 
-Für alle, die die Werkzeuge benutzen.
+Für alle, die die O365 Tools benutzen.
 
 | Anleitung | Lies sie, wenn ... |
 |---|---|
-| [Die Werkzeuge im Überblick](user/tools.md) | du wissen willst, welches Werkzeug was tut und wie du es startest |
-| [Sprache](user/language.md) | du die Werkzeuge auf Englisch oder Deutsch möchtest |
+| [Die O365 Tools im Überblick](user/tools.md) | du wissen willst, welches Tool was tut und wie du es startest |
+| [Sprache](user/language.md) | du die O365 Tools auf Englisch oder Deutsch möchtest |
 
 ## Entwicklerdokumentation
 
-Für alle, die die Werkzeuge ändern. Nur auf Englisch.
+Für alle, die die O365 Tools ändern. Nur auf Englisch.
 
 | Dokument | Lies es, wenn ... |
 |---|---|
