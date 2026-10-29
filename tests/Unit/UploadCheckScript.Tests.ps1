@@ -151,6 +151,24 @@ Describe 'Test-Upload.ps1, the report and the findings' {
         ($csv | Where-Object RuleId -eq 'Upload.PathWouldExceed').Count | Should -BeGreaterThan 0
     }
 
+    It 'gives the same rule names, headers and file names in German as in English' {
+        $english = Invoke-Check -Language 'en' -TooLong
+        $german = Invoke-Check -Language 'de' -TooLong
+
+        $en = Import-Csv -LiteralPath (Join-Path $english.Output 'findings.csv')
+        $de = Import-Csv -LiteralPath (Join-Path $german.Output 'findings.csv') -Encoding utf8
+
+        # The same columns, the same rules in the same order. Only the message differs.
+        ($de[0].PSObject.Properties.Name -join ',') | Should -Be ($en[0].PSObject.Properties.Name -join ',')
+        ($de.RuleId -join ',') | Should -Be ($en.RuleId -join ',')
+        $de.Message -join '|' | Should -Not -Be ($en.Message -join '|')
+
+        # Names that come from the data are not translated.
+        $names = ($de | ForEach-Object { $_.PSObject.Properties.Value }) -join ' '
+        $names | Should -BeLike '*setup.exe*'
+        $names | Should -BeLike '*empty.txt*'
+    }
+
     It 'words the same findings in English when asked' {
         $result = Invoke-Check -Language 'en' -TooLong
         $csv = Import-Csv -LiteralPath (Join-Path $result.Output 'findings.csv')

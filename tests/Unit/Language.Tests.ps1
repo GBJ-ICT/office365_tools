@@ -553,6 +553,17 @@ Describe 'The string tables' {
 
         $formal | Should -BeNullOrEmpty -Because "the tools address people with du: $($formal -join ', ')"
     }
+
+    It 'use Swiss spelling, so no German text contains the letter eszett' {
+        $eszett = [string][char]0x00DF
+        $found = foreach ($table in $script:Tables) {
+            foreach ($entry in $table.German.GetEnumerator()) {
+                if ($entry.Value.Contains($eszett)) { "$($table.Name): $($entry.Key)" }
+            }
+        }
+
+        $found | Should -BeNullOrEmpty -Because "German here is written with ss: $($found -join ', ')"
+    }
 }
 
 Describe 'The user guide' {
@@ -597,6 +608,13 @@ Describe 'The scripts that speak two languages' {
 
     It 'are found' {
         $script:Speaking.Count | Should -BeGreaterThan 0
+    }
+
+    It 'are every script in scripts, so a new one cannot be left in English' {
+        $all = @(Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'scripts') -Filter '*.ps1' -File)
+        $left = @($all | Where-Object { $_.Name -notin $script:Speaking.Name })
+
+        $left | Should -BeNullOrEmpty -Because "these scripts do not use Get-ScriptString: $(($left | ForEach-Object Name) -join ', ')"
     }
 
     It 'take -Language, which is en, de or auto' {
@@ -829,6 +847,18 @@ Describe 'The language picker' {
             Read-O365LanguageChoice -Table $script:Table -Path $script:Settings | Out-Null
 
             Read-O365Setting -Name 'outputFolder' -Path $script:Settings | Should -Be 'D:\reports'
+        }
+    }
+}
+
+Describe 'The module and its language commands' {
+
+    It 'exports Get-O365Language, Set-O365Language and Get-O365String' {
+        $manifest = Import-PowerShellDataFile -LiteralPath (Join-Path $script:RepoRoot 'src/Office365Tools/Office365Tools.psd1')
+
+        foreach ($name in 'Get-O365Language', 'Set-O365Language', 'Get-O365String') {
+            $manifest.FunctionsToExport | Should -Contain $name
+            Get-Command -Module Office365Tools -Name $name -ErrorAction SilentlyContinue | Should -Not -BeNullOrEmpty -Because "$name must be a public command"
         }
     }
 }
