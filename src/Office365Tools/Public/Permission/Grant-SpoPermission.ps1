@@ -72,7 +72,7 @@ function Grant-SpoPermission {
     if (-not $roleDefinition) {
         $available = @(Get-PnPRoleDefinition | ForEach-Object { $_.Name }) -join ', '
         throw [System.InvalidOperationException]::new(
-            "Role '$Role' does not exist on this site. Available roles: $available"
+            (Get-O365String 'Permission.Grant.NoRole' $Role $available)
         )
     }
 
@@ -93,23 +93,21 @@ function Grant-SpoPermission {
     if (-not $hasUnique) {
         if (-not $BreakInheritance) {
             throw [System.InvalidOperationException]::new(
-                "'$target' currently inherits its permissions. Granting here requires breaking " +
-                'inheritance, which changes the security model for everything below it. ' +
-                'Re-run with -BreakInheritance (and normally -CopyExisting) if that is what you want.'
+                (Get-O365String 'Permission.Grant.Inherits' $target)
             )
         }
 
-        if ($PSCmdlet.ShouldProcess($target, "Break permission inheritance (copy existing: $($CopyExisting.IsPresent))")) {
+        if ($PSCmdlet.ShouldProcess($target, (Get-O365String 'Permission.Grant.BreakAction' $CopyExisting.IsPresent))) {
             $securable.BreakRoleInheritance($CopyExisting.IsPresent, $false)
             Invoke-PnPQuery
-            Write-O365Log "Broke inheritance on '$target'." 'Warning'
+            Write-O365Log (Get-O365String 'Permission.Grant.Broke' $target) 'Warning'
         }
         else {
             return
         }
     }
 
-    if ($PSCmdlet.ShouldProcess($target, "Grant '$Role' to '$Identity'")) {
+    if ($PSCmdlet.ShouldProcess($target, (Get-O365String 'Permission.Grant.Action' $Role $Identity))) {
         $params = @{
             List        = $list.Title
             User        = $Identity
@@ -126,11 +124,11 @@ function Grant-SpoPermission {
                 Set-PnPListPermission @params
             }
 
-            Write-O365Log "Granted '$Role' to '$Identity' on '$target'." 'Success'
+            Write-O365Log (Get-O365String 'Permission.Grant.Granted' $Role $Identity $target) 'Success'
         }
         catch {
             throw [System.InvalidOperationException]::new(
-                "Failed to grant '$Role' to '$Identity' on '$target': $($_.Exception.Message)",
+                (Get-O365String 'Permission.Grant.Failed' $Role $Identity $target $_.Exception.Message),
                 $_.Exception
             )
         }

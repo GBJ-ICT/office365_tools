@@ -35,5 +35,5 @@ function Save-O365ProfileStore {
     $json = $document | ConvertTo-Json -Depth 10
     Set-Content -LiteralPath $Store.Path -Value $json -Encoding utf8
 
-    Write-O365Log "Saved profile store to '$($Store.Path)'." 'Success'
+    Write-O365Log (Get-O365String 'Helper.ProfileStore.Saved' $Store.Path) 'Success'
 }

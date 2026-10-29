@@ -80,7 +80,7 @@ function Test-SpoFileName {
         Assert-SpoConnection | Out-Null
         $list = Resolve-SpoList -Identity $Library
 
-        Write-O365Log "Checking names in '$($list.Title)'." 'Info'
+        Write-O365Log (Get-O365String 'Library.Names.Checking' $list.Title) 'Info'
 
         foreach ($item in (Get-PnPListItem -List $list -PageSize $PageSize)) {
             $leaf = $item.FieldValues['FileLeafRef']
@@ -90,6 +90,6 @@ function Test-SpoFileName {
             Test-SpoNameRule -Name $leaf -Target $url -List $list.Title -IncludeRisky:$IncludeRisky
         }
 
-        Write-O365Log "Name check for '$($list.Title)' complete." 'Success'
+        Write-O365Log (Get-O365String 'Library.Names.Done' $list.Title) 'Success'
     }
 }

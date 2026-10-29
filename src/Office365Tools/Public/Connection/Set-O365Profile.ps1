@@ -61,7 +61,7 @@ function Set-O365Profile {
     if ($Tenant) { $entry['tenant'] = $Tenant }
     if ($Description) { $entry['description'] = $Description }
 
-    $action = if ($store.Profiles.ContainsKey($Name)) { 'Update profile' } else { 'Create profile' }
+    $action = if ($store.Profiles.ContainsKey($Name)) { (Get-O365String 'Connection.UpdateProfileAction') } else { (Get-O365String 'Connection.CreateProfileAction') }
 
     if ($PSCmdlet.ShouldProcess("$Name -> $SiteUrl", $action)) {
         $store.Profiles[$Name] = [pscustomobject]$entry

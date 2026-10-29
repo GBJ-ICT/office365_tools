@@ -57,6 +57,9 @@ param(
     [string]$ReportFolder,
 
     [Parameter()]
+    [string]$Language,
+
+    [Parameter()]
     [switch]$NoPrompt
 )
 
@@ -87,8 +90,8 @@ function Read-YesNo {
         [bool]$Default = $true
     )
 
-    $suffix = '[Y/n]'
-    if (-not $Default) { $suffix = '[y/N]' }
+    $suffix = Get-LauncherString 'Prompt.YesNo.DefaultYes'
+    if (-not $Default) { $suffix = Get-LauncherString 'Prompt.YesNo.DefaultNo' }
 
     while ($true) {
         Write-Host ''
@@ -168,7 +171,7 @@ function Read-Address {
         no desktop to draw on.
     #>
     param(
-        [string]$Title = 'Where in SharePoint did the files go?'
+        [string]$Title = (Get-LauncherString 'Upload.Address.Title')
     )
 
     $apartment = [System.Threading.Thread]::CurrentThread.GetApartmentState()
@@ -182,7 +185,7 @@ function Read-Address {
             [System.Windows.Forms.Application]::EnableVisualStyles()
 
             $form = New-Object System.Windows.Forms.Form
-            $form.Text = 'Upload checker'
+            $form.Text = Get-LauncherString 'Upload.Heading'
             $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
             $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             $form.MaximizeBox = $false
@@ -198,9 +201,7 @@ function Read-Address {
             $heading.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 16), (ConvertTo-Pixel 16))
 
             $explain = New-Object System.Windows.Forms.Label
-            $explain.Text = "Open that folder in SharePoint, copy the address out of your browser's" + [Environment]::NewLine +
-            'address bar, and paste it here. Not the "Copy link" button: that link' + [Environment]::NewLine +
-            'names no folder.'
+            $explain.Text = (Get-LauncherLines 'Upload.Address.Explain') -join [Environment]::NewLine
             $explain.AutoSize = $true
             $explain.ForeColor = [System.Drawing.SystemColors]::GrayText
             $explain.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 18), (ConvertTo-Pixel 48))
@@ -215,12 +216,12 @@ function Read-Address {
             $problem.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 18), (ConvertTo-Pixel 142))
 
             $ok = New-Object System.Windows.Forms.Button
-            $ok.Text = 'OK'
+            $ok.Text = Get-LauncherString 'Common.Ok'
             $ok.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
             $ok.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 428), (ConvertTo-Pixel 160))
 
             $cancel = New-Object System.Windows.Forms.Button
-            $cancel.Text = 'Cancel'
+            $cancel.Text = Get-LauncherString 'Common.Cancel'
             $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
             $cancel.Size = New-Object System.Drawing.Size((ConvertTo-Pixel 90), (ConvertTo-Pixel 28))
             $cancel.Location = New-Object System.Drawing.Point((ConvertTo-Pixel 532), (ConvertTo-Pixel 160))
@@ -234,17 +235,17 @@ function Read-Address {
                     $value = $box.Text.Trim().Trim('"')
 
                     if (-not $value) {
-                        $problem.Text = 'Paste the address first. Cancel stops the run; nothing is checked and nothing is changed.'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.Empty'
                         return
                     }
 
                     if ($value -notmatch '^https?://') {
-                        $problem.Text = 'That does not look like a web address. It has to start with https://'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.NotAddress'
                         return
                     }
 
                     if ($value -match '^https?://[^/]+/:[a-z]:/') {
-                        $problem.Text = 'That is a sharing link, and it names no folder. Use the browser address bar.'
+                        $problem.Text = Get-LauncherString 'Upload.Address.Problem.SharingLink'
                         return
                     }
 
@@ -281,15 +282,16 @@ function Read-Address {
             return ''
         }
         catch {
-            Write-Host "  (Could not open a window: $($_.Exception.Message))" -ForegroundColor DarkGray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.Window.Failed' $_.Exception.Message)) -ForegroundColor DarkGray
         }
     }
 
     Write-Host ''
     Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host '  Copy the address out of your browser and paste it here.' -ForegroundColor Gray
-    Write-Host '  Right-click pastes into this window.' -ForegroundColor Gray
-    return (Read-Host '  Address')
+    foreach ($line in (Get-LauncherLines 'Upload.Address.Console.Help')) {
+        Write-Host "  $line" -ForegroundColor Gray
+    }
+    return (Read-Host ('  ' + (Get-LauncherString 'Upload.Address.Console.Prompt')))
 }
 
 function Select-Folder {
@@ -327,13 +329,13 @@ function Select-Folder {
             return ''
         }
         catch {
-            Write-Host "  (Could not open a folder window: $($_.Exception.Message))" -ForegroundColor DarkGray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.FolderWindow.Failed' $_.Exception.Message)) -ForegroundColor DarkGray
         }
     }
 
     Write-Host ''
     Write-Host "  $Description" -ForegroundColor Cyan
-    return (Read-Host '  Folder')
+    return (Read-Host ('  ' + (Get-LauncherString 'Upload.Folder.Console.Prompt')))
 }
 
 # -- Locate the pieces -------------------------------------------------------
@@ -349,14 +351,21 @@ if (-not $SettingsPath) {
     $SettingsPath = Join-Path $PSScriptRoot 'upload-check.xml'
 }
 
-$missing = @()
-if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
-if (-not (Test-Path -LiteralPath $module)) { $missing += 'src\Office365Tools\' }
-if (-not (Test-Path -LiteralPath $SettingsPath)) { $missing += (Split-Path -Leaf $SettingsPath) }
+$shared = Join-Path $root 'src\Office365Tools\Private\Shared'
+$resources = @(
+    (Join-Path $root 'src\Office365Tools\Resources'),
+    (Join-Path $PSScriptRoot 'Resources'))
 
-if ($missing.Count -gt 0) {
+# Nothing can be said in a language until the shared files and the English
+# texts are there, so this one message is English only.
+$needed = @('Language.ps1', 'ClientId.ps1') | ForEach-Object { Join-Path $shared $_ }
+$needed += $resources | ForEach-Object { Join-Path $_ 'en\Strings.psd1' }
+$absent = @($needed | Where-Object { -not (Test-Path -LiteralPath $_) })
+
+if ($absent.Count -gt 0) {
+    $names = $absent | ForEach-Object { $_.Substring($root.Length).TrimStart('\') }
     Write-Problem -Title 'Part of the upload checker is missing.' -Detail @(
-        "Not found: $($missing -join ', ')",
+        "Not found: $($names -join ', ')",
         '',
         'If you were sent a ZIP with everything in it, it was probably opened',
         'rather than extracted: extract the whole folder and start it from',
@@ -364,9 +373,98 @@ if ($missing.Count -gt 0) {
     exit $SETUP_PROBLEM
 }
 
+# The language and application ID lookups are shared with the module: the very
+# same files, so the two cannot drift. They need no module and no PowerShell 7.
+. (Join-Path $shared 'Language.ps1')
+. (Join-Path $shared 'ClientId.ps1')
+
+function Get-LauncherString {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
+}
+
+# A text of several lines, for Write-Problem: one line per line of the text.
+function Get-LauncherLines {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Key,
+
+        [Parameter(Position = 1, ValueFromRemainingArguments)]
+        [object[]]$FormatArguments = @()
+    )
+
+    $text = Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments
+
+    return @($text -split "`r?`n")
+}
+
+# One language per run, chosen the same way for every tool: -Language, then the
+# environment, the language saved for the user, and the Windows display
+# language. The texts live in Resources\, one table per language, with English
+# underneath. Throws for a language it does not know.
+function Select-LauncherLanguage {
+    param(
+        [string]$Requested
+    )
+
+    $script:Chosen = Resolve-O365Language -Language $Requested
+    $script:Strings = Import-O365StringTable -Language $script:Chosen.Language -Path $resources
+}
+
+# What the L key does: asks which language, remembers the answer for every tool
+# (the settings file is the user's, shared with the module), and carries on in
+# it. Enter keeps the language as it is. If the choice cannot be saved it still
+# holds for the rest of this run, and one line says it was not kept.
+function Read-LanguageChoice {
+    $result = Read-O365LanguageChoice -Table $script:Strings
+
+    if (-not $result) { return }
+
+    Select-LauncherLanguage -Requested $result.Choice
+
+    if (-not $result.Saved) {
+        Write-Host ('  ' + (Get-LauncherString 'Language.NotSaved' (Get-O365SettingsPath))) -ForegroundColor Yellow
+    }
+}
+
+$badLanguage = $null
+try {
+    Select-LauncherLanguage -Requested $Language
+}
+catch {
+    $badLanguage = $Language
+    Select-LauncherLanguage -Requested ''
+}
+
+# German umlauts need a console that decodes UTF-8. The .cmd launcher already
+# switched the code page; this covers a start from anywhere else.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
+
+if ($badLanguage) {
+    Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.Argument' $badLanguage)
+    exit $SETUP_PROBLEM
+}
+
+$missing = @()
+if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
+if (-not (Test-Path -LiteralPath $module)) { $missing += 'src\Office365Tools\' }
+if (-not (Test-Path -LiteralPath $SettingsPath)) { $missing += (Split-Path -Leaf $SettingsPath) }
+
+if ($missing.Count -gt 0) {
+    Write-Problem -Title (Get-LauncherString 'Setup.Missing.Title') -Detail (Get-LauncherLines 'Setup.Missing.Body' ($missing -join ', '))
+    exit $SETUP_PROBLEM
+}
+
 # -- Read the settings -------------------------------------------------------
 $known = @(
-    'Folder', 'Mode', 'Destination', 'ClientId', 'Subfolders',
+    'Folder', 'Mode', 'Language', 'Destination', 'ClientId', 'Subfolders',
     'IgnoreDates', 'CompareSize', 'TargetPathPrefix', 'LargeFileMb',
     'PathLimit', 'WarnAt', 'BlockedExtension', 'IncludeRisky')
 
@@ -394,21 +492,16 @@ try {
     $document.LoadXml($text)
 }
 catch {
-    Write-Problem -Title "$(Split-Path -Leaf $SettingsPath) could not be read." -Detail @(
-        $_.Exception.Message,
-        '',
-        'Something in the file is malformed - usually a missing angle bracket,',
-        'or a setting whose closing tag does not match its opening tag.',
-        'Open it in Notepad and look for that, or delete the file: the next',
-        'run puts a fresh one in its place.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Unreadable.Title' (Split-Path -Leaf $SettingsPath)) `
+        -Detail (Get-LauncherLines 'Settings.Unreadable.Body' $_.Exception.Message)
     exit $SETUP_PROBLEM
 }
 
 $rootNode = $document.DocumentElement
 
 if (-not $rootNode -or $rootNode.Name -ne 'UploadCheck') {
-    Write-Problem -Title "$(Split-Path -Leaf $SettingsPath) is not an upload checker settings file." -Detail @(
-        'It has to start with <UploadCheck> and end with </UploadCheck>.')
+    Write-Problem -Title (Get-LauncherString 'Settings.WrongFile.Title' (Split-Path -Leaf $SettingsPath)) `
+        -Detail (Get-LauncherLines 'Settings.WrongFile.Body')
     exit $SETUP_PROBLEM
 }
 
@@ -422,7 +515,7 @@ foreach ($node in $rootNode.ChildNodes) {
     if ($node.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
 
     if ($retired -contains $node.Name) {
-        Write-Host "  $($node.Name) in $(Split-Path -Leaf $SettingsPath) does nothing any more; you can delete that line." -ForegroundColor DarkGray
+        Write-Host ('  ' + (Get-LauncherString 'Settings.Retired' $node.Name (Split-Path -Leaf $SettingsPath))) -ForegroundColor DarkGray
         continue
     }
 
@@ -440,31 +533,14 @@ foreach ($node in $rootNode.ChildNodes) {
 }
 
 if ($obsolete.Count -gt 0) {
-    Write-Problem -Title 'This settings file names the target the old way.' -Detail @(
-        "No longer used: $($obsolete -join ', ')",
-        '',
-        'All three have been replaced by one setting, which you fill in by',
-        'copying rather than by typing:',
-        '',
-        '    <Destination>  open the folder in SharePoint, copy the whole',
-        '                   address out of your browser, paste it in',
-        '',
-        'The address says the site, the library and the folder together, so',
-        'they cannot disagree with each other -- and it carries the channel',
-        'folder a Teams site hides, which is what typing gets wrong.',
-        '',
-        'Delete those lines, add a <Destination> line, and run this again.',
-        'A fresh upload-check.xml shows the shape of it: rename yours, and',
-        'the next run puts a new one beside it.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Obsolete.Title') `
+        -Detail (Get-LauncherLines 'Settings.Obsolete.Body' ($obsolete -join ', '))
     exit $SETUP_PROBLEM
 }
 
 if ($unknown.Count -gt 0) {
-    Write-Problem -Title 'There is a setting in the file that I do not recognise.' -Detail @(
-        "Unknown: $($unknown -join ', ')",
-        '',
-        "Known settings: $($known -join ', ')",
-        'Check the spelling - the names are case-sensitive.')
+    Write-Problem -Title (Get-LauncherString 'Settings.Unknown.Title') `
+        -Detail (Get-LauncherLines 'Settings.Unknown.Body' ($unknown -join ', ') ($known -join ', '))
     exit $SETUP_PROBLEM
 }
 
@@ -493,8 +569,8 @@ function Read-Number {
 
     $value = 0
     if (-not [int]::TryParse($raw, [ref]$value)) {
-        Write-Problem -Title "The setting <$Name> has to be a whole number." -Detail @(
-            "It currently says: $raw")
+        Write-Problem -Title (Get-LauncherString 'Settings.NotNumber.Title' $Name) `
+            -Detail (Get-LauncherLines 'Settings.CurrentValue' $raw)
         exit $SETUP_PROBLEM
     }
 
@@ -513,11 +589,24 @@ function Read-Boolean {
     if ('true', 'yes', '1' -contains $raw.ToLower()) { return $true }
     if ('false', 'no', '0' -contains $raw.ToLower()) { return $false }
 
-    Write-Problem -Title "The setting <$Name> has to be true or false." -Detail @(
-        "It currently says: $raw")
+    Write-Problem -Title (Get-LauncherString 'Settings.NotBoolean.Title' $Name) `
+        -Detail (Get-LauncherLines 'Settings.CurrentValue' $raw)
     exit $SETUP_PROBLEM
 }
 
+# -- Language, once the settings are read ------------------------------------
+# <Language> in this file can name one for the file. -Language still wins, as it
+# does everywhere.
+$fromFile = Get-Setting -Name 'Language'
+if (-not $Language -and $fromFile) {
+    try {
+        Select-LauncherLanguage -Requested $fromFile
+    }
+    catch {
+        Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.File' $fromFile)
+        exit $SETUP_PROBLEM
+    }
+}
 # -- Source: which folder ----------------------------------------------------
 if (-not $Folder) {
     $Folder = Get-Setting -Name 'Folder'
@@ -525,9 +614,9 @@ if (-not $Folder) {
 
 if (-not $Folder -and -not $NoPrompt) {
     Write-Host ''
-    Write-Host '  Upload checker' -ForegroundColor Cyan
-    Write-Host '  A window will open. Pick the folder you are uploading.' -ForegroundColor Gray
-    $Folder = Select-Folder -Description 'Which folder are you uploading to SharePoint?'
+    Write-Host ('  ' + (Get-LauncherString 'Upload.Heading')) -ForegroundColor Cyan
+    Write-Host ('  ' + (Get-LauncherString 'Upload.Folder.Intro')) -ForegroundColor Gray
+    $Folder = Select-Folder -Description (Get-LauncherString 'Upload.Folder.Question')
 }
 
 # A path pasted from Explorer arrives wrapped in quotes, and a trailing
@@ -535,46 +624,44 @@ if (-not $Folder -and -not $NoPrompt) {
 $Folder = $Folder.Trim().Trim('"').TrimEnd('\')
 
 if (-not $Folder) {
-    Write-Problem -Title 'No folder was chosen, so there is nothing to check.' -Detail @(
-        'Start it again and pick a folder, or drag a folder onto it.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Folder.None.Title') -Detail (Get-LauncherLines 'Upload.Folder.None.Body')
     exit $SETUP_PROBLEM
 }
 
 if (-not (Test-Path -LiteralPath $Folder -PathType Container)) {
-    Write-Problem -Title 'That folder does not exist.' -Detail @(
-        "Looked for: $Folder",
-        '',
-        'If you typed it, check for a typo. If you pasted it, make sure the',
-        'whole path came along.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Folder.Missing.Title') -Detail (Get-LauncherLines 'Upload.Folder.Missing.Body' $Folder)
     exit $SETUP_PROBLEM
 }
 
 Write-Host ''
-Write-Host "  Folder:  $Folder" -ForegroundColor Green
+Write-Host ('  ' + (Get-LauncherString 'Upload.Folder.Shown' $Folder)) -ForegroundColor Green
 
 # -- What to do --------------------------------------------------------------
 $mode = Get-Setting -Name 'Mode'
 
-# How to check the upload later depends on whether this run asked.
-if ($mode) {
-    $nextStep = 'Once it is uploaded, set Mode in upload-check.xml to ask and start this again to check that everything arrived.'
-}
-else {
-    $nextStep = 'Once it is uploaded, start this again and choose 2 to check that everything arrived.'
-}
+$modeFromFile = [bool]$mode
 
 if (-not $mode -and -not $NoPrompt) {
-    Write-Host ''
-    Write-Host '  What would you like to do?' -ForegroundColor Cyan
-    Write-Host '    1) Check this folder before I upload it        (no sign-in)'
-    Write-Host '    2) I uploaded it already - did everything arrive?  (sign-in)'
-    Write-Host '    3) Both'
-
     $answer = ''
     while ('1', '2', '3' -notcontains $answer) {
+        # Printed again after L, so it is in the language just chosen.
         Write-Host ''
-        $answer = "$(Read-Host '  Number [1]')".Trim()
+        Write-Host ('  ' + (Get-O365LanguageLine -Table $script:Strings -Language $script:Chosen.Language)) -ForegroundColor DarkGray
+
+        Write-Host ''
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Menu.Title')) -ForegroundColor Cyan
+        Write-Host (Get-LauncherString 'Upload.Menu.Option1')
+        Write-Host (Get-LauncherString 'Upload.Menu.Option2')
+        Write-Host (Get-LauncherString 'Upload.Menu.Option3')
+
+        Write-Host ''
+        $answer = "$(Read-Host ('  ' + (Get-LauncherString 'Upload.Menu.Prompt')))".Trim()
         if (-not $answer) { $answer = '1' }
+
+        if ($answer -eq 'l') {
+            Read-LanguageChoice
+            $answer = ''
+        }
     }
 
     $mode = @{ '1' = 'PreFlight'; '2' = 'Verify'; '3' = 'Both' }[$answer]
@@ -582,9 +669,18 @@ if (-not $mode -and -not $NoPrompt) {
 
 if (-not $mode) { $mode = 'PreFlight' }
 
+# How to check the upload later depends on whether this run asked. Worked out
+# here, after the menu, so it is in the language the menu ended in.
+if (-not $modeFromFile) {
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromMenu'
+}
+else {
+    $nextStep = Get-LauncherString 'Upload.NextStep.FromFile'
+}
+
 if ('PreFlight', 'Verify', 'Both' -notcontains $mode) {
-    Write-Problem -Title "The setting <Mode> has to be PreFlight, Verify, Both or ask." -Detail @(
-        "It currently says: $mode")
+    Write-Problem -Title (Get-LauncherString 'Settings.Mode.Title') `
+        -Detail (Get-LauncherLines 'Settings.CurrentValue' $mode)
     exit $SETUP_PROBLEM
 }
 
@@ -619,15 +715,7 @@ if (-not $pwsh) {
 }
 
 if (-not $pwsh) {
-    Write-Problem -Title 'PowerShell 7 is not installed on this computer.' -Detail @(
-        'It is a free Microsoft download, and it is the only thing missing.',
-        '',
-        'Install it once: open the Start menu, type cmd, press Enter, and paste',
-        '',
-        '    winget install --id Microsoft.PowerShell',
-        '',
-        'or download it from https://aka.ms/powershell-release',
-        'Then start this again.')
+    Write-Problem -Title (Get-LauncherString 'Upload.Pwsh.Missing.Title') -Detail (Get-LauncherLines 'Upload.Pwsh.Missing.Body')
     exit $SETUP_PROBLEM
 }
 
@@ -635,74 +723,73 @@ if (-not $pwsh) {
 # Ask PowerShell 7, do not look here: 5.1 and 7 read different module folders,
 # so what this process can see is not what the checker will be able to load.
 if ($needsSignIn) {
-    $clientId = Get-Setting -Name 'ClientId'
+    # The settings file first; failing that, where an earlier setup left it: the
+    # environment variable the old scripts used, then the default profile.
+    $clientInfo = Resolve-O365ClientId -Configured (Get-Setting -Name 'ClientId') `
+        -ProfilePath (Join-Path $root 'config\profiles.json')
+    $clientId = $null
+    if ($clientInfo) { $clientId = $clientInfo.ClientId }
 
     if (-not $destination -and -not $NoPrompt) {
         $destination = (Read-Address).Trim()
 
         if ($destination) {
             Write-Host ''
-            Write-Host "  Destination: $destination" -ForegroundColor Gray
+            Write-Host ('  ' + (Get-LauncherString 'Upload.Destination.Shown' $destination)) -ForegroundColor Gray
         }
     }
 
     if (-not $destination -or -not $clientId) {
-        Write-Problem -Title 'Checking what arrived means signing in, and I am missing the details for that.' -Detail @(
-            'Needed in upload-check.xml:',
-            '',
-            '    <Destination>  the address of the folder in SharePoint, copied',
-            '                   from your browser',
-            '    <ClientId>     the application ID your organisation uses to sign in',
-            '',
-            'The address you can fetch yourself: open the folder in SharePoint',
-            'and copy what is in the address bar. The ClientId is one line that',
-            'whoever sent you this package has. Until then, option 1 (checking',
-            'the folder before uploading) works without any of it.')
+        $detail = @()
+        $detail += Get-LauncherLines 'Upload.SignIn.Missing.Needed'
+        if (-not $destination) { $detail += Get-LauncherLines 'Upload.SignIn.Missing.Destination' }
+        if (-not $clientId) { $detail += Get-LauncherLines 'Upload.SignIn.Missing.ClientId' }
+        $detail += Get-LauncherLines 'Upload.SignIn.Missing.Footer'
+
+        Write-Problem -Title (Get-LauncherString 'Upload.SignIn.Missing.Title') -Detail $detail
         exit $SETUP_PROBLEM
     }
+
+    # Said out loud, so nobody has to wonder which of the three was used.
+    $from = Get-LauncherString 'Upload.ClientId.From.Settings'
+    if ($clientInfo.Source -eq 'Environment') { $from = Get-LauncherString 'Upload.ClientId.From.Environment' }
+    if ($clientInfo.Source -eq 'Profile') { $from = Get-LauncherString 'Upload.ClientId.From.Profile' }
+
+    Write-Host ''
+    Write-Host ('  ' + (Get-LauncherString 'Upload.ClientId.Found' $from)) -ForegroundColor Gray
 
     $installed = & $pwsh -NoProfile -Command "if (Get-Module -ListAvailable -Name PnP.PowerShell) { 'yes' } else { 'no' }"
 
     if ($installed -ne 'yes') {
         Write-Host ''
-        Write-Host '  Signing in needs one more component: PnP.PowerShell.' -ForegroundColor Yellow
-        Write-Host '  It is a Microsoft-published PowerShell module, about 100 MB,' -ForegroundColor Gray
-        Write-Host '  installed once for your account only. It needs internet access.' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Title')) -ForegroundColor Yellow
+        foreach ($line in (Get-LauncherLines 'Upload.Pnp.Body')) {
+            Write-Host "  $line" -ForegroundColor Gray
+        }
 
         $install = $false
         if (-not $NoPrompt) {
-            $install = Read-YesNo -Question 'Install it now? (takes a few minutes)' -Default $true
+            $install = Read-YesNo -Question (Get-LauncherString 'Upload.Pnp.Question') -Default $true
         }
 
         if (-not $install) {
-            Write-Problem -Title 'Cannot check what arrived without signing in.' -Detail @(
-                'Option 1 - checking the folder before you upload - still works,',
-                'and needs nothing extra. Start this again and pick it.',
-                '',
-                'To install the component later, from PowerShell 7:',
-                '',
-                '    Install-Module PnP.PowerShell -Scope CurrentUser')
+            Write-Problem -Title (Get-LauncherString 'Upload.Pnp.Declined.Title') -Detail (Get-LauncherLines 'Upload.Pnp.Declined.Body')
             exit $SETUP_PROBLEM
         }
 
         Write-Host ''
-        Write-Host '  Installing. This takes a few minutes and says nothing while it works...' -ForegroundColor Gray
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Installing')) -ForegroundColor Gray
 
         & $pwsh -NoProfile -Command "Install-Module PnP.PowerShell -Scope CurrentUser -Force -AllowClobber"
 
         $installed = & $pwsh -NoProfile -Command "if (Get-Module -ListAvailable -Name PnP.PowerShell) { 'yes' } else { 'no' }"
 
         if ($installed -ne 'yes') {
-            Write-Problem -Title 'The component could not be installed.' -Detail @(
-                'This is usually no internet access, or a company policy that',
-                'blocks installing PowerShell modules. Show this to whoever sent',
-                'you the package.',
-                '',
-                'Option 1 - checking the folder before you upload - still works.')
+            Write-Problem -Title (Get-LauncherString 'Upload.Pnp.Failed.Title') -Detail (Get-LauncherLines 'Upload.Pnp.Failed.Body')
             exit $SETUP_PROBLEM
         }
 
-        Write-Host '  Installed.' -ForegroundColor Green
+        Write-Host ('  ' + (Get-LauncherString 'Upload.Pnp.Installed')) -ForegroundColor Green
     }
 }
 
@@ -713,7 +800,8 @@ $arguments = @(
     '-File', $checker
     '-LocalPath', $Folder
     '-Mode', $mode
-    '-NextStep', $nextStep)
+    '-NextStep', $nextStep
+    '-Language', $script:Chosen.Language)
 
 if ($ReportFolder) {
     $arguments += @('-OutputPath', (Join-Path $ReportFolder "upload-check-$(Get-Date -Format 'yyyyMMdd_HHmmss')"))

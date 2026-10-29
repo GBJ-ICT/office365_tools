@@ -152,13 +152,26 @@ param(
 
     [Parameter()]
     [ValidateRange(1, 5000)]
-    [int]$PageSize = 500
+    [int]$PageSize = 500,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 # -- Connect ----------------------------------------------------------------
 if ($ProfileName) {
@@ -169,7 +182,7 @@ else {
 }
 
 $connection = Get-O365Connection
-Write-Host "Connected to $($connection.SiteUrl)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'DocSetRegister.Connected' $connection.SiteUrl) -ForegroundColor Green
 
 # -- Prepare output ---------------------------------------------------------
 if (-not $OutputPath) {
@@ -202,7 +215,7 @@ $provenance = @(
 # the run is only going to fix link text on rows that already exist.
 if (-not $Plan -and -not $RelabelExisting) {
     Write-Host ''
-    Write-Host '=== Planning ===' -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DocSetRegister.PlanningHeading') -ForegroundColor Cyan
 
     $parameters = @{
         Library         = $Library
@@ -217,7 +230,7 @@ if (-not $Plan -and -not $RelabelExisting) {
 
     if ($entries.Count -eq 0) {
         Write-Host ''
-        Write-Host "Nothing to do: '$RegisterList' is in step with every Document Set in $($Library -join ', ')." -ForegroundColor Green
+        Write-Host (Get-ScriptString 'DocSetRegister.NothingToDo' $RegisterList ($Library -join ', ')) -ForegroundColor Green
         Stop-O365Log | Out-Null
         return
     }
@@ -246,27 +259,27 @@ if (-not $Plan -and -not $RelabelExisting) {
     Write-Host ''
     foreach ($sourceGroup in ($entries | Group-Object SourceList | Sort-Object Name)) {
         foreach ($actionGroup in ($sourceGroup.Group | Group-Object Action | Sort-Object Name)) {
-            Write-Host ("  {0,-24} {1,-8} {2,4} row(s)" -f $sourceGroup.Name, $actionGroup.Name.ToLower(), $actionGroup.Count)
+            Write-Host (Get-ScriptString 'DocSetRegister.PlanRow' $sourceGroup.Name $actionGroup.Name.ToLower() $actionGroup.Count)
         }
     }
 
     $moved = @($entries | Where-Object Action -eq 'Update')
     if ($moved.Count -gt 0) {
         Write-Host ''
-        Write-Host "  $($moved.Count) row(s) belong to a Document Set that has moved library:" -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DocSetRegister.Moved' $moved.Count) -ForegroundColor Yellow
         foreach ($entry in $moved) {
-            Write-Host ("    {0,-6} {1} -- {2} -> {3}" -f $entry.RegisterItemId, $entry.Name, $entry.CurrentContentType, $entry.ContentType) -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'DocSetRegister.MovedRow' $entry.RegisterItemId $entry.Name $entry.CurrentContentType $entry.ContentType) -ForegroundColor Yellow
         }
     }
 
     Write-Host ''
-    Write-Host "  register columns: $($columns -join ', ')" -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.Columns' ($columns -join ', ')) -ForegroundColor Gray
 
     Write-Host ''
-    Write-Host "Plan written to: $((Resolve-Path $planPath).Path)" -ForegroundColor Green
-    Write-Host 'Nothing was changed.' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.PlanWritten' (Resolve-Path $planPath).Path) -ForegroundColor Green
+    Write-Host (Get-ScriptString 'DocSetRegister.NothingChanged') -ForegroundColor Gray
     Write-Host ''
-    Write-Host 'Read it, edit the values you want different, then:' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.ReadIt') -ForegroundColor Gray
     Write-Host "    ./scripts/Sync-DocumentSetRegister.ps1 -Plan '$planPath' -WhatIf" -ForegroundColor Gray
 
     Stop-O365Log | Out-Null
@@ -292,13 +305,13 @@ $touched = [System.Collections.Generic.List[int]]::new()
 
 if ($Plan) {
     if (-not (Test-Path -LiteralPath $Plan)) {
-        throw "Plan file '$Plan' was not found. Run the script without -Plan to generate one."
+        throw (Get-ScriptString 'DocSetRegister.PlanNotFound' $Plan)
     }
 
     $planRows = @(Import-Csv -Path $Plan -Encoding utf8)
 
     if ($planRows.Count -eq 0) {
-        Write-Host "Plan '$Plan' has no rows." -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DocSetRegister.PlanEmpty' $Plan) -ForegroundColor Yellow
         Stop-O365Log | Out-Null
         return
     }
@@ -312,12 +325,12 @@ if ($Plan) {
     $hasCreate = @($planRows | Where-Object { 'Action' -notin $planColumns -or [string]::IsNullOrWhiteSpace($_.Action) -or $_.Action -eq 'Create' }).Count -gt 0
 
     if ($valueColumns.Count -eq 0 -and $hasCreate) {
-        throw "Plan '$Plan' has rows to create but no register columns, only provenance ones ($($provenance -join ', ')). It is probably the wrong file."
+        throw (Get-ScriptString 'DocSetRegister.PlanNoColumns' $Plan ($provenance -join ', '))
     }
 
     foreach ($required in @('Name', 'DocumentId')) {
         if ($required -notin $planColumns) {
-            throw "Plan '$Plan' has no '$required' column. Generate a plan by running this script without -Plan, rather than writing one by hand."
+            throw (Get-ScriptString 'DocSetRegister.PlanNoColumn' $Plan $required)
         }
     }
 
@@ -354,10 +367,10 @@ if ($Plan) {
     }
 
     Write-Host ''
-    Write-Host '=== Writing entries ===' -ForegroundColor Cyan
-    Write-Host "  $($planRows.Count) row(s) from $(Split-Path -Leaf $Plan)"
-    Write-Host "  columns: $($valueColumns -join ', ')" -ForegroundColor Gray
-    Write-Host "  '$RegisterList' already holds $($alreadyThere.Count) row(s) with a Document ID" -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.WritingHeading') -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DocSetRegister.RowsFrom' $planRows.Count (Split-Path -Leaf $Plan))
+    Write-Host (Get-ScriptString 'DocSetRegister.ValueColumns' ($valueColumns -join ', ')) -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.AlreadyHolds' $RegisterList $alreadyThere.Count) -ForegroundColor Gray
     Write-Host ''
 }
 
@@ -372,7 +385,7 @@ foreach ($row in $planRows) {
         # Not a fussy check. Create is the fall-through, so an Action this
         # script does not understand would otherwise be *written* -- the one
         # mistake that cannot be undone by re-running.
-        Write-Host "  skipped $($row.Name) -- Action '$action' is not one this script writes" -ForegroundColor Yellow
+        Write-Host (Get-ScriptString 'DocSetRegister.SkippedAction' $row.Name $action) -ForegroundColor Yellow
         continue
     }
 
@@ -410,8 +423,8 @@ foreach ($row in $planRows) {
         else { 0 }
 
         if ($itemId -eq 0 -or -not $byId.ContainsKey($itemId)) {
-            & $record 'NotFound' $null "No row in '$RegisterList' for Document ID '$documentId'. It may have been deleted since the plan was written; re-plan."
-            Write-Host "  MISSING $label -- no such row any more; re-plan" -ForegroundColor Red
+            & $record 'NotFound' $null (Get-ScriptString 'DocSetRegister.NoRow' $RegisterList $documentId)
+            Write-Host (Get-ScriptString 'DocSetRegister.Missing' $label) -ForegroundColor Red
             continue
         }
 
@@ -424,7 +437,7 @@ foreach ($row in $planRows) {
 
         if (-not $typeChange -and $values.Count -eq 0) {
             & $record 'AlreadyCorrect' $itemId $null
-            Write-Host ("  ok      {0,-6} {1} -- already {2}" -f $itemId, $label, $currentType) -ForegroundColor DarkGray
+            Write-Host (Get-ScriptString 'DocSetRegister.Ok' $itemId $label $currentType) -ForegroundColor DarkGray
             continue
         }
 
@@ -445,17 +458,17 @@ foreach ($row in $planRows) {
 
             if ($WhatIfPreference) {
                 $what = @(@($typeChange) + @($values.Keys) | Where-Object { $_ }) -join ', '
-                Write-Host ("  would update   {0,-6} {1} -- {2}" -f $itemId, $label, $what) -ForegroundColor DarkGray
+                Write-Host (Get-ScriptString 'DocSetRegister.WouldUpdate' $itemId $label $what) -ForegroundColor DarkGray
                 continue
             }
 
             $touched.Add($itemId)
             & $record 'Updated' $itemId $null
-            Write-Host ("  updated {0,-6} {1} -- {2} -> {3}" -f $itemId, $label, $currentType, ($typeChange ? $typeChange : $currentType)) -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'DocSetRegister.Updated' $itemId $label $currentType ($typeChange ? $typeChange : $currentType)) -ForegroundColor Yellow
         }
         catch {
             & $record 'Failed' $itemId $_.Exception.Message
-            Write-Host "  FAILED  $label -- $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host (Get-ScriptString 'DocSetRegister.Failed' $label $_.Exception.Message) -ForegroundColor Red
         }
 
         continue
@@ -464,7 +477,7 @@ foreach ($row in $planRows) {
     # -- Create -------------------------------------------------------------
     if ($documentId -and $alreadyThere.ContainsKey($documentKey)) {
         & $record 'AlreadyPresent' $alreadyThere[$documentKey] $null
-        Write-Host ("  skipped {0,-6} {1} -- already in the register" -f $alreadyThere[$documentKey], $row.Name) -ForegroundColor DarkGray
+        Write-Host (Get-ScriptString 'DocSetRegister.SkippedPresent' $alreadyThere[$documentKey] $row.Name) -ForegroundColor DarkGray
         continue
     }
 
@@ -488,17 +501,17 @@ foreach ($row in $planRows) {
         $item = Add-SpoListItem @parameters
 
         if ($WhatIfPreference) {
-            Write-Host ("  would create   {0} -- {1}" -f $label, ($contentType ? $contentType : 'default content type')) -ForegroundColor DarkGray
+            Write-Host (Get-ScriptString 'DocSetRegister.WouldCreate' $label ($contentType ? $contentType : (Get-ScriptString 'DocSetRegister.DefaultContentType'))) -ForegroundColor DarkGray
             continue
         }
 
         $touched.Add($item.Id)
         & $record 'Created' $item.Id $null
-        Write-Host ("  created {0,-6} {1}" -f $item.Id, $label) -ForegroundColor Green
+        Write-Host (Get-ScriptString 'DocSetRegister.Created' $item.Id $label) -ForegroundColor Green
     }
     catch {
         & $record 'Failed' $null $_.Exception.Message
-        Write-Host "  FAILED  $label -- $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host (Get-ScriptString 'DocSetRegister.Failed' $label $_.Exception.Message) -ForegroundColor Red
     }
 }
 
@@ -513,7 +526,7 @@ $labelled = @()
 
 if ($SkipLinkText) {
     Write-Host ''
-    Write-Host 'Skipping the link text pass (-SkipLinkText).' -ForegroundColor Yellow
+    Write-Host (Get-ScriptString 'DocSetRegister.SkipLinkText') -ForegroundColor Yellow
 }
 elseif ($WhatIfPreference -and -not $RelabelExisting) {
     # Described rather than previewed, because pass one created nothing under
@@ -521,15 +534,15 @@ elseif ($WhatIfPreference -and -not $RelabelExisting) {
     # preview relabelling every row in the register. -RelabelExisting means
     # exactly that, so it is let through below.
     Write-Host ''
-    Write-Host "Pass two would set '$LinkField' text from '$LinkTextField' on the rows created above." -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetRegister.PassTwoWould' $LinkField $LinkTextField) -ForegroundColor Gray
 }
 elseif ($touched.Count -eq 0 -and -not $RelabelExisting) {
     Write-Host ''
-    Write-Host 'Nothing was written, so there is no link text to set.' -ForegroundColor Yellow
+    Write-Host (Get-ScriptString 'DocSetRegister.NoLinkText') -ForegroundColor Yellow
 }
 else {
     Write-Host ''
-    Write-Host '=== Setting link text ===' -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DocSetRegister.LinkTextHeading') -ForegroundColor Cyan
 
     $parameters = @{
         Library     = $RegisterList
@@ -559,19 +572,19 @@ Stop-O365Log | Out-Null
 
 # -- Summary ----------------------------------------------------------------
 Write-Host ''
-Write-Host '=== Summary ===' -ForegroundColor Cyan
-Write-Host "  entries created  : $(@($results | Where-Object Status -eq 'Created').Count)"
-Write-Host "  entries updated  : $(@($results | Where-Object Status -eq 'Updated').Count)"
-Write-Host "  already present  : $(@($results | Where-Object Status -eq 'AlreadyPresent').Count)"
-Write-Host "  already correct  : $(@($results | Where-Object Status -eq 'AlreadyCorrect').Count)"
-Write-Host "  rows not found   : $(@($results | Where-Object Status -eq 'NotFound').Count)"
-Write-Host "  entries failed   : $(@($results | Where-Object Status -eq 'Failed').Count)"
-Write-Host "  links labelled   : $(@($labelled | Where-Object Status -eq 'Updated').Count)"
+Write-Host (Get-ScriptString 'DocSetRegister.SummaryHeading') -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'DocSetRegister.SumCreated' $(@($results | Where-Object Status -eq 'Created').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumUpdated' $(@($results | Where-Object Status -eq 'Updated').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumPresent' $(@($results | Where-Object Status -eq 'AlreadyPresent').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumCorrect' $(@($results | Where-Object Status -eq 'AlreadyCorrect').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumNotFound' $(@($results | Where-Object Status -eq 'NotFound').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumFailed' $(@($results | Where-Object Status -eq 'Failed').Count))
+Write-Host (Get-ScriptString 'DocSetRegister.SumLabelled' $(@($labelled | Where-Object Status -eq 'Updated').Count))
 Write-Host ''
-Write-Host "Reports written to: $((Resolve-Path $OutputPath).Path)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'DocSetRegister.ReportsWritten' (Resolve-Path $OutputPath).Path) -ForegroundColor Green
 
 if (@($results | Where-Object Status -eq 'Failed').Count -gt 0) {
     Write-Host ''
-    Write-Host 'Some rows failed. written.csv has the reason for each. Fix the plan and re-run the same' -ForegroundColor Yellow
-    Write-Host 'file: rows that succeeded are matched by Document ID and will not be written twice.' -ForegroundColor Yellow
+    Write-Host (Get-ScriptString 'DocSetRegister.SomeFailed1') -ForegroundColor Yellow
+    Write-Host (Get-ScriptString 'DocSetRegister.SomeFailed2') -ForegroundColor Yellow
 }

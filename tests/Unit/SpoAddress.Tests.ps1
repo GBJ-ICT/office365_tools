@@ -7,6 +7,11 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
+
+    # The refusals are asserted by their English wording. Pinned for the session,
+    # so they hold on a machine whose Windows is German; the German wording is
+    # checked at the end.
+    Set-O365Language -Language en -SessionOnly
 }
 
 AfterAll {
@@ -186,5 +191,29 @@ Describe 'ConvertFrom-SpoAddress' {
             $result = 'https://contoso.sharepoint.com/sites/team/Documents' | ConvertFrom-SpoAddress
             $result.Library | Should -BeExactly 'Documents'
         }
+    }
+}
+
+Describe 'ConvertFrom-SpoAddress, refusing in German' {
+
+    BeforeAll {
+        Set-O365Language -Language de -SessionOnly
+    }
+
+    AfterAll {
+        Set-O365Language -Language en -SessionOnly
+    }
+
+    It 'says in German that it is not a web address, and names what was given' {
+        { ConvertFrom-SpoAddress 'C:\Users\ada\Documents' } | Should -Throw "*C:\Users\ada\Documents*keine Webadresse*"
+    }
+
+    It 'says in German that a sharing link names no folder' {
+        { ConvertFrom-SpoAddress 'https://contoso.sharepoint.com/:f:/s/team/Ex4kQm9bTn1Aq' } | Should -Throw '*Freigabelink*'
+    }
+
+    It 'says in German where to click instead of a Teams link' {
+        { ConvertFrom-SpoAddress 'https://teams.microsoft.com/l/channel/19%3aabc%40thread.tacv2/General' } |
+            Should -Throw '*In SharePoint*'
     }
 }

@@ -96,7 +96,7 @@ function ConvertFrom-SpoPdfText {
                 }
             }
             catch {
-                Write-O365Log "pdftotext failed, falling back to the built-in reader: $($_.Exception.Message)" 'Warning'
+                Write-O365Log (Get-O365String 'Helper.Pdf.PdftotextFailed' $_.Exception.Message) 'Warning'
             }
             finally {
                 Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue

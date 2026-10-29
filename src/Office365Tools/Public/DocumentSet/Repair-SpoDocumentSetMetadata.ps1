@@ -135,7 +135,7 @@ function Repair-SpoDocumentSetMetadata {
                     Where-Object { $_ -notin $properties })
 
             if ($missing.Count -gt 0) {
-                Write-Error "Input object is missing the $(($missing | ForEach-Object { "'$_'" }) -join ', ') property. Pipe output from Get-SpoDocumentSetMismatch."
+                Write-Error (Get-O365String 'DocumentSet.Repair.MissingProperty' (($missing | ForEach-Object { "'$_'" }) -join ', '))
                 continue
             }
 
@@ -146,7 +146,7 @@ function Repair-SpoDocumentSetMetadata {
             }
 
             foreach ($difference in @($differences | Where-Object { $_.Reason -eq 'ColumnMissingFromLibrary' })) {
-                Write-O365Log "Column '$($difference.Field)' is not on library '$($mismatch.List)'; it cannot be written. Add it to the library first." 'Warning'
+                Write-O365Log (Get-O365String 'DocumentSet.Repair.ColumnNotOnLibrary' $difference.Field $mismatch.List) 'Warning'
             }
 
             $differences = @($differences | Where-Object { $_.Reason -ne 'ColumnMissingFromLibrary' })
@@ -155,7 +155,7 @@ function Repair-SpoDocumentSetMetadata {
                 $emptySource = @($differences | Where-Object { $_.Reason -eq 'EmptyOnDocumentSet' })
 
                 if ($emptySource.Count -gt 0) {
-                    Write-O365Log "Skipping $($emptySource.Count) empty column(s) on '$($mismatch.ServerRelativeUrl)': the Document Set has no value to push. Use -ClearEmpty to clear them anyway." 'Info'
+                    Write-O365Log (Get-O365String 'DocumentSet.Repair.SkipEmpty' $emptySource.Count $mismatch.ServerRelativeUrl) 'Info'
                 }
 
                 $differences = @($differences | Where-Object { $_.Reason -ne 'EmptyOnDocumentSet' })
@@ -187,7 +187,7 @@ function Repair-SpoDocumentSetMetadata {
                 }
                 catch {
                     $failed++
-                    Write-Error -Message "Could not read Document Set item $($mismatch.DocumentSetItemId) in '$($mismatch.List)': $($_.Exception.Message)" -TargetObject $mismatch.DocumentSetUrl
+                    Write-Error -Message (Get-O365String 'DocumentSet.Repair.ReadFailed' $mismatch.DocumentSetItemId $mismatch.List $_.Exception.Message) -TargetObject $mismatch.DocumentSetUrl
                     continue
                 }
             }
@@ -201,7 +201,7 @@ function Repair-SpoDocumentSetMetadata {
             }
 
             $columnList  = (@($values.Keys) | Sort-Object) -join ', '
-            $description = "Set $columnList from Document Set '$($mismatch.DocumentSet)'"
+            $description = (Get-O365String 'DocumentSet.Repair.Action' $columnList $mismatch.DocumentSet)
 
             if (-not $PSCmdlet.ShouldProcess($mismatch.ServerRelativeUrl, $description)) {
                 continue
@@ -221,7 +221,7 @@ function Repair-SpoDocumentSetMetadata {
                 Set-PnPListItem @parameters | Out-Null
 
                 $repaired++
-                Write-O365Log "Updated $columnList on '$($mismatch.ServerRelativeUrl)'." 'Success'
+                Write-O365Log (Get-O365String 'DocumentSet.Repair.Updated' $columnList $mismatch.ServerRelativeUrl) 'Success'
 
                 if ($PassThru) {
                     [pscustomobject]@{
@@ -238,8 +238,8 @@ function Repair-SpoDocumentSetMetadata {
             }
             catch {
                 $failed++
-                Write-O365Log "Failed to update '$($mismatch.ServerRelativeUrl)': $($_.Exception.Message)" 'Error'
-                Write-Error -Message "Failed to update '$($mismatch.ServerRelativeUrl)': $($_.Exception.Message)" -TargetObject $mismatch.ServerRelativeUrl
+                Write-O365Log (Get-O365String 'DocumentSet.Repair.Failed' $mismatch.ServerRelativeUrl $_.Exception.Message) 'Error'
+                Write-Error -Message (Get-O365String 'DocumentSet.Repair.Failed' $mismatch.ServerRelativeUrl $_.Exception.Message) -TargetObject $mismatch.ServerRelativeUrl
 
                 if ($PassThru) {
                     [pscustomobject]@{
@@ -258,6 +258,6 @@ function Repair-SpoDocumentSetMetadata {
     }
 
     end {
-        Write-O365Log "Document Set metadata repair complete: $repaired updated, $skipped skipped, $failed failed." 'Info'
+        Write-O365Log (Get-O365String 'DocumentSet.Repair.Done' $repaired $skipped $failed) 'Info'
     }
 }

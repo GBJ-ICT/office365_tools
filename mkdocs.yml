@@ -1,0 +1,85 @@
+site_name: Office 365 Tools
+site_description: PowerShell tools for checking, fixing and reporting on SharePoint Online.
+site_url: https://gbj-ict.github.io/office365_tools/
+repo_url: https://github.com/GBJ-ICT/office365_tools
+repo_name: GBJ-ICT/office365_tools
+edit_uri: edit/master/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+plugins:
+  - search
+  # One file per language, side by side: page.md is English, page.de.md is
+  # German. A page without a German file shows the English one under /de/.
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: de
+          name: Deutsch
+          build: true
+          nav_translations:
+            Home: Startseite
+            User guide: Benutzerhandbuch
+            Developer docs: Entwicklerdokumentation
+            Getting started: Erste Schritte
+            Authentication: Anmeldung
+            Health rules: Prüfregeln
+            Document Sets: Dokumentsätze
+            Printing: Drucken
+            Language: Sprache
+            Tools at a glance: O365 Tools im Überblick
+            Sandbox: Sandbox
+            Overview: Überblick
+            Multi-language design: Mehrsprachigkeit (Design)
+            Migration: Migration
+
+markdown_extensions:
+  - tables
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: README.md
+  - User guide:
+      - Tools at a glance: user/tools.md
+      - Language: user/language.md
+  - Developer docs:
+      - Multi-language design: dev/multilanguage.md
+  - Sandbox:
+      - Overview: sandbox/README.md
+      - Getting started: sandbox/getting-started.md
+      - Authentication: sandbox/authentication.md
+      - Health rules: sandbox/health-rules.md
+      - Document Sets: sandbox/document-sets.md
+      - Printing: sandbox/printing.md
+      - Migration: sandbox/migration.md

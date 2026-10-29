@@ -80,16 +80,14 @@ function Add-SpoListItem {
 
             if ($unknown.Count -gt 0) {
                 throw [System.ArgumentException]::new(
-                    "Field(s) not found on list '$($list.Title)': $($unknown -join ', '). " +
-                    "Note these must be internal names, not display titles. " +
-                    "Run: Get-PnPField -List '$($list.Title)' | Select-Object InternalName, Title"
+                    (Get-O365String 'ListItem.Add.UnknownFields' $list.Title ($unknown -join ', '))
                 )
             }
         }
 
-        $label = if ($Values.ContainsKey('Title')) { $Values['Title'] } else { '(no title)' }
+        $label = if ($Values.ContainsKey('Title')) { $Values['Title'] } else { (Get-O365String 'ListItem.Add.NoTitle') }
 
-        if (-not $PSCmdlet.ShouldProcess("$($list.Title): $label", 'Add list item')) {
+        if (-not $PSCmdlet.ShouldProcess("$($list.Title): $label", (Get-O365String 'ListItem.Add.Action'))) {
             return
         }
 
@@ -105,20 +103,20 @@ function Add-SpoListItem {
 
             $item = Add-PnPListItem @params
             $added++
-            Write-O365Log "Added item $($item.Id) to '$($list.Title)'." 'Success'
+            Write-O365Log (Get-O365String 'ListItem.Add.Added' $item.Id $list.Title) 'Success'
 
             if ($PassThru) {
                 $item
             }
         }
         catch {
-            Write-Error -Message "Failed to add item to '$($list.Title)': $($_.Exception.Message)" -TargetObject $Values
+            Write-Error -Message (Get-O365String 'ListItem.Add.Failed' $list.Title $_.Exception.Message) -TargetObject $Values
         }
     }
 
     end {
         if ($added -gt 0) {
-            Write-O365Log "Added $added item(s)." 'Info'
+            Write-O365Log (Get-O365String 'ListItem.Add.Done' $added) 'Info'
         }
     }
 }

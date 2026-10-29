@@ -135,14 +135,13 @@ function Get-SpoRecurringDate {
 
     if ($WeekOfMonth -ne 'Any' -and $weekday.Count -eq 0) {
         throw [System.ArgumentException]::new(
-            "-WeekOfMonth needs a weekday to count: 'first' what? " +
-            "Add -DayOfWeek, for example: -WeekOfMonth First -DayOfWeek Sunday"
+            (Get-O365String 'Schedule.NeedsWeekday')
         )
     }
 
     if ($PSCmdlet.ParameterSetName -eq 'Until' -and $Until.Date -lt $Start.Date) {
         throw [System.ArgumentException]::new(
-            "-Until ($($Until.ToString('yyyy-MM-dd'))) is before -Start ($($Start.ToString('yyyy-MM-dd')))."
+            (Get-O365String 'Schedule.UntilBeforeStart' $Until.ToString('yyyy-MM-dd') $Start.ToString('yyyy-MM-dd'))
         )
     }
 

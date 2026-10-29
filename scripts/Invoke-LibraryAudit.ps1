@@ -48,13 +48,26 @@ param(
     [string]$MinimumSeverity = 'Info',
 
     [Parameter()]
-    [switch]$SkipPermissions
+    [switch]$SkipPermissions,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 # -- Connect ----------------------------------------------------------------
 if ($ProfileName) {
@@ -65,7 +78,7 @@ else {
 }
 
 $connection = Get-O365Connection
-Write-Host "Connected to $($connection.SiteUrl)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'LibraryAudit.Connected' $connection.SiteUrl) -ForegroundColor Green
 
 # -- Prepare output ---------------------------------------------------------
 if (-not $OutputPath) {
@@ -81,7 +94,7 @@ Start-O365Log -Path (Join-Path $OutputPath 'audit.log') | Out-Null
 # -- Decide what to audit ---------------------------------------------------
 if (-not $Library) {
     $Library = @(Get-PnPList | Where-Object { -not $_.Hidden } | ForEach-Object { $_.Title })
-    Write-Host "Auditing all $($Library.Count) visible libraries." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'LibraryAudit.All' $Library.Count) -ForegroundColor Cyan
 }
 
 $rules = if ($SkipPermissions) {
@@ -110,7 +123,7 @@ foreach ($name in $Library) {
                         Scope      = $_.Kind
                         List       = $_.List
                         Target     = $_.ServerRelativeUrl
-                        Message    = "Unique permissions at depth $($_.Depth) differ from the parent folder."
+                        Message    = (Get-ScriptString 'LibraryAudit.Finding.Mismatch' $_.Depth)
                         Detail     = [pscustomobject]@{ Depth = $_.Depth; ItemSignature = $_.ItemSignature; ParentSignature = $_.ParentSignature }
                         SiteUrl    = $_.SiteUrl
                         DetectedAt = Get-Date
@@ -123,47 +136,47 @@ foreach ($name in $Library) {
         }
 
         $bySeverity = $findings | Group-Object Severity | ForEach-Object { "$($_.Name): $($_.Count)" }
-        $summary = if ($bySeverity) { $bySeverity -join ', ' } else { 'clean' }
-        Write-Host "  $($findings.Count) finding(s) -- $summary" -ForegroundColor $(if ($findings.Count -eq 0) { 'Green' } else { 'Yellow' })
+        $summary = if ($bySeverity) { $bySeverity -join ', ' } else { (Get-ScriptString 'LibraryAudit.Clean') }
+        Write-Host (Get-ScriptString 'LibraryAudit.Findings' $findings.Count $summary) -ForegroundColor $(if ($findings.Count -eq 0) { 'Green' } else { 'Yellow' })
 
         if ($findings.Count -gt 0) {
             $safeName = ($name -replace '[^\w\-]', '_')
-            $findings | Export-SpoReport -Path (Join-Path $OutputPath "$safeName.html") -Title "$name -- health report"
+            $findings | Export-SpoReport -Path (Join-Path $OutputPath "$safeName.html") -Title (Get-ScriptString 'LibraryAudit.ReportTitle' $name)
         }
     }
     catch {
-        Write-Warning "Audit of '$name' failed: $($_.Exception.Message)"
+        Write-Warning (Get-ScriptString 'LibraryAudit.Failed' $name $_.Exception.Message)
     }
 }
 
 # -- Content types are a site-level concern, checked once --------------------
 Write-Host ''
-Write-Host '=== Content type links (site-wide) ===' -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'LibraryAudit.ContentTypeHeading') -ForegroundColor Cyan
 try {
     $contentTypeFindings = @(Test-SpoContentTypeLink)
     foreach ($finding in $contentTypeFindings) {
         $allFindings.Add($finding)
     }
-    Write-Host "  $($contentTypeFindings.Count) finding(s)" -ForegroundColor $(if ($contentTypeFindings.Count -eq 0) { 'Green' } else { 'Yellow' })
+    Write-Host (Get-ScriptString 'LibraryAudit.ContentTypeFindings' $contentTypeFindings.Count) -ForegroundColor $(if ($contentTypeFindings.Count -eq 0) { 'Green' } else { 'Yellow' })
 }
 catch {
-    Write-Warning "Content type check failed: $($_.Exception.Message)"
+    Write-Warning (Get-ScriptString 'LibraryAudit.ContentTypeFailed' $_.Exception.Message)
 }
 
 # -- Combined output --------------------------------------------------------
 if ($allFindings.Count -gt 0) {
     $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'all-findings.csv')
-    $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'summary.html') -Title 'Site audit summary'
+    $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'summary.html') -Title (Get-ScriptString 'LibraryAudit.SummaryTitle')
 }
 
 Stop-O365Log | Out-Null
 
 Write-Host ''
-Write-Host '=== Summary ===' -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'LibraryAudit.SummaryHeading') -ForegroundColor Cyan
 $allFindings | Group-Object Severity | Sort-Object Name | ForEach-Object {
     Write-Host "  $($_.Name): $($_.Count)"
 }
 Write-Host ''
-Write-Host "Reports written to: $((Resolve-Path $OutputPath).Path)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'LibraryAudit.ReportsWritten' (Resolve-Path $OutputPath).Path) -ForegroundColor Green
 Write-Host ''
-Write-Host 'Nothing was changed. To act on these findings, see docs/getting-started.md.' -ForegroundColor Gray
+Write-Host (Get-ScriptString 'LibraryAudit.NothingChanged') -ForegroundColor Gray

@@ -53,3 +53,6 @@ desktop.ini
 
 # Office lock files (SharePoint sync folders love these)
 ~$*
+
+# Built documentation site (mkdocs build)
+site/

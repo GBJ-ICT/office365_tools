@@ -61,13 +61,26 @@ param(
 
     [Parameter()]
     [ValidateRange(1, 5000)]
-    [int]$PageSize = 500
+    [int]$PageSize = 500,
+
+    [Parameter()]
+    [ValidateSet('en', 'de', 'auto')]
+    [string]$Language
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '../src/Office365Tools/Office365Tools.psd1') -Force
+
+# One language for this run: -Language if given, otherwise what the person chose
+# or Windows says. Applied to this session only, so the saved choice is left
+# alone. The texts of this script live in scripts\Resources, over the module's own.
+if ($Language) {
+    Set-O365Language -Language $Language -SessionOnly -WhatIf:$false
+}
+
+. (Join-Path $PSScriptRoot 'Shared/ScriptLanguage.ps1')
 
 # -- Connect ----------------------------------------------------------------
 if ($ProfileName) {
@@ -78,7 +91,7 @@ else {
 }
 
 $connection = Get-O365Connection
-Write-Host "Connected to $($connection.SiteUrl)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'DocSetSync.Connected' $connection.SiteUrl) -ForegroundColor Green
 
 # -- Prepare output ---------------------------------------------------------
 if (-not $OutputPath) {
@@ -94,7 +107,7 @@ Start-O365Log -Path (Join-Path $OutputPath 'check.log') | Out-Null
 # -- Decide what to check ---------------------------------------------------
 if (-not $Library) {
     $Library = @(Get-PnPList | Where-Object { -not $_.Hidden -and $_.BaseTemplate -eq 101 } | ForEach-Object { $_.Title })
-    Write-Host "Examining all $($Library.Count) visible document libraries." -ForegroundColor Cyan
+    Write-Host (Get-ScriptString 'DocSetSync.All' $Library.Count) -ForegroundColor Cyan
 }
 
 $allFindings = [System.Collections.Generic.List[object]]::new()
@@ -109,16 +122,16 @@ foreach ($name in $Library) {
         $documentSets = @(Get-SpoDocumentSet -Library $name -PageSize $PageSize)
 
         if ($documentSets.Count -eq 0) {
-            Write-Host '  no Document Sets -- skipped' -ForegroundColor Gray
+            Write-Host (Get-ScriptString 'DocSetSync.None') -ForegroundColor Gray
             continue
         }
 
         $contained = ($documentSets | Measure-Object -Property ItemCount -Sum).Sum
-        Write-Host "  $($documentSets.Count) Document Set(s), $contained contained item(s)" -ForegroundColor Gray
+        Write-Host (Get-ScriptString 'DocSetSync.Counts' $documentSets.Count $contained) -ForegroundColor Gray
 
         $unshared = @($documentSets | Where-Object { $_.SharedColumnCount -eq 0 })
         if ($unshared.Count -gt 0) {
-            Write-Host "  $($unshared.Count) of them share no columns at all" -ForegroundColor Yellow
+            Write-Host (Get-ScriptString 'DocSetSync.Unshared' $unshared.Count) -ForegroundColor Yellow
         }
 
         # -- Configuration --------------------------------------------------
@@ -128,7 +141,7 @@ foreach ($name in $Library) {
         }
 
         $notShared = @($findings | Where-Object { $_.RuleId -eq 'DocumentSet.ColumnNotShared' })
-        Write-Host "  configuration: $($findings.Count) finding(s), $($notShared.Count) column(s) not registered as shared" `
+        Write-Host (Get-ScriptString 'DocSetSync.Configuration' $findings.Count $notShared.Count) `
             -ForegroundColor $(if ($findings.Count -eq 0) { 'Green' } else { 'Yellow' })
 
         # -- Data -------------------------------------------------------------
@@ -161,17 +174,17 @@ foreach ($name in $Library) {
         }
 
         $percentage = if ($contained -gt 0) { [math]::Round(($drift.Count / $contained) * 100, 1) } else { 0 }
-        Write-Host "  data: $($drift.Count) of $contained item(s) out of sync ($percentage%)" `
+        Write-Host (Get-ScriptString 'DocSetSync.Data' $drift.Count $contained $percentage) `
             -ForegroundColor $(if ($drift.Count -eq 0) { 'Green' } else { 'Yellow' })
 
         if ($findings.Count -gt 0) {
             $safeName = ($name -replace '[^\w\-]', '_')
             $findings | Export-SpoReport -Path (Join-Path $OutputPath "$safeName-configuration.html") `
-                -Title "$name -- Document Set configuration"
+                -Title (Get-ScriptString 'DocSetSync.ConfigurationTitle' $name)
         }
     }
     catch {
-        Write-Warning "Check of '$name' failed: $($_.Exception.Message)"
+        Write-Warning (Get-ScriptString 'DocSetSync.Failed' $name $_.Exception.Message)
     }
 }
 
@@ -180,11 +193,11 @@ if ($rows.Count -gt 0) {
     # One row per column difference: the shape you want in a spreadsheet when
     # deciding what to repair.
     $rows | Export-Csv -Path (Join-Path $OutputPath 'metadata-drift.csv') -NoTypeInformation -Encoding utf8
-    $rows | Export-SpoReport -Path (Join-Path $OutputPath 'metadata-drift.html') -Title 'Document Set metadata drift'
+    $rows | Export-SpoReport -Path (Join-Path $OutputPath 'metadata-drift.html') -Title (Get-ScriptString 'DocSetSync.DriftTitle')
 }
 
 if ($allFindings.Count -gt 0) {
-    $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'configuration.html') -Title 'Document Set configuration'
+    $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'configuration.html') -Title (Get-ScriptString 'DocSetSync.ConfigurationSummaryTitle')
     $allFindings | Export-SpoReport -Path (Join-Path $OutputPath 'configuration.csv')
 }
 
@@ -192,19 +205,19 @@ Stop-O365Log | Out-Null
 
 # -- Summary ----------------------------------------------------------------
 Write-Host ''
-Write-Host '=== Summary ===' -ForegroundColor Cyan
-Write-Host "  items out of sync : $($allDrift.Count)"
-Write-Host "  column differences: $($rows.Count)"
+Write-Host (Get-ScriptString 'DocSetSync.SummaryHeading') -ForegroundColor Cyan
+Write-Host (Get-ScriptString 'DocSetSync.ItemsOut' $allDrift.Count)
+Write-Host (Get-ScriptString 'DocSetSync.ColumnDifferences' $rows.Count)
 
 if ($rows.Count -gt 0) {
     Write-Host ''
-    Write-Host '  Worst columns:' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetSync.WorstColumns') -ForegroundColor Gray
     $rows | Group-Object Column | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object {
-        Write-Host "    $($_.Name): $($_.Count) item(s)"
+        Write-Host (Get-ScriptString 'DocSetSync.ColumnItems' $_.Name $_.Count)
     }
 
     Write-Host ''
-    Write-Host '  Reasons:' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetSync.Reasons') -ForegroundColor Gray
     $rows | Group-Object Reason | Sort-Object Count -Descending | ForEach-Object {
         Write-Host "    $($_.Name): $($_.Count)"
     }
@@ -212,22 +225,22 @@ if ($rows.Count -gt 0) {
 
 if ($allFindings.Count -gt 0) {
     Write-Host ''
-    Write-Host '  Configuration findings:' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetSync.ConfigurationFindings') -ForegroundColor Gray
     $allFindings | Group-Object RuleId | Sort-Object Count -Descending | ForEach-Object {
         Write-Host "    $($_.Name): $($_.Count)"
     }
 }
 
 Write-Host ''
-Write-Host "Reports written to: $((Resolve-Path $OutputPath).Path)" -ForegroundColor Green
+Write-Host (Get-ScriptString 'DocSetSync.ReportsWritten' (Resolve-Path $OutputPath).Path) -ForegroundColor Green
 Write-Host ''
-Write-Host 'Nothing was changed.' -ForegroundColor Gray
+Write-Host (Get-ScriptString 'DocSetSync.NothingChanged') -ForegroundColor Gray
 
 if ($allDrift.Count -gt 0) {
-    Write-Host 'To push the Document Set values down:' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetSync.PushDown') -ForegroundColor Gray
     Write-Host '    ./scripts/Repair-DocumentSetSync.ps1 -WhatIf' -ForegroundColor Gray
 }
 
 if ($allFindings.Count -gt 0) {
-    Write-Host 'Fix the configuration too, or the drift comes back. See docs/document-sets.md.' -ForegroundColor Gray
+    Write-Host (Get-ScriptString 'DocSetSync.FixConfiguration') -ForegroundColor Gray
 }

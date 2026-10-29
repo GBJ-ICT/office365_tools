@@ -1,0 +1,177 @@
+﻿Upload-Prüfung
+==============
+
+(English: READ-ME-FIRST.txt)
+
+Was sie macht
+-------------
+Sie kann zwei Dinge tun und fragt dich, welches du möchtest:
+
+  1. VOR dem Hochladen - sieht sich einen Ordner auf deinem Computer an und
+     sagt dir, welche Dateien scheitern oder Ärger machen würden: Namen, die
+     SharePoint ablehnt, zu lange Pfade, leere Dateien, sehr grosse Dateien,
+     Überbleibsel.
+     Keine Anmeldung. Nichts verlässt deinen Computer.
+
+  2. NACH dem Hochladen - meldet dich an und vergleicht den Ordner Datei für
+     Datei mit SharePoint, damit du weisst, ob wirklich alles angekommen ist.
+
+Sie schaut nur nach. Sie lädt nie etwas hoch und löscht, verschiebt oder
+verändert nichts, weder auf deinem Computer noch in SharePoint.
+
+
+So benutzt du sie
+-----------------
+1. Entpacke zuerst das ZIP (Rechtsklick, "Alle extrahieren..."). Doppelklicke
+   dann im entstandenen Ordner auf  Check-Upload.cmd
+   (oder ziehe den Ordner, den du prüfen willst, darauf, dann entfällt die
+   nächste Frage). Wenn du mehrere Tools auf einmal bekommen hast, heisst
+   die Datei stattdessen Office365-Tools.cmd und fragt zuerst, welches.
+
+   Jedes Mal braucht sie kurz Internet: Sie holt vor dem Start die neueste
+   Kopie der Prüfung.
+
+2. Ein Fenster öffnet sich: Wähle den Ordner, den du hochlädst.
+
+3. Wähle 1, 2 oder 3, wenn du gefragt wirst.
+
+   Wenn du 2 oder 3 wählst, fragt ein Fenster, wohin in SharePoint die Dateien
+   gegangen sind. Tippe es nicht ab. Öffne diesen Ordner in SharePoint, kopiere
+   die ganze Adresse aus der Adresszeile deines Browsers und füge sie mit
+   Strg+V in das Feld ein. Hast du sie kurz vor dem Start kopiert, steht sie
+   schon darin. Danach folgt ein Microsoft-Anmeldefenster.
+
+   Kopieren ist besser als Tippen: Auf einer Teams-Site liegen die Dateien unter
+   einem versteckten Kanalordner. Der Ordner, der als "Test" erscheint, heisst in
+   Wirklichkeit "General/Test". Die Adresse enthält das; wer sie abtippt,
+   vergisst es leicht.
+   Fügst du stattdessen die Adresse der Site oder der Bibliothek ein, bekommst
+   du eine nummerierte Liste, in der du dich nach unten durchklickst.
+
+   Eine Adresse geht nicht: die von der Schaltfläche "Link kopieren". Sie
+   nennt keinen Ordner. Nimm die Adresszeile.
+
+   Trage die Adresse in upload-check.xml ein, dann fragt sie nicht mehr.
+
+4. Am Ende zeigt sie eine Zusammenfassung und den Namen des geschriebenen
+   Berichts. Nichts öffnet sich von selbst: Die Berichte warten im Ordner
+   "Reports" auf dich. Öffne die .html-Datei in einem Browser.
+
+
+Die Sprache
+-----------
+Die Prüfung ist auf Deutsch und Englisch verfügbar. Standardmässig verwendet sie
+die Sprache deines Windows. Auf der Seite mit der Frage "Was möchtest du tun?"
+siehst du oben die Zeile "Sprache: Deutsch (L = ändern / change)": Tippe L und
+wähle English, Deutsch oder "Windows folgen". Die Wahl wird gespeichert, für alle
+O365 Tools. Im O365-Tools-Fenster gibt es dafür das Feld "Language / Sprache".
+
+Die Berichte sind in der Sprache geschrieben, in der du die Prüfung gestartet
+hast. Die Namen der Regeln (zum Beispiel FileName.IllegalCharacter) bleiben
+auf Englisch, damit Filter und Tabellen weiter funktionieren.
+
+
+Die Berichte lesen
+------------------
+VOR dem Hochladen sagt der Bericht oben, was geprüft wurde, und dann, was er
+gefunden hat:
+
+     Rot    = vor dem Hochladen beheben
+     Gelb   = einen Blick wert
+     Grau   = nur zur Information
+
+"Nichts zu berichten" mit einer Zusammenfassung darüber heisst: Dein Ordner
+ist in Ordnung.
+
+NACH dem Hochladen listet der Bericht jede Datei auf, wie ein Programm zum
+Ordnervergleich:
+
+     =    Abgeglichen                 auf beiden Seiten gleich
+     ->   Fehlt in SharePoint         nicht angekommen - lade sie nochmals hoch
+     <-   Fehlt auf diesem Computer   nur in SharePoint
+
+und, wenn du diese Vergleiche in upload-check.xml eingeschaltet hast:
+
+     ->   Neuer auf diesem Computer
+     <-   Neuer in SharePoint
+     !=   Andere Grösse
+
+Oben auf der Seite gibt es für jede Art ein Kästchen. Entferne das Häkchen, um
+diese Dateien auszublenden - entfernst du es bei "Abgeglichen", bleibt übrig,
+was du dir ansehen musst.
+
+
+Ändern, was geprüft wird
+------------------------
+Alles Einstellbare steht in  upload-check.xml  neben Check-Upload.cmd.
+(Fehlt sie dort, legt der erste Start eine an.) Öffne sie im Editor: Über
+jeder Einstellung steht, was sie bewirkt und was passiert, wenn du sie so
+lässt. Speichere die Datei, und der nächste Start verwendet sie.
+
+Die wichtigsten:
+
+  Folder        Setze einen festen Pfad, dann fragt sie nicht jedes Mal
+  Destination   die Adresse des SharePoint-Ordners, aus dem Browser kopiert.
+                Trägst du sie ein, fragt sie auch das nicht mehr - und du
+                wirst vor Pfaden gewarnt, die am Ziel zu lang würden, ohne
+                dass du dich irgendwo anmelden musst
+  Subfolders    true: auch die Dateien in Unterordnern prüfen (Standard)
+                false: nur die Dateien direkt im Ordner
+  IgnoreDates   true: Daten nicht vergleichen (Standard). Lass es so, wenn du
+                über den Browser hochlädst: SharePoint gibt dann jeder Datei
+                den Zeitpunkt des Uploads, jede Datei sähe dort neuer aus.
+                Setze false, wenn die Dateien über die OneDrive-App kamen,
+                die die Daten behält.
+  Language      en, de oder auto: die Sprache nur für diese Datei festlegen.
+                Meistens leer lassen.
+
+Wenn du dich dort vertippst, sagt die Prüfung, welche Zeile falsch ist und was
+sie erwartet hätte. Mit Einstellungen, die sie nicht versteht, läuft sie nicht.
+
+
+Beim ersten Mal
+---------------
+Windows fragt vielleicht, ob du wirklich eine Datei aus dem Internet ausführen
+willst. Es ist diese Prüfung - wähle "Ausführen" (oder "Weitere Informationen",
+dann "Trotzdem ausführen").
+
+Meldet ein Fenster, dass PowerShell 7 fehlt, muss es einmal installiert werden.
+Öffne das Startmenü, tippe "cmd", drücke die Eingabetaste und füge Folgendes
+ein:
+
+    winget install --id Microsoft.PowerShell
+
+Starte danach Check-Upload.cmd nochmals.
+
+
+Wohin die Berichte kommen
+-------------------------
+In den Ordner "Reports" neben Check-Upload.cmd, ein Unterordner pro Lauf. Alte
+Berichte werden nie gelöscht, du kannst also Läufe vergleichen oder einen einer
+Kollegin schicken -- die HTML-Datei ist in sich geschlossen und öffnet sich
+überall.
+
+
+Für die Person, die das einrichtet
+----------------------------------
+Check-Upload.cmd ist packaging\Office365-Tools.cmd des Repositorys, auf dieses
+eine Tool festgelegt. Sie holt das neueste Release aus GitHub (das neueste
+Tag der Form vX.Y) nach %LOCALAPPDATA%\office365_tools\vX.Y, fällt auf das
+neueste vorhandene Release zurück, wenn GitHub nicht erreichbar ist, und
+übergibt an packaging\UploadCheck\Start-UploadCheck.ps1.
+
+Start-UploadCheck.ps1 liest upload-check.xml, prüft die Voraussetzungen und
+startet:
+
+    pwsh -File scripts/Test-Upload.ps1 -LocalPath <Ordner> [Einstellungen aus der xml]
+
+Beide sind für Windows PowerShell 5.1 geschrieben, damit sie ein fehlendes
+PowerShell 7 melden können, statt gar nicht zu starten.
+
+Exit-Codes: 0 nichts zu beheben, 1 Befunde, 2 ein Problem bei der
+Einrichtung (Prüfung nicht abrufbar, Einstellungen nicht lesbar, kein
+PowerShell 7).
+
+Die Sprache kommt aus -Language, der Umgebungsvariable O365_LANGUAGE, der für
+den Benutzer gespeicherten Wahl (%APPDATA%\office365_tools\settings.json) und
+sonst aus Windows. Wie das gebaut ist, steht in docs/dev/multilanguage.md.

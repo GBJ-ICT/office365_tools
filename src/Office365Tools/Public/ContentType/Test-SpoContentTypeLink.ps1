@@ -74,7 +74,7 @@ function Test-SpoContentTypeLink {
             $siteContentTypes[$siteContentType.Id.StringValue] = $siteContentType
         }
 
-        Write-O365Log "Checking $(@($lists).Count) list(s) against $($siteContentTypes.Count) site content type(s)." 'Info'
+        Write-O365Log (Get-O365String 'ContentType.Link.Checking' @($lists).Count $siteContentTypes.Count) 'Info'
 
         foreach ($list in $lists) {
             if (-not $list.ContentTypesEnabled) {
@@ -106,7 +106,7 @@ function Test-SpoContentTypeLink {
                     }
                     New-SpoFinding -RuleId 'ContentType.OrphanedListCopy' -Severity Error -Scope ContentType `
                         -Target "$($list.Title) / $($listContentType.Name)" -List $list.Title `
-                        -Message "List content type '$($listContentType.Name)' has no matching site content type; its parent was probably deleted." `
+                        -Message (Get-O365String 'Rule.ContentType.OrphanedListCopy' $listContentType.Name) `
                         -Detail $detail
                     continue
                 }
@@ -121,7 +121,7 @@ function Test-SpoContentTypeLink {
                     }
                     New-SpoFinding -RuleId 'ContentType.NameDrift' -Severity Info -Scope ContentType `
                         -Target "$($list.Title) / $($listContentType.Name)" -List $list.Title `
-                        -Message "List copy is named '$($listContentType.Name)' but descends from site content type '$($parent.Name)'." `
+                        -Message (Get-O365String 'Rule.ContentType.NameDrift' $listContentType.Name $parent.Name) `
                         -Detail $detail
                 }
 
@@ -142,7 +142,7 @@ function Test-SpoContentTypeLink {
                     }
                     New-SpoFinding -RuleId 'ContentType.FieldMissingOnListCopy' -Severity Warning -Scope ContentType `
                         -Target "$($list.Title) / $($listContentType.Name)" -List $list.Title `
-                        -Message "List copy is missing $($missing.Count) field(s) present on parent '$($parent.Name)': $($missing -join ', ')." `
+                        -Message (Get-O365String 'Rule.ContentType.FieldMissingOnListCopy' $missing.Count $parent.Name ($missing -join ', ')) `
                         -Detail $detail
                 }
 
@@ -154,12 +154,12 @@ function Test-SpoContentTypeLink {
                     }
                     New-SpoFinding -RuleId 'ContentType.FieldOnlyOnListCopy' -Severity Info -Scope ContentType `
                         -Target "$($list.Title) / $($listContentType.Name)" -List $list.Title `
-                        -Message "List copy has $($extra.Count) field(s) the parent '$($parent.Name)' does not: $($extra -join ', ')." `
+                        -Message (Get-O365String 'Rule.ContentType.FieldOnlyOnListCopy' $extra.Count $parent.Name ($extra -join ', ')) `
                         -Detail $detail
                 }
             }
         }
 
-        Write-O365Log 'Content type link check complete.' 'Success'
+        Write-O365Log (Get-O365String 'ContentType.Link.Done') 'Success'
     }
 }

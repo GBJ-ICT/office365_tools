@@ -35,7 +35,7 @@ it, so they can be handed to someone who will never connect to anything.
 ./scripts/Register-PnPApplication.ps1 -Tenant contoso.onmicrosoft.com
 ```
 
-This prints a client ID. See [docs/authentication.md](docs/authentication.md) if
+This prints a client ID. See [docs/sandbox/authentication.md](docs/sandbox/authentication.md) if
 you already have one, or cannot register applications yourself.
 
 **3. Save a profile**
@@ -120,7 +120,7 @@ Test-SpoDocumentSetSharedColumn -Library Projekte
 ```
 
 Comparison is by term GUID and lookup ID, so a renamed term is not reported as a
-difference. See [docs/document-sets.md](docs/document-sets.md).
+difference. See [docs/sandbox/document-sets.md](docs/sandbox/document-sets.md).
 
 ### Index Document Sets in a list
 
@@ -144,7 +144,7 @@ link can be relabelled to read `HG4425-ÄB` instead of `GBJCDS-204499463-31` and
 still match. Renaming a Document Set therefore produces no second row, and
 *moving* one to another library updates the row it already has, since that is the
 case where the register is not missing an entry but filing an existing one under
-the wrong library. See [docs/document-sets.md](docs/document-sets.md).
+the wrong library. See [docs/sandbox/document-sets.md](docs/sandbox/document-sets.md).
 
 ### Stand a test list up against a real one
 
@@ -318,7 +318,7 @@ Anything else in this module prints the same way:
 Test-SpoLibraryHealth -Library Documents | Export-SpoListPdf -Path out/health.pdf
 ```
 
-See [Printing](docs/printing.md).
+See [Printing](docs/sandbox/printing.md).
 
 ### Audit everything at once
 
@@ -564,7 +564,7 @@ config/                 profiles.example.json is tracked; profiles.json is not.
 samples/                Example CSVs for the bulk commands.
 tests/Unit/             Pester tests. No tenant required.
 tests/Integration/      Tests against a real sandbox tenant. Run by hand, never by CI.
-docs/                   Guides beyond what Get-Help covers.
+docs/                   user/ for people running the tools, dev/ for people changing them, sandbox/ older guides awaiting clean-up.
 out/                    Reports and logs. Gitignored.
 ```
 
@@ -588,12 +588,22 @@ Adding a command is one file — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Docs
 
-- [Getting started](docs/getting-started.md) — the common workflows end to end
-- [Authentication](docs/authentication.md) — app registration, permissions, troubleshooting
-- [Document Sets](docs/document-sets.md) — why the metadata sync breaks, and the two fixes
-- [Printing](docs/printing.md) — why a browser print of a list is unreliable, and what this does instead
-- [Health rules](docs/health-rules.md) — what every `RuleId` means and what to do about it
-- [Migration](docs/migration.md) — mapping from the old loose scripts
+Start at [docs/README.md](docs/README.md). In short:
+
+**User guide** (`docs/user/`)
+
+- [Tools at a glance](docs/user/tools.md) — which tool does what, and how to start it
+- [Language](docs/user/language.md) — using the tools in English or German (auf Deutsch: [Sprache](docs/user/language.de.md))
+
+**Developer docs** (`docs/dev/`)
+
+- [Multi-language design](docs/dev/multilanguage.md) — how translation works and how to add a language
+
+**Sandbox** (`docs/sandbox/`) — the detailed guides from before the split, kept
+unchanged until they are cleaned up: [Getting started](docs/sandbox/getting-started.md),
+[Authentication](docs/sandbox/authentication.md), [Health rules](docs/sandbox/health-rules.md),
+[Document Sets](docs/sandbox/document-sets.md), [Printing](docs/sandbox/printing.md),
+[Migration](docs/sandbox/migration.md).
 
 ## Licence
 

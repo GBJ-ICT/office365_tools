@@ -67,7 +67,7 @@ function Invoke-SpoBrowserPrint {
     $browser = if ($BrowserPath) {
         if (-not (Test-Path -LiteralPath $BrowserPath)) {
             throw [System.IO.FileNotFoundException]::new(
-                "No browser at '$BrowserPath'. Point -BrowserPath at msedge.exe or chrome.exe, or omit it to search the usual locations."
+                (Get-O365String 'Helper.Print.NoBrowserAt' $BrowserPath)
             )
         }
         (Resolve-Path -LiteralPath $BrowserPath).Path
@@ -116,7 +116,7 @@ function Invoke-SpoBrowserPrint {
             $stdout = Join-Path $scratch 'stdout.txt'
             $stderr = Join-Path $scratch 'stderr.txt'
 
-            Write-O365Log "Printing with $browser ($mode)." 'Info'
+            Write-O365Log (Get-O365String 'Helper.Print.Printing' $browser $mode) 'Info'
             $started = Get-Date
 
             $process = Start-Process -FilePath $browser -ArgumentList $arguments -PassThru -NoNewWindow `
@@ -125,7 +125,7 @@ function Invoke-SpoBrowserPrint {
             if (-not $process.WaitForExit($TimeoutSecond * 1000)) {
                 try { $process.Kill($true) } catch { Write-Verbose "Browser had already exited: $($_.Exception.Message)" }
                 throw [System.TimeoutException]::new(
-                    "The browser did not finish printing within $TimeoutSecond seconds. Raise -TimeoutSecond, or print fewer rows per file."
+                    (Get-O365String 'Helper.Print.Timeout' $TimeoutSecond)
                 )
             }
 
@@ -145,12 +145,11 @@ function Invoke-SpoBrowserPrint {
                 if (Test-Path -LiteralPath $stderr) { Get-Content -LiteralPath $stderr -Raw }
             ) -join ''
 
-            Write-O365Log "$mode produced no PDF (exit $($process.ExitCode)). $($diagnostic.Trim())" 'Warning'
+            Write-O365Log (Get-O365String 'Helper.Print.NoPdf' $mode $process.ExitCode $diagnostic.Trim()) 'Warning'
         }
 
         throw [System.InvalidOperationException]::new(
-            "'$browser' exited without writing '$pdfFull' in either headless mode. " +
-            'Run the same command by hand without --headless to see what it says, or pass -KeepHtml and print the HTML from a browser.'
+            (Get-O365String 'Helper.Print.Failed' $browser $pdfFull)
         )
     }
     finally {

@@ -68,7 +68,7 @@ function Remove-SpoFieldFromContentType {
     process {
         $label = if ($ContentTypeName) { "$ContentTypeName ($ContentTypeId)" } else { $ContentTypeId }
 
-        if (-not $PSCmdlet.ShouldProcess($label, "Remove field '$FieldInternalName'")) {
+        if (-not $PSCmdlet.ShouldProcess($label, (Get-O365String 'ContentType.RemoveField.Action' $FieldInternalName))) {
             return
         }
 
@@ -85,7 +85,7 @@ function Remove-SpoFieldFromContentType {
             Remove-PnPFieldFromContentType @params
 
             $removed++
-            Write-O365Log "Removed '$FieldInternalName' from '$label'." 'Success'
+            Write-O365Log (Get-O365String 'ContentType.RemoveField.Removed' $FieldInternalName $label) 'Success'
 
             if ($PassThru) {
                 [pscustomobject]@{
@@ -102,7 +102,7 @@ function Remove-SpoFieldFromContentType {
         }
         catch {
             $failed++
-            Write-Error -Message "Failed to remove '$FieldInternalName' from '$label': $($_.Exception.Message)" -TargetObject $ContentTypeId
+            Write-Error -Message (Get-O365String 'ContentType.RemoveField.Failed' $FieldInternalName $label $_.Exception.Message) -TargetObject $ContentTypeId
 
             if ($PassThru) {
                 [pscustomobject]@{
@@ -120,6 +120,6 @@ function Remove-SpoFieldFromContentType {
     }
 
     end {
-        Write-O365Log "Field removal complete: $removed removed, $failed failed." 'Info'
+        Write-O365Log (Get-O365String 'ContentType.RemoveField.Done' $removed $failed) 'Info'
     }
 }

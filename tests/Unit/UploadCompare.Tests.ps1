@@ -14,6 +14,10 @@
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
 
+    # Some of these assert the English wording of a message. Pinned for the
+    # session, so they hold on a machine whose Windows is German.
+    Set-O365Language -Language en -SessionOnly
+
     # Passed into InModuleScope explicitly: inside it, $PSScriptRoot is the
     # module's folder rather than this one.
     $script:StubPath = Join-Path $PSScriptRoot 'UploadCompare.Stubs.ps1'
@@ -57,6 +61,30 @@ Describe 'Compare-SpoFolder' {
 
             $message | Should -Match "no folder 'Test'"
             $message | Should -Match 'nothing to compare'
+        }
+    }
+
+    It 'says in German that the folder does not exist, and suggests the one it found' {
+        InModuleScope Office365Tools -Parameters @{ TempDir = $script:TempDir; StubPath = $script:StubPath } {
+            param($TempDir, $StubPath)
+
+            . $StubPath
+            Mock Get-PnPListItem { New-StubItem -Folder 'General', 'General/Test' }
+
+            Set-O365Language -Language de -SessionOnly
+            $message = ''
+            try {
+                Compare-SpoFolder -LocalPath $TempDir -Library 'Dokumente' -RemoteFolder 'Test'
+            }
+            catch {
+                $message = $_.Exception.Message
+            }
+            finally {
+                Set-O365Language -Language en -SessionOnly
+            }
+
+            $message | Should -Match "keinen Ordner 'Test'"
+            $message | Should -Match 'Meintest du: General/Test'
         }
     }
 

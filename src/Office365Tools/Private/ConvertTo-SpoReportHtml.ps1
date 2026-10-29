@@ -49,12 +49,12 @@ function ConvertTo-SpoReportHtml {
     # The arrows are a synchronisation tool's: which way a copy would go to
     # put it right.
     $comparisonStatus = [ordered]@{
-        MissingRemote = @{ Symbol = '&rarr;'; Label = 'Missing in SharePoint' }
-        MissingLocal  = @{ Symbol = '&larr;'; Label = 'Missing on this computer' }
-        LocalNewer    = @{ Symbol = '&rarr;'; Label = 'Newer on this computer' }
-        RemoteNewer   = @{ Symbol = '&larr;'; Label = 'Newer in SharePoint' }
-        SizeDiffers   = @{ Symbol = '&ne;'; Label = 'Different size' }
-        Match         = @{ Symbol = '='; Label = 'Synchronised' }
+        MissingRemote = @{ Symbol = '&rarr;'; Label = (Get-O365String 'Report.Status.MissingRemote') }
+        MissingLocal  = @{ Symbol = '&larr;'; Label = (Get-O365String 'Report.Status.MissingLocal') }
+        LocalNewer    = @{ Symbol = '&rarr;'; Label = (Get-O365String 'Report.Status.LocalNewer') }
+        RemoteNewer   = @{ Symbol = '&larr;'; Label = (Get-O365String 'Report.Status.RemoteNewer') }
+        SizeDiffers   = @{ Symbol = '&ne;'; Label = (Get-O365String 'Report.Status.SizeDiffers') }
+        Match         = @{ Symbol = '='; Label = (Get-O365String 'Report.Status.Match') }
     }
 
     $formatSize = {
@@ -73,7 +73,7 @@ function ConvertTo-SpoReportHtml {
         param($Bytes, [bool]$Exact)
         if ($null -eq $Bytes) { return '<td class="num"></td>' }
         $shown = if ($Exact) { '{0:N0} B' -f $Bytes } else { & $formatSize $Bytes }
-        "<td class=""num"" title=""$('{0:N0}' -f $Bytes) bytes"">$(& $encode $shown)</td>"
+        "<td class=""num"" title=""$(& $encode (Get-O365String 'Report.Bytes' ('{0:N0}' -f $Bytes)))"">$(& $encode $shown)</td>"
     }
 
     # Stored in UTC, shown in the reader's own time.
@@ -157,7 +157,8 @@ th.side { text-align: center; }
 
     $builder = [System.Text.StringBuilder]::new()
     [void]$builder.AppendLine('<!DOCTYPE html>')
-    [void]$builder.AppendLine('<html lang="en"><head><meta charset="utf-8">')
+    # The code of the language the report is written in, not the raw culture.
+    [void]$builder.AppendLine("<html lang=""$((Get-O365Language).Language)""><head><meta charset=""utf-8"">")
     [void]$builder.AppendLine('<meta name="viewport" content="width=device-width, initial-scale=1">')
     [void]$builder.AppendLine("<title>$(& $encode $Title)</title>")
     [void]$builder.AppendLine("<style>$style</style>")
@@ -172,8 +173,8 @@ th.side { text-align: center; }
     }
 
     [void]$builder.AppendLine(
-        "<p class=""meta"">Generated $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') &middot; " +
-        "$(& $encode $site) &middot; $($Item.Count) row(s)</p>"
+        "<p class=""meta"">$(& $encode (Get-O365String 'Report.Meta.Generated' (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))) &middot; " +
+        "$(& $encode $site) &middot; $(& $encode (Get-O365String 'Report.Meta.Rows' $Item.Count))</p>"
     )
 
     if ($Summary -and $Summary.Count -gt 0) {
@@ -186,7 +187,7 @@ th.side { text-align: center; }
     }
 
     if ($Item.Count -eq 0) {
-        [void]$builder.AppendLine('<div class="empty">Nothing to report. Everything checked above was fine.</div>')
+        [void]$builder.AppendLine("<div class=""empty"">$(& $encode (Get-O365String 'Report.Empty'))</div>")
         [void]$builder.AppendLine('</body></html>')
         return $builder.ToString()
     }
@@ -217,13 +218,16 @@ th.side { text-align: center; }
         }
         [void]$builder.AppendLine('</div>')
         [void]$builder.AppendLine("<style>$($filter.ToString())</style>")
-        [void]$builder.AppendLine('<p class="hint">Untick a box to hide those files.</p>')
+        [void]$builder.AppendLine("<p class=""hint"">$(& $encode (Get-O365String 'Report.Hint.Untick'))</p>")
+
+        $size = & $encode (Get-O365String 'Report.Column.Size')
+        $modified = & $encode (Get-O365String 'Report.Column.Modified')
 
         [void]$builder.AppendLine(
             '<table><thead>' +
-            '<tr><th rowspan="2">Status</th><th rowspan="2">File</th>' +
-            '<th class="side" colspan="2">On this computer</th><th class="side" colspan="2">In SharePoint</th></tr>' +
-            '<tr><th>Size</th><th>Modified</th><th>Size</th><th>Modified</th></tr>' +
+            "<tr><th rowspan=""2"">$(& $encode (Get-O365String 'Report.Column.Status'))</th><th rowspan=""2"">$(& $encode (Get-O365String 'Report.Column.File'))</th>" +
+            "<th class=""side"" colspan=""2"">$(& $encode (Get-O365String 'Report.Column.OnComputer'))</th><th class=""side"" colspan=""2"">$(& $encode (Get-O365String 'Report.Column.InSharePoint'))</th></tr>" +
+            "<tr><th>$size</th><th>$modified</th><th>$size</th><th>$modified</th></tr>" +
             '</thead><tbody>')
 
         # Sorted by path, so a folder's files sit together as they do in a
@@ -255,8 +259,13 @@ th.side { text-align: center; }
         foreach ($severity in 'Error', 'Warning', 'Info') {
             $count = @($bySeverity | Where-Object Name -eq $severity | Select-Object -ExpandProperty Count)
             $count = if ($count) { $count } else { 0 }
+            $severityLabel = switch ($severity) {
+                'Error' { Get-O365String 'Report.Severity.Error' }
+                'Warning' { Get-O365String 'Report.Severity.Warning' }
+                default { Get-O365String 'Report.Severity.Info' }
+            }
             [void]$builder.AppendLine(
-                "<div class=""card""><span class=""n"">$count</span><span class=""l"">$severity</span></div>"
+                "<div class=""card""><span class=""n"">$count</span><span class=""l"">$(& $encode $severityLabel)</span></div>"
             )
         }
         [void]$builder.AppendLine('</div>')
@@ -265,10 +274,19 @@ th.side { text-align: center; }
             $group = @($Item | Where-Object Severity -eq $severity)
             if ($group.Count -eq 0) { continue }
 
+            $severityLabel = switch ($severity) {
+                'Error' { Get-O365String 'Report.Severity.Error' }
+                'Warning' { Get-O365String 'Report.Severity.Warning' }
+                default { Get-O365String 'Report.Severity.Info' }
+            }
             [void]$builder.AppendLine(
-                "<h2><span class=""sev sev-$severity"">$severity</span> &mdash; $($group.Count) finding(s)</h2>"
+                "<h2><span class=""sev sev-$severity"">$(& $encode $severityLabel)</span> &mdash; $(& $encode (Get-O365String 'Report.Findings' $group.Count))</h2>"
             )
-            [void]$builder.AppendLine('<table><thead><tr><th>Rule</th><th>List</th><th>Target</th><th>Message</th></tr></thead><tbody>')
+            [void]$builder.AppendLine(
+                '<table><thead><tr>' +
+                "<th>$(& $encode (Get-O365String 'Report.Column.Rule'))</th><th>$(& $encode (Get-O365String 'Report.Column.List'))</th>" +
+                "<th>$(& $encode (Get-O365String 'Report.Column.Target'))</th><th>$(& $encode (Get-O365String 'Report.Column.Message'))</th>" +
+                '</tr></thead><tbody>')
 
             foreach ($finding in ($group | Sort-Object RuleId, Target)) {
                 [void]$builder.AppendLine(
