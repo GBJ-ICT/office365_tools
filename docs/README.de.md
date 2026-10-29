@@ -20,6 +20,7 @@ Für alle, die die O365 Tools ändern. Nur auf Englisch.
 | Dokument | Lies es, wenn ... |
 |---|---|
 | [Mehrsprachigkeit (Design)](dev/multilanguage.md) | du eine Meldung, einen Befehl oder eine Sprache hinzufügst |
+| [Ablauf einer Änderung](dev/workflow.md) | du eine Änderung beginnst: Issue, Review-Labels, Commits, Pull Request und die Claude-Skills (nur auf Englisch) |
 | [Testen](dev/testing.md) | du einen Test schreibst oder ein Issue, das sagt, wie etwas geprüft wird (nur auf Englisch) |
 
 ## Sandbox
