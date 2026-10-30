@@ -55,11 +55,12 @@ requirements are met, each shown by its own test.
 
 ```markdown
 ## Issue Prompt
-The user's request, copied word for word, in a fenced block. Do not summarise,
-correct or translate it. Use a fence longer than any backtick run inside it
-(four backticks if the prompt has a three-backtick block). If the request spans
-several messages, copy each one, in order. Replace a secret, token or tenant
-name with `[removed]` and say so; change nothing else.
+The user's request, copied word for word, as a blockquote (every line starts
+with `> `), never in a code block: a code block gets a horizontal scroll bar
+and a quote wraps. Do not summarise, correct or translate it. If the request
+spans several messages, copy each one, in order, as separate quotes. Replace a
+secret, token or tenant name with `[removed]` and say so; change nothing else.
+The author may ask to take out a reference too; do the same and say so.
 
 ## Overall Goal
 One or two sentences: what changes for whom, and why it matters.
