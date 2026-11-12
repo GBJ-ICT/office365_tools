@@ -24,6 +24,11 @@
     in different parameter sets, and a row limit belongs in the CAML.
 .PARAMETER PageSize
     Items fetched per request.
+.PARAMETER Structured
+    Keep person, lookup, link and managed metadata values as the objects
+    SharePoint returns, instead of flattening them to text. A person then still
+    carries an address, which is what lets a printed page link a name to it.
+    The output is for rendering, not for a CSV.
 .OUTPUTS
     PSCustomObject per item.
 .EXAMPLE
@@ -60,7 +65,10 @@ function Export-SpoListItem {
 
         [Parameter()]
         [ValidateRange(1, 5000)]
-        [int]$PageSize = 500
+        [int]$PageSize = 500,
+
+        [Parameter()]
+        [switch]$Structured
     )
 
     begin {
@@ -128,7 +136,7 @@ function Export-SpoListItem {
 
             foreach ($fieldName in $selected) {
                 if ($fieldName -eq 'ID') { continue }
-                $record[$fieldName] = ConvertTo-FlatValue $item.FieldValues[$fieldName]
+                $record[$fieldName] = if ($Structured) { $item.FieldValues[$fieldName] } else { ConvertTo-FlatValue $item.FieldValues[$fieldName] }
             }
 
             [pscustomobject]$record
