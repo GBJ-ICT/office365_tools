@@ -12,7 +12,14 @@ packaging/
     Start-UploadCheck.ps1    the entry script the launcher hands over to
     upload-check.xml         the settings template
     READ-ME-FIRST.txt        what the recipient reads
+  ListToPdf/                 SharePoint list to PDF; the same files, and
+    Invoke-ListToPdf.ps1     the script that prints, which needs PowerShell 7
 ```
+
+An entry script is the one part of a tool that has to run under Windows
+PowerShell 5.1: it is what can say "PowerShell 7 is missing". Keep it small, and
+put the work in a script that runs under PowerShell 7 and is started by it, as
+`ListToPdf` does with `Start-ListToPdf.ps1` and `Invoke-ListToPdf.ps1`.
 
 ## Handing a tool out
 

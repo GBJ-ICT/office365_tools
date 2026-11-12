@@ -303,6 +303,19 @@ Links are checked separately from the text, because a link in a PDF is an
 annotation rather than a string — a document whose text reads back perfectly
 can still have lost every one of them.
 
+It prints what the list holds, not only its plain text. Enhanced rich text
+columns print as text with their paragraphs, bullets and links; a Person column
+prints the name, several to a line, linked to the person's address; emoji print
+as glyphs. Column widths follow the content, so a number or a date stays narrow
+and the long texts share the rest of the page. `-View` takes the title of a
+stored view, as the view picker shows it, or its GUID — `Get-SpoListView` lists
+them. The first page says what was exported, when, by whom (the signed-in
+user, or `-ExportedBy`) and why (`-Reason`).
+
+People who do not use PowerShell get the same thing as a double-click tool,
+**SharePoint list to PDF**, which asks for the list and the view from a list of
+the stored ones. See [Tools at a glance](docs/user/tools.md).
+
 Layout is customisable in three steps: parameters for the ordinary cases, `-Css`
 for a rule they do not cover, and `-CellFormatter` for a value that should print
 as something other than itself. Every cell carries a `col-<column>` class:
@@ -526,7 +539,7 @@ machine rather than theirs.
 | **Document Sets** | `Get-SpoDocumentSet` `Get-SpoDocumentSetMismatch` `Get-SpoDocumentSetRegisterEntry` `Repair-SpoDocumentSetMetadata` `Test-SpoDocumentSetSharedColumn` |
 | **Library health** | `Test-SpoLibraryHealth` `Test-SpoFileName` `Test-SpoPathLength` `Compare-SpoFolder` `ConvertFrom-SpoAddress` |
 | **List items** | `Add-SpoListItem` `Update-SpoListItem` `Update-SpoListItemLinkText` `Export-SpoListItem` `Import-SpoListItem` |
-| **Reporting** | `Export-SpoReport` `Export-SpoListPdf` `Test-SpoPdfContent` |
+| **Reporting** | `Export-SpoReport` `Export-SpoListPdf` `Get-SpoListView` `Test-SpoPdfContent` |
 
 Full help for any of them:
 

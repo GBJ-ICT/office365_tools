@@ -12,11 +12,64 @@ answer a few questions. The tool starts straight away.
 **Double-click `Office365-Tools.cmd`.** Also for people who do not use PowerShell.
 You get this file when you receive several tools. A window opens with every
 available tool, each with a short description. Click the tool you want to start.
-Today this is the **Upload checker**; new tools appear in this window by themselves.
+Today these are **SharePoint list to PDF** and the **Upload checker**; new tools appear in this window by themselves.
 At the bottom left, the **Language / Sprache** box changes the language.
 
 **PowerShell.** For everything else. Open PowerShell 7 in the repository folder
 and start a script, or use the commands directly.
+
+## SharePoint list to PDF (double-click)
+
+Prints a SharePoint list, or one of its views, to a PDF you can keep, send or
+print. It only reads; it never changes anything in SharePoint.
+
+1. Double-click `List-To-Pdf.cmd`. With `Office365-Tools.cmd`, click
+   **SharePoint list to PDF** in the window instead.
+2. The first time it asks for an address. Copy it out of your browser and paste it.
+   It can be the address of the site, or of a page in it: if you copy the address
+   of the list you want, the site is taken from it, and the list too, so you are not
+   asked which one. Put the address in `list-to-pdf.xml` beside the launcher and it
+   stops asking.
+3. Sign in with your work account, then pick the **list** and the **view** from
+   numbered lists. The views are the stored selections of that list, named as the
+   view picker in SharePoint names them; Enter takes the default view. In
+   `list-to-pdf.xml` you can name a view instead, and it is not asked.
+4. Type why you are exporting it, or press Enter to leave that out. The reason goes
+   on the first page.
+5. The PDF is in the `Reports` folder next to the launcher, and the folder opens
+   with it selected.
+
+The first page says what was exported, when, by whom (your name, from the
+sign-in) and why. The paper is A4 landscape; `list-to-pdf.xml` also offers A3, A5,
+Letter, Legal and portrait. A list with many text columns reads better on A3.
+
+How each kind of column is printed:
+
+| Column in SharePoint | On the page |
+|---|---|
+| Single line of text, Choice, Number, Currency, Calculated | The text as the list shows it. Several choices are separated by `;`. |
+| Multiple lines of text, plain | The full text, with its line breaks. |
+| Multiple lines of text, enhanced rich text | The text with its paragraphs, bullets and numbers. Links inside it are clickable. Emoji are printed. |
+| Date and time | The date, and the time when there is one. |
+| Yes/No | Yes or No. |
+| Person or Group | The display name. Several people are one name to a line. The name opens an email to that person; a group has no address. |
+| Lookup, Managed metadata | The value, or the values separated by `;`. |
+| Hyperlink, Picture | The description, or the address when there is none. It is a clickable link. |
+| Attachments, Content type | Not printed. |
+
+Colours from SharePoint (conditional formatting, coloured choices) are not carried
+over: the table has a grey header row and every second row is shaded.
+
+Every column is as wide as its content needs, up to 70 mm for a short one; the
+long text columns share the rest of the page. All the text is on the page: long
+texts wrap and may continue on the next page, nothing is cut off. After printing,
+the tool reads the PDF back and checks that every value is in it. If one is
+missing it says so and tells you not to rely on the file. A view with no rows
+writes no PDF.
+
+Needs PowerShell 7 (the launcher says how to get it) and, for the sign-in, the
+application ID of your organisation. A list a person cannot read in SharePoint
+cannot be printed.
 
 ## The Upload checker (double-click)
 
