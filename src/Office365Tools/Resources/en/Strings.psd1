@@ -560,6 +560,8 @@
 
     'Pdf.Export.ViewResolved'                                  = 'Using the view ''{0}'' ({1}).'
 
+    'Pdf.Layout.FontReduced'                                   = '{0} columns do not fit the page at {1} pt, so the text is set at {2} pt.'
+
     'Rule.Pdf.Missing'                                         = 'The PDF does not exist, so nothing about its contents can be checked.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'No rows were supplied, so the PDF was not checked against anything.'
