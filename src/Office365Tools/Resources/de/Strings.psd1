@@ -584,6 +584,8 @@
 
     'Rule.Pdf.WrappedValues'                                   = '{0} von {1} Wert(en) wurden über einen Zeilenumbruch gedruckt und ohne Rücksicht auf Leerräume zugeordnet. Mit -ReportWrapped werden sie aufgelistet.'
 
+    'Rule.Pdf.SplitValues'                                     = '{0} von {1} Wert(en) sind länger als eine Seite und gehen auf der nächsten weiter; sie wurden in Teilen geprüft, jeder Teil am richtigen Ort.'
+
     'Rule.Pdf.MissingLink'                                     = '{0}: Die Zelle wurde gedruckt, trägt im PDF aber keinen anklickbaren Link.'
 
     'Rule.Pdf.MoreMissingLinks'                                = '{0} weitere(r) Link(s) fehlten ebenfalls und sind nicht einzeln aufgeführt.'

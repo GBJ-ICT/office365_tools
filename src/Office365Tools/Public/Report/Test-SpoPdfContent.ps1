@@ -251,6 +251,7 @@ function Test-SpoPdfContent {
         # -------------------------------------------------------------------
         $missing = [System.Collections.Generic.List[object]]::new()
         $wrapped = [System.Collections.Generic.List[object]]::new()
+        $split = [System.Collections.Generic.List[object]]::new()
         $checked = 0
 
         foreach ($group in ($cells | Group-Object { ConvertTo-SpoSearchText -Text $_.Text -KeepSpace })) {
@@ -273,6 +274,13 @@ function Test-SpoPdfContent {
             $loose = ConvertTo-SpoSearchText -Text $group.Group[0].Text
             if ($loose -and $stripped.Contains($loose)) {
                 foreach ($item in $group.Group) { $wrapped.Add($item) }
+                continue
+            }
+
+            # A cell taller than a page continues on the next, with the heading
+            # row and the rest of the row in between. Looked for in pieces.
+            if ($read.PageCount -gt 1 -and $loose -and (Test-SpoSplitText -Needle $loose -Haystack $stripped -MaxPart $read.PageCount)) {
+                foreach ($item in $group.Group) { $split.Add($item) }
                 continue
             }
 
@@ -306,6 +314,12 @@ function Test-SpoPdfContent {
                 -Detail @{ Total = $missing.Count; Listed = $reported }
         }
 
+        if ($split.Count -gt 0) {
+            New-SpoFinding -RuleId 'Pdf.SplitValues' -Severity Info -Scope Item -Target $target `
+                -Message (Get-O365String 'Rule.Pdf.SplitValues' $split.Count $checked) `
+                -Detail @{ Split = $split.Count; Checked = $checked }
+        }
+
         if ($wrapped.Count -gt 0) {
             if ($ReportWrapped) {
                 foreach ($item in ($wrapped | Select-Object -First $MaxFinding)) {
@@ -333,10 +347,16 @@ function Test-SpoPdfContent {
             $expected = @($Link | Where-Object { $_ -and $_.PSObject.Properties['Href'] -and $_.Href })
             $actual = @(Get-SpoPdfLink -Path $Path)
 
-            # Compared case-insensitively and without a trailing slash: a
-            # producer may normalise either, and neither changes where the
-            # link goes.
-            $normalise = { param([string]$Uri) $Uri.Trim().TrimEnd('/').ToLowerInvariant() }
+            # Compared case-insensitively, without a trailing slash and with the
+            # percent-escapes undone: a producer may normalise any of them (a
+            # space becomes %20, a host is lower-cased), and none changes where
+            # the link goes.
+            $normalise = {
+                param([string]$Uri)
+                $plain = $Uri.Trim()
+                try { $plain = [uri]::UnescapeDataString($plain) } catch { Write-Verbose $_.Exception.Message }
+                $plain.TrimEnd('/').ToLowerInvariant()
+            }
             $present = [System.Collections.Generic.HashSet[string]]::new(
                 [string[]]@($actual | ForEach-Object { & $normalise $_ }),
                 [System.StringComparer]::Ordinal
