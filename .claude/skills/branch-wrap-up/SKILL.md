@@ -94,7 +94,7 @@ checklist: one row per requirement, with a test type and the expected behaviour.
    automated test although its type is Unit or Static, write one: propose it as part of the commit
    plan (a test commit, or inside the commit it covers), say clearly that you are adding it, and
    run it. Do not mark a row as covered by a test that does not exist. If a requirement cannot be
-   met or tested as written, say so and propose a change to the issue instead of bending the test.
+   met or tested as written, say so as a deviation (step 5) instead of bending the test.
 3. **Summarize the status** to the user in a table of four columns. The issue stays the single
    source for the requirements, their tests and the expected behaviour, so copy the `#` and
    `Requirement` text from the issue's table as it is (fetch the body with
@@ -123,9 +123,21 @@ checklist: one row per requirement, with a test type and the expected behaviour.
    circle and the bold text are the marker). When the user reports back, update the row (Passed or
    Failed, with how it was tested). If they report a problem, fix it through the normal plan and
    approval flow.
-5. **Put the status in the pull request.** The body carries this extended table (a copy, dated by
-   the commit it names), and what was not verified. Update the same table in the pull-request
-   body when a manual row is reported back.
+5. **Name every deviation from the issue, on the issue and in the pull request.** Compare what was
+   built with the whole issue, not only its table: the requirements, the Context, the Technical
+   Specification and Out of Scope. A deviation is anything that differs from what the issue says: a
+   different approach or value, a requirement met another way or not met, a test in another place
+   than the one named, something added that the issue does not ask for, and a limit found on the
+   way. Write each one with three parts: what the issue says, what was done instead, and why. Post
+   the list as one comment on the issue (`gh issue comment <number> --body-file <file>`) and put
+   the same list under "Deviations from the issue" in the pull-request body; say "None." when there
+   are none. The comment is the record: do not rewrite the issue's own text to make a deviation
+   disappear, and edit the issue body only when the user asks. Posting the comment changes GitHub,
+   so ask first unless the user already asked for it. A deviation found later goes into a new
+   comment and into the pull-request body in the same way.
+6. **Put the status in the pull request.** The body carries this extended table (a copy, dated by
+   the commit it names), the deviations, and what was not verified. Update the same table in the
+   pull-request body when a manual row is reported back.
    Write `Closes #N` only when every row passed. If any manual, tenant or other row is still open,
    write `Part of #N` and name the open rows.
 
@@ -142,7 +154,8 @@ If the user accepts:
 
 1. Show the title, the body and the target branch (normally `master`) first. The
    title is a short imperative phrase. The body has a summary of what changed and
-   why, the status table from the issue check, what was not verified, and
+   why, the status table from the issue check, the deviations from the issue
+   (the same list as the issue comment), what was not verified, and
    `Closes #N` (only when every row passed) or `Part of #N` for the issue it
    belongs to (look it up with `gh issue list`). End the body with the
    attribution line the harness gives for pull requests.

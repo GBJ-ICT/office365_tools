@@ -70,11 +70,15 @@ Before the pull request, go through the requirements table: run each test that
 can be run, write a missing Unit or Static test, and list the Manual tests for
 a person. The result goes into the pull request as a status table.
 
+Compare what was built with the whole issue too. Every deviation (what the issue
+says, what was done instead, and why) is written as a comment on the issue and
+again in the pull request. The issue's own text is not edited to hide one.
+
 ### 6. Open the pull request
 
-The description summarises the change, shows the status table and says what was
-not verified. It says `Closes #N` only if every requirement passed, otherwise
-`Part of #N` and the open rows.
+The description summarises the change, shows the status table, lists the
+deviations from the issue and says what was not verified. It says `Closes #N`
+only if every requirement passed, otherwise `Part of #N` and the open rows.
 
 ### 7. Read the pipeline
 
@@ -92,7 +96,7 @@ asks before anything outward-facing: a commit, a push, a pull request, a label.
 | Skill | Use it to | What it does |
 |---|---|---|
 | `create-issue` | Turn a request into an issue | Writes the issue in the fixed structure, copies your prompt into **Issue Prompt**, labels it **TO BE REVIEWED**, and sets **ACCEPTED** only when a person other than the author accepts it. |
-| `branch-wrap-up` | Finish a branch | Plans small commits, stages each one for your review, runs the pipelines on the staged state, commits after your approval, checks the work against the issue, and offers the pull request. |
+| `branch-wrap-up` | Finish a branch | Plans small commits, stages each one for your review, runs the pipelines on the staged state, commits after your approval, checks the work against the issue, names every deviation from it on the issue and in the pull request, and offers the pull request. |
 | `pipeline-monitoring` | Read CI after a pull request | Reads the GitHub Actions result, and for a failed job finds the cause in the log, reproduces it locally and proposes a fix. It does not poll. |
 
 The usual order is `create-issue`, then your work, then `branch-wrap-up`, then
