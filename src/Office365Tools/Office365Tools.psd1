@@ -135,6 +135,23 @@
   machine. build.ps1 -Task Package -Tool <name> builds the ZIP to hand out;
   -Ref pins it to a tag; -IncludeCode builds one that needs no GitHub.
 - scripts/connect_graph.ps1 is removed. Use Connect-MgGraph.
+- Export-SpoListPdf prints more of what a list holds. Rich text columns print
+  as text, with paragraphs and bullets and the links inside them; a person
+  prints as a name, several to a line each, linked to their address; emoji
+  print as glyphs. Column widths follow the content: a number or a date takes
+  what it needs and the text columns share the rest, so a long text is no
+  longer a narrow strip. -View takes a view's title or its GUID. The first page
+  carries who exported, when and why (-ExportedBy, -Reason).
+- Get-SpoListView lists the stored views of a list, or maps the name of one to
+  its id. Export-SpoListItem -Structured keeps people and links as objects.
+- A list with many columns gives its long texts at least half the page, and
+  lowers the type size by itself (to 6 pt at the least) when the columns still
+  do not fit. A text taller than a page, which continues on the next one with
+  the repeated heading row in between, is no longer reported as missing:
+  Test-SpoPdfContent matches it in parts (Pdf.SplitValues). A link whose
+  address the browser wrote differently, a space as %20, is still found.
+- packaging/ListToPdf: "SharePoint list to PDF" in the tool menu. Asks for the
+  list and the view from a list of the stored ones, and writes the PDF.
 
 0.6.0
 - Export-SpoListPdf: prints a list to PDF with a page layout that does not
