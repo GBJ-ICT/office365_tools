@@ -60,6 +60,12 @@
     Document heading. Defaults to the list title.
 .PARAMETER Subtitle
     Second line under the heading -- what the selection is, who it is for.
+.PARAMETER ExportedBy
+    Who made the export, printed at the top of the first page. A list is
+    printed with the display name of the signed-in user when this is omitted.
+.PARAMETER Reason
+    Why the export was made, printed at the top of the first page. Left out
+    when empty.
 .PARAMETER GroupBy
     Print one sub-table per distinct value of this column, each with its own
     repeating header.
@@ -122,7 +128,7 @@
     Items fetched per request when reading the list.
 .OUTPUTS
     PSCustomObject with Path, RowCount, ColumnCount, PageCount, Digest,
-    LinkCount, Verified and Finding.
+    LinkCount, Verified, Finding and ExportedBy.
 .EXAMPLE
     Export-SpoListPdf -Library 'Aufgaben und Dienste' -Path out/dienste.pdf
     Prints every visible column of the list, A4 landscape, and verifies it.
@@ -190,6 +196,12 @@ function Export-SpoListPdf {
 
         [Parameter()]
         [string]$Subtitle,
+
+        [Parameter()]
+        [string]$ExportedBy,
+
+        [Parameter()]
+        [string]$Reason,
 
         [Parameter()]
         [string]$GroupBy,
@@ -289,6 +301,7 @@ function Export-SpoListPdf {
 
             $viewFields = @()
             $viewQuery = $null
+            $viewTitle = ''
             if ($View) {
                 # The name someone typed, mapped to the view it belongs to.
                 $listView = Resolve-SpoView -List $list -Identity $View
@@ -296,6 +309,7 @@ function Export-SpoListPdf {
 
                 $viewFields = @($listView.ViewFields)
                 $viewQuery = $listView.ViewQuery
+                $viewTitle = $listView.Title
                 if (-not $Title) { $documentTitle = "$($list.Title) - $($listView.Title)" }
             }
 
@@ -391,6 +405,7 @@ function Export-SpoListPdf {
         else {
             $rows = @($collected)
             $richColumns = @()
+            $viewTitle = ''
             if (-not $documentTitle) { $documentTitle = 'Report' }
 
             $columns = if ($Field) {
@@ -424,6 +439,24 @@ function Export-SpoListPdf {
         # -------------------------------------------------------------------
         # Render.
         # -------------------------------------------------------------------
+        # Who made this, and where from, for the block at the top of page one.
+        $exportedBy = $ExportedBy
+        $source = ''
+
+        if ($PSCmdlet.ParameterSetName -eq 'List') {
+            if (-not $exportedBy) {
+                try {
+                    $exportedBy = [string](Get-PnPWeb -Includes CurrentUser).CurrentUser.Title
+                }
+                catch {
+                    Write-O365Log (Get-O365String 'Pdf.Export.UserUnknown' $_.Exception.Message) 'Info'
+                }
+            }
+
+            $source = (@([string]$script:O365State.SiteUrl, [string]$list.Title, $viewTitle) |
+                    Where-Object { $_ }) -join " $([char]0x00B7) "
+        }
+
         # The size only when one was asked for: left out, the renderer may lower
         # it so that many columns fit the page.
         $fontArgument = @{}
@@ -434,7 +467,7 @@ function Export-SpoListPdf {
             -Margin $Margin @fontArgument -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
             -Css $Css -CellFormatter $CellFormatter -DateFormat $DateFormat -RowNumber:$RowNumber `
             -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink `
-            -RichText $richColumns
+            -RichText $richColumns -ExportedBy $exportedBy -Reason $Reason -Source $source -ExportedAt $started
 
         $directory = Split-Path -Parent $Path
         if ($directory -and -not (Test-Path -LiteralPath $directory)) {
@@ -470,6 +503,7 @@ function Export-SpoListPdf {
                     LinkCount   = @($render.Link).Count
                     Verified    = $false
                     Finding     = @()
+                    ExportedBy  = $exportedBy
                     Browser     = $null
                     Duration    = (Get-Date) - $started
                 }
@@ -533,6 +567,7 @@ function Export-SpoListPdf {
             LinkCount   = @($render.Link).Count
             Verified    = $verified
             Finding     = $findings
+            ExportedBy  = $exportedBy
             Browser     = $print.Browser
             Duration    = (Get-Date) - $started
         }
