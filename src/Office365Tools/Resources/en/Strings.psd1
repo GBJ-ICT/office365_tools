@@ -560,6 +560,20 @@
 
     'Pdf.Export.ViewResolved'                                  = 'Using the view ''{0}'' ({1}).'
 
+    'Pdf.Export.UserUnknown'                                   = 'Could not read who is signed in, so the page does not say who exported it: {0}'
+
+    'Pdf.Header.Exported'                                      = 'Exported'
+
+    'Pdf.Header.ExportedBy'                                    = 'Exported by'
+
+    'Pdf.Header.Reason'                                        = 'Reason'
+
+    'Pdf.Header.Source'                                        = 'Source'
+
+    'Pdf.Header.Size'                                          = 'Contents'
+
+    'Pdf.Header.Counts'                                        = '{0} row(s), {1} column(s)'
+
     'Pdf.Layout.FontReduced'                                   = '{0} columns do not fit the page at {1} pt, so the text is set at {2} pt.'
 
     'Rule.Pdf.Missing'                                         = 'The PDF does not exist, so nothing about its contents can be checked.'

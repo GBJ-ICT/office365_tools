@@ -454,6 +454,59 @@ Describe 'The printed page' {
             (ConvertTo-SpoPrintHtml -Row @([pscustomobject]@{ A = 'x' }) -Column A).Html | Should -Match 'Segoe UI Emoji'
         }
     }
+
+    It 'prints the title, the time, who exported and why in one block, once' {
+        InModuleScope Office365Tools {
+            $rows = 1..30 | ForEach-Object { [pscustomobject]@{ Gruppe = "G$($_ % 3)"; A = "row $_" } }
+            $render = ConvertTo-SpoPrintHtml -Row $rows -Column Gruppe, A -GroupBy Gruppe -Title 'Protokoll' `
+                -ExportedBy 'Pat Example' -Reason 'Board meeting' -ExportedAt ([datetime]'2026-11-12 14:30') -Source 'Site / List / View'
+
+            @([regex]::Matches($render.Html, 'class="docinfo"')).Count | Should -Be 1
+            $render.Html | Should -Match '<h1>Protokoll</h1>'
+            $render.Html | Should -Match '>Exported</span><span class="v">2026-11-12 14:30<'
+            $render.Html | Should -Match '>Exported by</span><span class="v">Pat Example<'
+            $render.Html | Should -Match '>Reason</span><span class="v">Board meeting<'
+            $render.Html | Should -Match '>Source</span><span class="v">Site / List / View<'
+            $render.Html | Should -Match '30 row\(s\), 2 column\(s\)'
+            # Above the first table, and so not in the repeated header row.
+            $render.Html.IndexOf('class="docinfo"') | Should -BeLessThan $render.Html.IndexOf('<table>')
+        }
+    }
+
+    It 'leaves out the reason, and who, when there are none' {
+        InModuleScope Office365Tools {
+            $render = ConvertTo-SpoPrintHtml -Row @([pscustomobject]@{ A = 'x' }) -Column A -Source ''
+
+            $render.Html | Should -Not -Match '>Reason<'
+            $render.Html | Should -Not -Match '>Exported by<'
+            $render.Html | Should -Not -Match '>Source<'
+            $render.Html | Should -Match '>Exported<'
+        }
+    }
+
+    It 'escapes what it prints in the block' {
+        InModuleScope Office365Tools {
+            $render = ConvertTo-SpoPrintHtml -Row @([pscustomobject]@{ A = 'x' }) -Column A -Reason '<b>x</b>' -ExportedBy '<i>me</i>'
+
+            $render.Html | Should -Match '&lt;b&gt;x&lt;/b&gt;'
+            $render.Html | Should -Match '&lt;i&gt;me&lt;/i&gt;'
+            $render.Html | Should -Not -Match '<b>x</b>'
+        }
+    }
+
+    It 'says its labels in German when German is in use' {
+        Set-O365Language -Language de -SessionOnly
+        try {
+            InModuleScope Office365Tools {
+                $render = ConvertTo-SpoPrintHtml -Row @([pscustomobject]@{ A = 'x' }) -Column A -Reason 'Grund x' -ExportedBy 'Pat'
+                $render.Html | Should -Match '>Exportiert von<'
+                $render.Html | Should -Match '>Grund<'
+            }
+        }
+        finally {
+            Set-O365Language -Language en -SessionOnly
+        }
+    }
 }
 
 Describe 'Emoji in the check of a PDF' {
@@ -576,6 +629,25 @@ Describe 'Export-SpoListPdf, given a view by name' {
         }
     }
 
+    It 'says who exported and why, from the sign-in and the parameter, and names the view' {
+        $path = Join-Path $script:Folder 'b.pdf'
+        $result = Export-SpoListPdf -Library Protokoll -View "{$($script:OffenId)}" -Path $path -SkipVerification -KeepHtml -Reason 'Board meeting'
+        $html = Get-Content -LiteralPath $result.HtmlPath -Raw -Encoding utf8
+
+        $result.ExportedBy | Should -Be 'Pat Example'
+        $html | Should -Match '>Exported by</span><span class="v">Pat Example<'
+        $html | Should -Match '>Reason</span><span class="v">Board meeting<'
+        $html | Should -Match 'Protokoll - Offene Pendenzen'
+        $html | Should -Match '<a href="https://example\.org/p">Planner</a>'
+    }
+
+    It 'takes -ExportedBy over the signed-in user' {
+        $result = Export-SpoListPdf -Library Protokoll -Path (Join-Path $script:Folder 'c.pdf') -SkipVerification -ExportedBy 'Someone Else'
+
+        $result.ExportedBy | Should -Be 'Someone Else'
+        Should -Invoke -ModuleName Office365Tools Get-PnPWeb -Times 0 -Exactly
+    }
+
     It 'stops and names the views when the name is not one of them, and writes nothing' {
         Mock -ModuleName Office365Tools Get-PnPView { [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Alle'; DefaultView = $true; Hidden = $false; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' } }
         $path = Join-Path $script:Folder 'd.pdf'
@@ -627,7 +699,7 @@ Describe 'What a real browser makes of it' {
         $pdf = Join-Path $script:Dir 'mixed.pdf'
         $render = InModuleScope Office365Tools -Parameters @{ Rows = $rows; Pdf = $pdf; Dir = $script:Dir } {
             param($Rows, $Pdf, $Dir)
-            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Wer, Text -RichText Text
+            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Wer, Text -RichText Text -ExportedBy 'Pat Example' -Reason 'Quartalsbericht'
             $html = Join-Path $Dir 'mixed.html'
             Set-Content -LiteralPath $html -Value $r.Html -Encoding utf8
             $null = Invoke-SpoBrowserPrint -HtmlPath $html -Path $Pdf
@@ -693,5 +765,23 @@ Describe 'What a real browser makes of it' {
         $findings = @(Test-SpoPdfContent -Path $pdf -Cell $render.Cell -Link $render.Link -Attestation $render.Attestation -ExpectedRowCount 1 -NoExternalReader)
 
         @($findings | Where-Object Severity -eq 'Error') | Should -BeNullOrEmpty
+    }
+
+    It 'prints the header block on the first page only' -Skip:(-not $hasBrowser) {
+        $rows = 1..120 | ForEach-Object { [pscustomobject]@{ Nr = "$_"; Text = "Zeile $_ mit etwas Text, damit die Seite voll wird" } }
+        $pdf = Join-Path $script:Dir 'pages.pdf'
+
+        InModuleScope Office365Tools -Parameters @{ Rows = $rows; Pdf = $pdf; Dir = $script:Dir } {
+            param($Rows, $Pdf, $Dir)
+            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Text -ExportedBy 'Pat Example' -Reason 'Einmalig genannt'
+            $html = Join-Path $Dir 'pages.html'
+            Set-Content -LiteralPath $html -Value $r.Html -Encoding utf8
+            $null = Invoke-SpoBrowserPrint -HtmlPath $html -Path $Pdf
+        }
+
+        $read = InModuleScope Office365Tools -Parameters @{ Pdf = $pdf } { param($Pdf) ConvertFrom-SpoPdfText -Path $Pdf -NoExternal }
+
+        $read.PageCount | Should -BeGreaterThan 1
+        @([regex]::Matches($read.Text, 'Einmalig genannt')).Count | Should -Be 1
     }
 }
