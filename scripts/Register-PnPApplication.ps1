@@ -64,7 +64,6 @@ param(
     [string]$SiteUrl,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

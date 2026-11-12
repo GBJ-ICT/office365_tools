@@ -51,7 +51,6 @@ param(
     [switch]$SkipPermissions,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

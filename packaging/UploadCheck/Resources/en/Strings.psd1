@@ -80,12 +80,6 @@ Check the spelling - the names are case-sensitive.'
     'Settings.Mode.Title'                = 'The setting <Mode> has to be PreFlight, Verify, Both or ask.'
     'Settings.CurrentValue'              = 'It currently says: {0}'
 
-    'Settings.Language.Title'            = 'The language has to be en, de or auto.'
-    'Settings.Language.Argument'         = 'It currently says: {0}
-It was given with -Language.'
-    'Settings.Language.File'             = 'It currently says: {0}
-It is set by <Language> in upload-check.xml.'
-
     'Prompt.YesNo.DefaultYes'            = '[Y/n]'
     'Prompt.YesNo.DefaultNo'             = '[y/N]'
 

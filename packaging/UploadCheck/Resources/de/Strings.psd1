@@ -82,12 +82,6 @@ Prüfe die Schreibweise - Gross- und Kleinschreibung zählt.'
     'Settings.Mode.Title'                = 'Die Einstellung <Mode> muss PreFlight, Verify, Both oder ask sein.'
     'Settings.CurrentValue'              = 'Aktuell steht dort: {0}'
 
-    'Settings.Language.Title'            = 'Die Sprache muss en, de oder auto sein.'
-    'Settings.Language.Argument'         = 'Aktuell steht dort: {0}
-Angegeben wurde sie mit -Language.'
-    'Settings.Language.File'             = 'Aktuell steht dort: {0}
-Festgelegt wird sie durch <Language> in upload-check.xml.'
-
     'Prompt.YesNo.DefaultYes'            = '[J/n]'
     'Prompt.YesNo.DefaultNo'             = '[j/N]'
 

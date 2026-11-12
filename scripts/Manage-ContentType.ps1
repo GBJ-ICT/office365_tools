@@ -49,7 +49,6 @@ param(
     [string]$Group,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

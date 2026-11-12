@@ -101,10 +101,11 @@ Describe 'Test-Upload.ps1, the console' {
         Test-Path -LiteralPath $result.Settings | Should -BeFalse
     }
 
-    It 'rejects a language it does not know' {
-        $result = Invoke-Check -Language 'fr'
+    It 'warns about a language it does not know and carries on with the next source' {
+        $result = Invoke-Check -Language 'fr' -EnvironmentLanguage 'de'
 
-        $result.Code | Should -Not -Be 0
+        $result.Code | Should -Be 0
+        $result.Text | Should -BeLike '*not one of en, de, auto*'
     }
 
     It 'ends with the exit code that says what was found, in either language' {

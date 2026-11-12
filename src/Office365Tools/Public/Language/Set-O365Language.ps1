@@ -42,7 +42,10 @@ function Set-O365Language {
     [OutputType([pscustomobject])]
     param(
         [Parameter(Mandatory, Position = 0)]
-        [ValidateSet('en', 'de', 'auto')]
+        [ArgumentCompleter({
+                # The third argument is the word typed so far.
+                @('en', 'de', 'auto') | Where-Object { $_ -like "$($args[2])*" }
+            })]
         [string]$Language,
 
         [Parameter()]
@@ -51,6 +54,20 @@ function Set-O365Language {
         [Parameter()]
         [switch]$PassThru
     )
+
+    $known = @(Get-O365SupportedLanguage) + 'auto'
+
+    if ($known -notcontains $Language) {
+        if (-not $SessionOnly) {
+            # Writing a value that can never work to the settings file is
+            # refused. Reading one is never fatal (see Resolve-O365Language).
+            throw "Language '$Language' is not supported. Use one of: $($known -join ', ')."
+        }
+
+        # A script's -Language: warn and follow the other sources instead.
+        Write-Warning "Ignoring -Language: '$Language' is not one of $($known -join ', ')."
+        $Language = 'auto'
+    }
 
     if ($SessionOnly) {
         # Applies to this session and nothing else, so there is nothing to
