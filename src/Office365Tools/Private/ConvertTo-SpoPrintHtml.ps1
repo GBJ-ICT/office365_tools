@@ -84,6 +84,15 @@
 .PARAMETER SiteUrl
     Site address, for relative links inside rich text. Defaults to the site the
     module is connected to.
+.PARAMETER ExportedBy
+    Who made this export. Printed in the block at the top of the first page.
+.PARAMETER Reason
+    Why it was made. Printed in the same block; left out when empty.
+.PARAMETER ExportedAt
+    When it was made. Defaults to now; a test passes a fixed time.
+.PARAMETER Source
+    Where the rows come from, for example the site, the list and the view.
+    Defaults to the site address.
 .OUTPUTS
     PSCustomObject with Html, Column, RowCount, Cell, Link, Digest, Attestation
     and FontSize (the size used, which is smaller than asked for when the
@@ -160,7 +169,19 @@ function ConvertTo-SpoPrintHtml {
         [string[]]$RichText = @(),
 
         [Parameter()]
-        [string]$SiteUrl = $script:O365State.SiteUrl
+        [string]$SiteUrl = $script:O365State.SiteUrl,
+
+        [Parameter()]
+        [string]$ExportedBy,
+
+        [Parameter()]
+        [string]$Reason,
+
+        [Parameter()]
+        [datetime]$ExportedAt = (Get-Date),
+
+        [Parameter()]
+        [string]$Source = $script:O365State.SiteUrl
     )
 
     $encode = { param($Value) [System.Net.WebUtility]::HtmlEncode([string]$Value) }
@@ -312,7 +333,10 @@ body { font-family: "Segoe UI", "Helvetica Neue", Arial, "Segoe UI Emoji", "Sego
        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 h1 { font-size: $([math]::Round($FontSize * 1.7, 2))pt; margin: 0 0 1mm; }
 p.subtitle { font-size: $([math]::Round($FontSize * 1.1, 2))pt; margin: 0 0 1mm; }
-p.meta { font-size: $([math]::Round($FontSize * 0.85, 2))pt; color: #444444; margin: 0 0 3mm; }
+div.docinfo { display: grid; grid-template-columns: max-content 1fr; column-gap: 4mm; row-gap: 0.4mm;
+              font-size: $([math]::Round($FontSize * 0.95, 2))pt; margin: 0 0 3.5mm; }
+div.docinfo .k { color: #444444; font-weight: 600; }
+div.docinfo .v { overflow-wrap: anywhere; }
 h2 { font-size: $([math]::Round($FontSize * 1.2, 2))pt; margin: 4mm 0 1.5mm;
      padding-bottom: 0.8mm; border-bottom: 0.6pt solid #666666;
      break-after: avoid; page-break-after: avoid; }
@@ -351,12 +375,20 @@ $Css
         [void]$builder.AppendLine("<p class=""subtitle"">$(& $encode $Subtitle)</p>")
     }
 
-    $site = if ($script:O365State.SiteUrl) { $script:O365State.SiteUrl } else { '' }
-    [void]$builder.AppendLine(
-        "<p class=""meta"">$(& $encode $site) &middot; " +
-        "$(Get-Date -Format 'yyyy-MM-dd HH:mm') &middot; " +
-        "$($rows.Count) row(s), $($Column.Count) column(s)</p>"
-    )
+    # Who, when and why, once, above the first table. It is not part of the
+    # table, so it does not repeat on the pages after it.
+    $info = [System.Collections.Generic.List[object]]::new()
+    $info.Add(@((Get-O365String 'Pdf.Header.Exported'), $ExportedAt.ToString('yyyy-MM-dd HH:mm', [cultureinfo]::InvariantCulture)))
+    if ($ExportedBy) { $info.Add(@((Get-O365String 'Pdf.Header.ExportedBy'), $ExportedBy)) }
+    if ($Reason) { $info.Add(@((Get-O365String 'Pdf.Header.Reason'), $Reason)) }
+    if ($Source) { $info.Add(@((Get-O365String 'Pdf.Header.Source'), $Source)) }
+    $info.Add(@((Get-O365String 'Pdf.Header.Size'), (Get-O365String 'Pdf.Header.Counts' $rows.Count $Column.Count)))
+
+    [void]$builder.AppendLine('<div class="docinfo">')
+    foreach ($pair in $info) {
+        [void]$builder.AppendLine("<span class=""k"">$(& $encode $pair[0])</span><span class=""v"">$(& $encode $pair[1])</span>")
+    }
+    [void]$builder.AppendLine('</div>')
 
     if ($rows.Count -eq 0) {
         [void]$builder.AppendLine('<div class="nothing">No rows matched. Nothing to print.</div>')

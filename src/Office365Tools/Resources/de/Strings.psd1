@@ -560,6 +560,20 @@
 
     'Pdf.Export.ViewResolved'                                  = 'Verwende die Ansicht ''{0}'' ({1}).'
 
+    'Pdf.Export.UserUnknown'                                   = 'Wer angemeldet ist, konnte nicht gelesen werden; die Seite sagt deshalb nicht, wer exportiert hat: {0}'
+
+    'Pdf.Header.Exported'                                      = 'Exportiert'
+
+    'Pdf.Header.ExportedBy'                                    = 'Exportiert von'
+
+    'Pdf.Header.Reason'                                        = 'Grund'
+
+    'Pdf.Header.Source'                                        = 'Quelle'
+
+    'Pdf.Header.Size'                                          = 'Umfang'
+
+    'Pdf.Header.Counts'                                        = '{0} Zeile(n), {1} Spalte(n)'
+
     'Pdf.Layout.FontReduced'                                   = '{0} Spalten passen bei {1} pt nicht auf die Seite, darum ist der Text mit {2} pt gesetzt.'
 
     'Rule.Pdf.Missing'                                         = 'Das PDF gibt es nicht, darum lässt sich über seinen Inhalt nichts prüfen.'
