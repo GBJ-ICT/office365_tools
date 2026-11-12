@@ -584,6 +584,8 @@
 
     'Rule.Pdf.WrappedValues'                                   = '{0} of {1} value(s) were printed across a line break and were matched with spacing ignored. Pass -ReportWrapped to list them.'
 
+    'Rule.Pdf.SplitValues'                                     = '{0} of {1} value(s) are longer than a page and continue on the next one; they were matched in parts, each part in the right place.'
+
     'Rule.Pdf.MissingLink'                                     = '{0}: the cell was printed but carries no clickable link in the PDF.'
 
     'Rule.Pdf.MoreMissingLinks'                                = '{0} further link(s) were also missing and are not listed individually.'
