@@ -4,6 +4,18 @@ The goal is that anyone can add a command without reading a style guide first.
 CI enforces most of what is below, so if `./build.ps1` is green you have
 probably followed it.
 
+## How a change is made
+
+Every change starts as an issue that someone other than its author has
+reviewed (label `TO BE REVIEWED`, then `ACCEPTED`). Work goes on a branch, in
+small commits that each pass `./build.ps1`, and ends in a pull request that
+shows the issue's requirements and how each was tested.
+
+Three Claude skills in `.claude/skills/` help with this: `create-issue`,
+`branch-wrap-up` and `pipeline-monitoring`. The steps, the labels and the
+skills are described in [docs/dev/workflow.md](docs/dev/workflow.md); the Git
+rules are in [CLAUDE.md](CLAUDE.md).
+
 ## Adding a command
 
 **1. Create one file, named after the command.**
