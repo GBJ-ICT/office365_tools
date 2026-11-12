@@ -230,7 +230,6 @@ param(
     [string]$NextStep,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

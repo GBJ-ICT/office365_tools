@@ -64,7 +64,6 @@ param(
     [int]$PageSize = 500,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

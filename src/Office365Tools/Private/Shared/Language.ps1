@@ -199,9 +199,10 @@ function Resolve-O365Language {
           4. Windows       the Windows display language ($PSUICulture)
           5. Default       English
 
-        'auto' is valid in every source and means "ask the next one". An invalid
-        parameter is an error. An invalid environment variable or saved value
-        is ignored with a warning, so a typo in a file never stops a tool.
+        'auto' is valid in every source and means "ask the next one". A value
+        that is not supported, from any source including the parameter, is
+        ignored with a warning and the next source is asked, so a typo never
+        stops a tool.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -230,10 +231,11 @@ function Resolve-O365Language {
     $supported = Get-O365SupportedLanguage
 
     if ($Language -and $Language -ne 'auto') {
-        if ($supported -notcontains $Language) {
-            throw "Language '$Language' is not supported. Use one of: $($supported -join ', '), auto."
+        if ($supported -contains $Language) {
+            return [pscustomobject]@{ Language = $Language; Source = 'Parameter' }
         }
-        return [pscustomobject]@{ Language = $Language; Source = 'Parameter' }
+
+        Write-Warning "Ignoring -Language: '$Language' is not one of $($supported -join ', '), auto."
     }
 
     $candidates = @(

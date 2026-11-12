@@ -19,8 +19,10 @@ message, prompt and report uses it.
   changes it everywhere.
 - Defaults to the Windows display language; can be changed before a run by a
   simple prompt, a parameter, or the saved setting.
-- No new dependencies. It must run on Windows PowerShell 5.1, because the
-  launcher has to be able to say "PowerShell 7 is missing" on a bare machine.
+- No new dependencies. The shared loader must stay usable from Windows
+  PowerShell 5.1, because the launcher already runs there (see
+  [The tool menu and the launcher](#the-tool-menu-and-the-launcher-windows-powershell-51)).
+  This is a constraint inherited from the launcher, not a choice made here.
 - A missing translation never breaks anything: English is the fallback, and a
   test makes a missing English text a build failure.
 - Adding a language later is adding a folder, not changing code.
@@ -82,9 +84,40 @@ every source, including the environment variable.
 | 4 | Windows display language | any culture | Mapped as below |
 | 5 | `en` | | Last resort |
 
-An invalid value (`-Language fr`) is an error for the parameter, and ignored
-with a warning for the environment variable and saved setting, so a typo in a
-file never stops a tool from starting.
+Language values are [ISO 639-1](https://www.iso.org/standard/74575.html)
+two-letter codes (`en`, `de`), the same codes .NET reports as
+`TwoLetterISOLanguageName`. No code of our own is defined. The only value that is
+not ISO 639-1 is the keyword `auto`, which means "no choice made here: ask the
+next source". The supported languages are the folders under `Resources`, listed
+by `Get-O365SupportedLanguage`; any other code, valid ISO or not, is
+"unsupported".
+
+An unsupported value (`-Language fr`) is ignored with a warning, whichever source
+it comes from, and the next source is asked. A typo never stops a tool from
+starting.
+
+### Fallbacks
+
+Every input has a defined result when it is missing or not usable, so a tool
+always starts and always prints something readable.
+
+| Input | Missing | Unsupported or unreadable | Result |
+|---|---|---|---|
+| `-Language` parameter | Next source | Ignored, one warning (the launcher scripts print a problem message instead) | Next source |
+| `$env:O365_LANGUAGE` | Next source | Ignored, one warning | Next source |
+| Saved setting (`settings.json`) | Next source | Ignored, one warning. A file that is not valid JSON is read as "not set" | Next source |
+| Windows display language | Not applicable | Culture not supported, for example `fr` or `zh-Hans` | `en` |
+| `<Language>` in `upload-check.xml` | Next source | Ignored, one warning | Next source |
+| German text for a key | | Key not in `de` | The English text |
+| English text for a key | | Key not in `en` | "Message unavailable (`<Key>`)" and a log warning; the build test prevents this |
+| Saving the setting | | Write fails | The choice still applies to this run; one line says it was not saved |
+
+There is one deliberate exception, and it is about writing, not reading:
+`Set-O365Language fr` (without `-SessionOnly`) is an error, because it would
+save a value to `settings.json` that can never be used. With `-SessionOnly`,
+which is what a script's `-Language` uses, it warns and falls back like every
+other input. The scripts' `-Language` parameter has no `ValidateSet` for the same
+reason; a test keeps it that way.
 
 Optional per-package override: `<Language>` in `upload-check.xml`. It is empty
 by default and sits between 1 and 2 only for that tool. It exists for a
@@ -295,6 +328,19 @@ The double-click launcher is a one-line `.cmd` that downloads a release and runs
 script (see [packaging/README.md](https://github.com/GBJ-ICT/office365_tools/blob/master/packaging/README.md)). All of that runs
 under Windows PowerShell 5.1 before the module or PowerShell 7 is involved, so it
 cannot call `Get-O365String` from the module.
+
+**Why 5.1, and what this work changes about it.** Windows ships only Windows
+PowerShell 5.1; PowerShell 7 is not installed by default. The launcher is the
+first thing that runs, so it has to start on what every machine has. It already
+did before this work: `Office365-Tools.cmd` starts `powershell.exe` and falls
+back to `pwsh.exe`, and `Start-Tool.ps1` is written for 5.1. Multi-language
+support adds **no new dependency**. Its only effect is that the one shared file
+below has to stay loadable there.
+
+Running the launcher on PowerShell 7 instead (the `.cmd` preferring `pwsh.exe`,
+or installing it first) would remove this constraint. That is a change to the
+launcher and the release path, tracked as a separate follow-up (see
+[Open points](#open-points)), not part of this design.
 
 **Decided in step 1: one shared loader, no duplication.** The language and string
 lookup is one file, `src/Office365Tools/Private/Shared/Language.ps1`. It reads no
@@ -530,6 +576,12 @@ yet converted keep their English text until their turn.
 
 ## Open points
 
+- Whether the launcher can run on PowerShell 7 (the `.cmd` preferring `pwsh.exe`,
+  with Windows PowerShell 5.1 only to print "install PowerShell 7"; or the `.cmd`
+  installing it with `winget` after asking). Then `Language.ps1` and
+  `Start-Tool.ps1` could drop the 5.1 syntax and ASCII rules. Separate issue.
+- Whether `auto` should stay as a keyword or be replaced by an empty value for
+  "follow Windows".
 - Whether `settings.json` should also hold other personal preferences later
   (default profile, output folder). If so it gets a schema like
   `profiles.schema.json` from the start.

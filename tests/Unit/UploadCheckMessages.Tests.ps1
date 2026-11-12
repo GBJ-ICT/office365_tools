@@ -55,12 +55,6 @@ BeforeDiscovery {
             German  = 'muss eine ganze Zahl sein'
         }
         @{
-            Name    = 'a language it does not know'
-            Xml     = '<UploadCheck><Language>fr</Language></UploadCheck>'
-            English = 'en, de or auto'
-            German  = 'en, de oder auto'
-        }
-        @{
             Name    = 'a file that is not an upload checker file'
             Xml     = '<Something><Folder>ask</Folder></Something>'
             English = 'is not an upload checker settings file'

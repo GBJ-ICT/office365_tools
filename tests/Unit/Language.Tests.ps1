@@ -140,10 +140,10 @@ Describe 'Supported languages' {
     }
 
     It 'are what Set-O365Language accepts, plus auto' {
-        $set = (Get-Command Set-O365Language).Parameters['Language'].Attributes |
-            Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
-
-        @($set.ValidValues | Sort-Object) | Should -Be @((@('auto') + (Get-O365SupportedLanguage)) | Sort-Object)
+        foreach ($code in (@('auto') + (Get-O365SupportedLanguage))) {
+            { Set-O365Language -Language $code -SessionOnly -WarningAction Stop } | Should -Not -Throw -Because "$code is supported"
+        }
+        Set-O365Language -Language 'auto' -SessionOnly
     }
 
     It 'each have a string table' {
@@ -241,8 +241,17 @@ Describe 'Choosing the language' {
 
     Context 'a value it does not know' {
 
-        It 'is an error for -Language' {
-            { Resolve-O365Language -Language 'fr' -Environment '' -Saved '' -UICulture 'en-US' } | Should -Throw '*not supported*'
+        It 'is ignored, with a warning, in -Language, and the next source decides' {
+            $result = Resolve-O365Language -Language 'fr' -Environment 'de' -Saved '' -UICulture 'en-US' -WarningVariable warned -WarningAction SilentlyContinue
+
+            $result.Language | Should -Be 'de'
+            $result.Source | Should -Be 'Environment'
+            "$warned" | Should -BeLike '*-Language*'
+        }
+
+        It 'falls back to Windows, then English, when -Language is the only value' {
+            (Resolve-O365Language -Language 'fr' -Environment '' -Saved '' -UICulture 'de-CH' -WarningAction SilentlyContinue).Language | Should -Be 'de'
+            (Resolve-O365Language -Language 'fr' -Environment '' -Saved '' -UICulture '' -WarningAction SilentlyContinue).Language | Should -Be 'en'
         }
 
         It 'is ignored, with a warning, in the environment variable' {
@@ -617,17 +626,16 @@ Describe 'The scripts that speak two languages' {
         $left | Should -BeNullOrEmpty -Because "these scripts do not use Get-ScriptString: $(($left | ForEach-Object Name) -join ', ')"
     }
 
-    It 'take -Language, which is en, de or auto' {
+    It 'take -Language as a plain string, so an unsupported value falls back instead of stopping the script' {
         $bad = foreach ($file in $script:Speaking) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$null)
             $parameter = $ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Language' }
 
             if (-not $parameter) { "$($file.Name): no -Language"; continue }
 
-            $validate = $parameter.Attributes | Where-Object { $_.TypeName.Name -eq 'ValidateSet' }
-            $values = if ($validate) { @($validate.PositionalArguments | ForEach-Object { $_.Value }) } else { @() }
+            $validate = $parameter.Attributes | Where-Object { $_.TypeName.Name -like 'Validate*' }
 
-            if (($values -join ',') -ne 'en,de,auto') { "$($file.Name): -Language is not en, de, auto" }
+            if ($validate) { "$($file.Name): -Language is validated, so a typo stops the script" }
         }
 
         $bad | Should -BeNullOrEmpty -Because ($bad -join '; ')
@@ -919,8 +927,19 @@ Describe 'Language commands' {
             (Get-O365Language).Source | Should -Not -Be 'SavedSetting'
         }
 
-        It 'rejects a language it does not know' {
-            { Set-O365Language -Language 'fr' } | Should -Throw
+        It 'rejects a language it does not know, because it would write it to the settings file' {
+            { Set-O365Language -Language 'fr' } | Should -Throw '*not supported*'
+
+            Test-Path -LiteralPath $env:O365_SETTINGS_PATH | Should -BeFalse
+        }
+
+        It 'with -SessionOnly warns about a language it does not know and follows the other sources' {
+            Set-O365Language -Language 'de' -SessionOnly
+
+            Set-O365Language -Language 'fr' -SessionOnly -WarningVariable warned -WarningAction SilentlyContinue
+
+            "$warned" | Should -BeLike '*fr*'
+            (Get-O365Language).Source | Should -Not -Be 'Parameter'
         }
 
         It 'with -SessionOnly applies to this session and writes nothing' {

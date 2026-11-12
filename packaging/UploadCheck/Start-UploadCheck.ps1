@@ -408,7 +408,8 @@ function Get-LauncherLines {
 # One language per run, chosen the same way for every tool: -Language, then the
 # environment, the language saved for the user, and the Windows display
 # language. The texts live in Resources\, one table per language, with English
-# underneath. Throws for a language it does not know.
+# underneath. A language it does not know is warned about and skipped, and the
+# next source decides.
 function Select-LauncherLanguage {
     param(
         [string]$Requested
@@ -434,23 +435,11 @@ function Read-LanguageChoice {
     }
 }
 
-$badLanguage = $null
-try {
-    Select-LauncherLanguage -Requested $Language
-}
-catch {
-    $badLanguage = $Language
-    Select-LauncherLanguage -Requested ''
-}
+Select-LauncherLanguage -Requested $Language
 
 # German umlauts need a console that decodes UTF-8. The .cmd launcher already
 # switched the code page; this covers a start from anywhere else.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { Write-Verbose $_ }
-
-if ($badLanguage) {
-    Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.Argument' $badLanguage)
-    exit $SETUP_PROBLEM
-}
 
 $missing = @()
 if (-not (Test-Path -LiteralPath $checker)) { $missing += 'scripts\Test-Upload.ps1' }
@@ -599,13 +588,7 @@ function Read-Boolean {
 # does everywhere.
 $fromFile = Get-Setting -Name 'Language'
 if (-not $Language -and $fromFile) {
-    try {
-        Select-LauncherLanguage -Requested $fromFile
-    }
-    catch {
-        Write-Problem -Title (Get-LauncherString 'Settings.Language.Title') -Detail (Get-LauncherLines 'Settings.Language.File' $fromFile)
-        exit $SETUP_PROBLEM
-    }
+    Select-LauncherLanguage -Requested $fromFile
 }
 # -- Source: which folder ----------------------------------------------------
 if (-not $Folder) {

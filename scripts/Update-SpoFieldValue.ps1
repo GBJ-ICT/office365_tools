@@ -94,7 +94,6 @@ param(
     [switch]$SkipInapplicable,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

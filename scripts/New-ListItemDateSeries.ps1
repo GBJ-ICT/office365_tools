@@ -279,7 +279,6 @@ param(
     [string]$OutputPath,
 
     [Parameter()]
-    [ValidateSet('en', 'de', 'auto')]
     [string]$Language
 )
 

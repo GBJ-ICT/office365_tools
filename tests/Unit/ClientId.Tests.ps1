@@ -181,10 +181,11 @@ Describe 'The upload checker launcher, run as a person runs it' -Skip:(-not $can
         $result.Text | Should -Not -BeLike '*Application ID*'
     }
 
-    It 'rejects a language it does not know' {
+    It 'warns about a language it does not know and carries on with the next source' -Skip:$idElsewhere {
         $result = Invoke-Launcher -Language 'fr'
 
+        $result.Text | Should -BeLike '*not one of en, de, auto*'
+        $result.Text | Should -Match 'Application ID|Anwendungs-ID' -Because 'it went on, and stopped for the usual reason'
         $result.Code | Should -Be 2
-        $result.Text | Should -BeLike '*en, de*auto*' -Because 'it is said in whichever language is in use, English or German'
     }
 }
