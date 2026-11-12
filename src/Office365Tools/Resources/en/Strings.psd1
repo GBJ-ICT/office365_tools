@@ -558,6 +558,8 @@
 
     'Pdf.Export.Wrote'                                         = 'Wrote ''{0}'': {1} row(s), {2} column(s), {3} page(s), {4} verification error(s).'
 
+    'Pdf.Export.ViewResolved'                                  = 'Using the view ''{0}'' ({1}).'
+
     'Rule.Pdf.Missing'                                         = 'The PDF does not exist, so nothing about its contents can be checked.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'No rows were supplied, so the PDF was not checked against anything.'
