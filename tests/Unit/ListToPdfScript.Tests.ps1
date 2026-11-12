@@ -27,6 +27,11 @@ BeforeDiscovery {
     $canRunChain = $canRunWindowsPowerShell -and [bool](Get-Command pwsh -ErrorAction SilentlyContinue) -and
     [bool](Get-Module -ListAvailable -Name PnP.PowerShell)
 
+    # The hand-over needs PowerShell 7 to start, and nothing else: PnP.PowerShell
+    # is stood in for by an empty module, and the script that prints by one that
+    # only writes down what it was given.
+    $canHandOver = $canRunWindowsPowerShell -and [bool](Get-Command pwsh -ErrorAction SilentlyContinue)
+
     # What each wrong settings file says, in each language. Fragments are ASCII
     # so the comparison does not depend on how the console encodes umlauts.
     $cases = @(
@@ -215,6 +220,95 @@ Describe 'The whole chain, from the stub to the script' -Skip:(-not $canRunChain
 
         $result.Code | Should -Be 2
         $result.Text | Should -BeLike '*kann nicht nach*geschrieben werden*'
+    }
+}
+
+Describe 'The stub hands what the settings name over to the script' -Skip:(-not $canHandOver) {
+
+    BeforeAll {
+        # A copy of what the stub looks for, with the script that prints swapped
+        # for one that writes down the arguments it was started with.
+        $script:Copy = Join-Path ([System.IO.Path]::GetTempPath()) "o365handover-$([guid]::NewGuid().ToString('N'))"
+        $tool = Join-Path $script:Copy 'packaging/ListToPdf'
+        New-Item -Path $tool -ItemType Directory -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:RepoRoot 'src') -Destination $script:Copy -Recurse
+        Copy-Item -Path (Join-Path $script:RepoRoot 'packaging/ListToPdf/*') -Destination $tool -Recurse
+
+        Set-Content -LiteralPath (Join-Path $tool 'Invoke-ListToPdf.ps1') -Encoding ascii -Value @'
+[System.IO.File]::WriteAllLines($env:O365_HANDOVER_FILE, [string[]]$args)
+exit 0
+'@
+
+        # The stub asks PowerShell 7 whether PnP.PowerShell is there; an empty
+        # module of that name is enough to say yes.
+        $script:Modules = Join-Path $script:Copy 'modules'
+        $fake = Join-Path $script:Modules 'PnP.PowerShell'
+        New-Item -Path $fake -ItemType Directory -Force | Out-Null
+        New-ModuleManifest -Path (Join-Path $fake 'PnP.PowerShell.psd1') -ModuleVersion '1.0.0'
+
+        function Invoke-HandOver {
+            param([string]$Body)
+
+            $settings = Join-Path $script:Copy 'list-to-pdf.xml'
+            $record = Join-Path $script:Copy 'arguments.txt'
+            Remove-Item -LiteralPath $record -ErrorAction SilentlyContinue
+
+            $xml = "<ListToPdf><SiteUrl>https://contoso.sharepoint.com/sites/team</SiteUrl><ClientId>00000000-0000-0000-0000-000000000000</ClientId><OutputFolder>$(Join-Path $script:Copy 'out')</OutputFolder>$Body</ListToPdf>"
+            [System.IO.File]::WriteAllText($settings, $xml, (New-Object System.Text.UTF8Encoding($false)))
+
+            $saved = @{ Record = $env:O365_HANDOVER_FILE; Modules = $env:PSModulePath; Language = $env:O365_LANGUAGE }
+            try {
+                $env:O365_HANDOVER_FILE = $record
+                $env:PSModulePath = "$($script:Modules);$($env:PSModulePath)"
+                $env:O365_LANGUAGE = 'en'
+
+                $stub = Join-Path $tool 'Start-ListToPdf.ps1'
+                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $stub -SettingsPath $settings -NoPrompt 2>&1
+                [pscustomobject]@{
+                    Text      = ($output | Out-String)
+                    Code      = $LASTEXITCODE
+                    Arguments = $(if (Test-Path -LiteralPath $record) { @(Get-Content -LiteralPath $record) } else { @() })
+                }
+            }
+            finally {
+                $env:O365_HANDOVER_FILE = $saved.Record
+                $env:PSModulePath = $saved.Modules
+                $env:O365_LANGUAGE = $saved.Language
+            }
+        }
+
+        function Get-HandedOver {
+            param($Result, [string]$Name)
+            $at = [array]::IndexOf($Result.Arguments, $Name)
+            if ($at -ge 0) { $Result.Arguments[$at + 1] } else { $null }
+        }
+    }
+
+    AfterAll {
+        Remove-Item -LiteralPath $script:Copy -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It 'passes the site, the list, the view and the reason on, as the script takes them' {
+        $result = Invoke-HandOver -Body '<List>Protokoll</List><View>Offene Pendenzen</View><Reason>Board meeting</Reason>'
+
+        $result.Code | Should -Be 0
+        Get-HandedOver $result '-SiteUrl' | Should -Be 'https://contoso.sharepoint.com/sites/team'
+        Get-HandedOver $result '-List' | Should -Be 'Protokoll'
+        Get-HandedOver $result '-View' | Should -Be 'Offene Pendenzen'
+        Get-HandedOver $result '-Reason' | Should -Be 'Board meeting'
+        Get-HandedOver $result '-Orientation' | Should -Be 'Landscape'
+        Get-HandedOver $result '-PaperSize' | Should -Be 'A4'
+        $result.Arguments | Should -Not -Contain '-NoReason'
+    }
+
+    It 'leaves out a list and a view the settings leave to be asked, and says there is no reason when it is none' {
+        $result = Invoke-HandOver -Body '<List>ask</List><View></View><Reason>none</Reason>'
+
+        $result.Code | Should -Be 0
+        $result.Arguments | Should -Not -Contain '-List'
+        $result.Arguments | Should -Not -Contain '-View'
+        $result.Arguments | Should -Not -Contain '-Reason'
+        $result.Arguments | Should -Contain '-NoReason'
     }
 }
 

@@ -629,6 +629,16 @@ Describe 'Export-SpoListPdf, given a view by name' {
         }
     }
 
+    It 'says which view it used, by its title and its id' {
+        Mock -ModuleName Office365Tools Write-O365Log {}
+
+        $null = Export-SpoListPdf -Library Protokoll -View 'Offene Pendenzen' -Path (Join-Path $script:Folder 'e.pdf') -SkipVerification
+
+        Should -Invoke -ModuleName Office365Tools Write-O365Log -ParameterFilter {
+            $Message -like "*'Offene Pendenzen'*($($script:OffenId))*"
+        }
+    }
+
     It 'says who exported and why, from the sign-in and the parameter, and names the view' {
         $path = Join-Path $script:Folder 'b.pdf'
         $result = Export-SpoListPdf -Library Protokoll -View "{$($script:OffenId)}" -Path $path -SkipVerification -KeepHtml -Reason 'Board meeting'
@@ -637,6 +647,7 @@ Describe 'Export-SpoListPdf, given a view by name' {
         $result.ExportedBy | Should -Be 'Pat Example'
         $html | Should -Match '>Exported by</span><span class="v">Pat Example<'
         $html | Should -Match '>Reason</span><span class="v">Board meeting<'
+        $html | Should -Match '>Source</span><span class="v">[^<]*Protokoll[^<]*Offene Pendenzen<'
         $html | Should -Match 'Protokoll - Offene Pendenzen'
         $html | Should -Match '<a href="https://example\.org/p">Planner</a>'
     }
@@ -747,6 +758,30 @@ Describe 'What a real browser makes of it' {
         $findings = @(Test-SpoPdfContent -Path $pdf -Cell $absent -NoExternalReader)
 
         @($findings | Where-Object RuleId -eq 'Pdf.MissingValue').Count | Should -Be 1
+    }
+
+    It 'prints a word of 200 characters with no space in it, wrapped inside its cell' -Skip:(-not $hasBrowser) {
+        # A web address is one such word. It has to wrap in its cell, not run
+        # over the edge of the page and be cut off.
+        $word = -join (1..40 | ForEach-Object { 'w{0:D4}' -f $_ })
+        $word.Length | Should -Be 200
+        $rows = @([pscustomobject]@{ Nr = '1'; Adresse = $word; Daneben = 'kurz' })
+        $pdf = Join-Path $script:Dir 'word.pdf'
+
+        $render = InModuleScope Office365Tools -Parameters @{ Rows = $rows; Pdf = $pdf; Dir = $script:Dir } {
+            param($Rows, $Pdf, $Dir)
+            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Adresse, Daneben
+            $html = Join-Path $Dir 'word.html'
+            Set-Content -LiteralPath $html -Value $r.Html -Encoding utf8
+            $null = Invoke-SpoBrowserPrint -HtmlPath $html -Path $Pdf
+            $r
+        }
+
+        $read = InModuleScope Office365Tools -Parameters @{ Pdf = $pdf } { param($Pdf) ConvertFrom-SpoPdfText -Path $Pdf -NoExternal }
+        $findings = @(Test-SpoPdfContent -Path $pdf -Cell $render.Cell -Attestation $render.Attestation -ExpectedRowCount 1 -NoExternalReader)
+
+        (($read.Text -replace '\s+', '').Contains($word)) | Should -BeTrue
+        @($findings | Where-Object Severity -eq 'Error') | Should -BeNullOrEmpty
     }
 
     It 'finds a link whose address the browser wrote differently' -Skip:(-not $hasBrowser) {
