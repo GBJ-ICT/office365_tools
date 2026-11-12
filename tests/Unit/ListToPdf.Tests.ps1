@@ -33,11 +33,22 @@ BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '../../src/Office365Tools/Office365Tools.psd1') -Force
     Set-O365Language -Language en -SessionOnly
 
+    # The PnP commands are stood in for by functions that take anything, so they
+    # can be mocked with plain objects whether or not PnP.PowerShell is
+    # installed: its own commands refuse an argument that is not a SharePoint
+    # list. A function wins over a cmdlet of the same name.
+    $script:Stubbed = @()
+    foreach ($name in 'Get-PnPView', 'Get-PnPField', 'Get-PnPProperty', 'Get-PnPWeb') {
+        Set-Item -Path "function:global:$name" -Value { param($List, $Identity, $Includes, $ClientObject, $Property) }
+        $script:Stubbed += $name
+    }
+
     $script:StopSign = [char]::ConvertFromUtf32(0x26D4)
     $script:CheckMark = [char]::ConvertFromUtf32(0x2705)
 }
 
 AfterAll {
+    foreach ($name in $script:Stubbed) { Remove-Item -Path "function:global:$name" -ErrorAction SilentlyContinue }
     Set-O365Language -Language en -SessionOnly
     Remove-Module Office365Tools -Force -ErrorAction SilentlyContinue
 }
@@ -305,6 +316,123 @@ Describe 'Emoji in the check of a PDF' {
             ConvertTo-SpoSearchText -Text "$Check" | Should -Be ''
             ConvertTo-SpoSearchText -Text "ok $([char]::ConvertFromUtf32(0x1F44D)) gut" -KeepSpace | Should -Be 'ok gut'
         }
+    }
+}
+
+Describe 'Finding a view by its name' {
+
+    BeforeAll {
+        $script:Alle = [guid]::NewGuid()
+        $script:Offen = [guid]::NewGuid()
+        $script:List = [pscustomobject]@{ Title = 'Protokoll' }
+
+        $script:Views = @(
+            [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Zebra'; DefaultView = $false; Hidden = $false; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' }
+            [pscustomobject]@{ Id = $script:Offen; Title = 'Offene Pendenzen'; DefaultView = $false; Hidden = $false; PersonalView = $false; ViewFields = @('Title', 'Status'); ViewQuery = '<Where><Eq><FieldRef Name="Status"/><Value Type="Text">offen</Value></Eq></Where>' }
+            [pscustomobject]@{ Id = $script:Alle; Title = 'Alle Elemente'; DefaultView = $true; Hidden = $false; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' }
+            [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Intern'; DefaultView = $false; Hidden = $true; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' }
+            [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Meine'; DefaultView = $false; Hidden = $false; PersonalView = $true; ViewFields = @('Title'); ViewQuery = '' }
+        )
+    }
+
+    It 'maps a title to the view and its id' {
+        InModuleScope Office365Tools -Parameters @{ Views = $script:Views; List = $script:List; Offen = $script:Offen } {
+            param($Views, $List, $Offen)
+            Mock Get-PnPView { $Views }
+
+            $view = Resolve-SpoView -List $List -Identity 'Offene Pendenzen'
+
+            $view.Id | Should -Be $Offen
+            $view.ViewFields | Should -Be @('Title', 'Status')
+            $view.ViewQuery | Should -Match 'offen'
+        }
+    }
+
+    It 'accepts the id as well, with or without braces' {
+        InModuleScope Office365Tools -Parameters @{ Views = $script:Views; List = $script:List; Offen = $script:Offen } {
+            param($Views, $List, $Offen)
+            Mock Get-PnPView { $Views }
+
+            (Resolve-SpoView -List $List -Identity "$Offen").Title | Should -Be 'Offene Pendenzen'
+            (Resolve-SpoView -List $List -Identity "{$Offen}").Title | Should -Be 'Offene Pendenzen'
+        }
+    }
+
+    It 'lists the views to choose between: default first, hidden and personal ones left out' {
+        InModuleScope Office365Tools -Parameters @{ Views = $script:Views; List = $script:List } {
+            param($Views, $List)
+            Mock Get-PnPView { $Views }
+
+            @(Resolve-SpoView -List $List | ForEach-Object Title) | Should -Be @('Alle Elemente', 'Offene Pendenzen', 'Zebra')
+        }
+    }
+
+    It 'names the views there are when the name is not one of them' {
+        InModuleScope Office365Tools -Parameters @{ Views = $script:Views; List = $script:List } {
+            param($Views, $List)
+            Mock Get-PnPView { $Views }
+
+            { Resolve-SpoView -List $List -Identity 'Nope' } | Should -Throw -ExpectedMessage "*'Nope'*Alle Elemente, Offene Pendenzen, Zebra*"
+        }
+    }
+
+    It 'is what Get-SpoListView returns for a library' {
+        Mock -ModuleName Office365Tools Assert-SpoConnection { $true }
+        Mock -ModuleName Office365Tools Resolve-SpoList { [pscustomobject]@{ Title = 'Protokoll' } }
+        Mock -ModuleName Office365Tools Get-PnPView { $script:Views }
+
+        @(Get-SpoListView -Library Protokoll).Count | Should -Be 3
+        (Get-SpoListView -Library Protokoll -View 'Alle Elemente').DefaultView | Should -BeTrue
+    }
+}
+
+Describe 'Export-SpoListPdf, given a view by name' {
+
+    BeforeAll {
+        $script:Folder = Join-Path ([System.IO.Path]::GetTempPath()) "o365-listpdf-$([guid]::NewGuid().ToString('N'))"
+        New-Item -Path $script:Folder -ItemType Directory -Force | Out-Null
+        $script:OffenId = [guid]::NewGuid()
+    }
+
+    AfterAll {
+        Remove-Item -LiteralPath $script:Folder -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    BeforeEach {
+        Mock -ModuleName Office365Tools Assert-SpoConnection { $true }
+        Mock -ModuleName Office365Tools Resolve-SpoList { [pscustomobject]@{ Title = 'Protokoll'; Id = [guid]::NewGuid() } }
+        Mock -ModuleName Office365Tools Get-PnPView {
+            [pscustomobject]@{
+                Id = $script:OffenId; Title = 'Offene Pendenzen'; DefaultView = $false; Hidden = $false; PersonalView = $false
+                ViewFields = @('LinkTitle', 'Beschluss'); ViewQuery = '<OrderBy><FieldRef Name="ID"/></OrderBy>'
+            }
+        }
+        Mock -ModuleName Office365Tools Get-PnPField {
+            [pscustomobject]@{ InternalName = 'Title'; Title = 'Titel'; Hidden = $false; TypeAsString = 'Text'; SchemaXml = '<Field/>' }
+            [pscustomobject]@{ InternalName = 'Beschluss'; Title = 'Beschluss'; Hidden = $false; TypeAsString = 'Note'; SchemaXml = '<Field RichText="TRUE" />' }
+        }
+        Mock -ModuleName Office365Tools Get-PnPWeb { [pscustomobject]@{ CurrentUser = [pscustomobject]@{ Title = 'Pat Example' } } }
+        Mock -ModuleName Office365Tools Export-SpoListItem {
+            [pscustomobject]@{ ID = 1; Title = 'Erster'; Beschluss = '<p>Siehe <a href="https://example.org/p">Planner</a></p>' }
+        }
+        Mock -ModuleName Office365Tools Invoke-SpoBrowserPrint { [pscustomobject]@{ Browser = 'test' } }
+    }
+
+    It 'reads the columns and the query of the view the name belongs to, with people kept as objects' {
+        $result = Export-SpoListPdf -Library Protokoll -View 'Offene Pendenzen' -Path (Join-Path $script:Folder 'a.pdf') -SkipVerification
+
+        $result.Printed | Should -BeTrue
+        Should -Invoke -ModuleName Office365Tools Export-SpoListItem -Times 1 -Exactly -ParameterFilter {
+            $Structured -and $Query -like '*OrderBy*' -and $Field -contains 'Title' -and $Field -contains 'Beschluss'
+        }
+    }
+
+    It 'stops and names the views when the name is not one of them, and writes nothing' {
+        Mock -ModuleName Office365Tools Get-PnPView { [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Alle'; DefaultView = $true; Hidden = $false; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' } }
+        $path = Join-Path $script:Folder 'd.pdf'
+
+        { Export-SpoListPdf -Library Protokoll -View 'Nope' -Path $path -SkipVerification } | Should -Throw -ExpectedMessage "*'Nope'*Alle*"
+        Test-Path -LiteralPath $path | Should -BeFalse
     }
 }
 

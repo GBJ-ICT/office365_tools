@@ -558,6 +558,8 @@
 
     'Pdf.Export.Wrote'                                         = '''{0}'' geschrieben: {1} Zeile(n), {2} Spalte(n), {3} Seite(n), {4} Prüffehler.'
 
+    'Pdf.Export.ViewResolved'                                  = 'Verwende die Ansicht ''{0}'' ({1}).'
+
     'Rule.Pdf.Missing'                                         = 'Das PDF gibt es nicht, darum lässt sich über seinen Inhalt nichts prüfen.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'Es wurden keine Zeilen angegeben, darum wurde das PDF gegen nichts geprüft.'
