@@ -74,13 +74,7 @@ function Get-SpoCellLink {
     $accept = {
         param([string]$Candidate)
 
-        if ([string]::IsNullOrWhiteSpace($Candidate)) { return '' }
-        $trimmed = $Candidate.Trim()
-
-        if ($trimmed -notmatch '^(?<scheme>[A-Za-z][A-Za-z0-9+.\-]*):') { return '' }
-        if ($Matches['scheme'].ToLowerInvariant() -notin 'http', 'https', 'mailto', 'tel') { return '' }
-
-        return $trimmed
+        return (Get-SpoSafeUrl -Url $Candidate)
     }
 
     if ($LinkFormatter) {
@@ -96,7 +90,10 @@ function Get-SpoCellLink {
 
                 $name = $Match.Groups[1].Value
                 $field = if ($null -ne $Row -and $null -ne $Row.PSObject.Properties[$name]) {
-                    [string]$Row.PSObject.Properties[$name].Value
+                    # Through the cell text, so a value that arrives as an
+                    # object (a lookup, a person) fills the template with what
+                    # the cell shows rather than with its type name.
+                    ConvertTo-SpoCellText -Value $Row.PSObject.Properties[$name].Value
                 }
                 else {
                     ''

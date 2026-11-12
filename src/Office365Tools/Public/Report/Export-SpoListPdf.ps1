@@ -304,6 +304,15 @@ function Export-SpoListPdf {
                 $header[$listField.InternalName] = $listField.Title
             }
 
+            # Enhanced rich text columns hold HTML. Knowing which they are is
+            # what lets them print as text with their links instead of tags.
+            $richColumns = @($listFields |
+                    Where-Object {
+                        $_.PSObject.Properties['TypeAsString'] -and $_.TypeAsString -eq 'Note' -and
+                        $_.PSObject.Properties['SchemaXml'] -and "$($_.SchemaXml)" -match 'RichText="TRUE"'
+                    } |
+                    ForEach-Object { $_.InternalName })
+
             $columns = if ($Field) {
                 $Field
             }
@@ -361,7 +370,9 @@ function Export-SpoListPdf {
                 }
             }
 
-            $itemArguments = @{ Library = $list.Title; Field = $columns }
+            # Structured, so a person still carries an address and the page can
+            # link the name to it.
+            $itemArguments = @{ Library = $list.Title; Field = $columns; Structured = $true }
             if ($viewQuery) {
                 # The view's own filter and sort, so the PDF is the view rather
                 # than the list. RowLimit is left out on purpose: a view that
@@ -376,6 +387,7 @@ function Export-SpoListPdf {
         }
         else {
             $rows = @($collected)
+            $richColumns = @()
             if (-not $documentTitle) { $documentTitle = 'Report' }
 
             $columns = if ($Field) {
@@ -392,7 +404,14 @@ function Export-SpoListPdf {
         }
 
         if ($SortBy) {
-            $rows = @($rows | Sort-Object -Property $SortBy -Descending:$Descending)
+            # A person or a lookup is an object, which sorts by its type name;
+            # it sorts by what the cell shows instead.
+            $rows = @($rows | Sort-Object -Descending:$Descending -Property @{
+                    Expression = {
+                        $sortValue = if ($null -ne $_.PSObject.Properties[$SortBy]) { $_.PSObject.Properties[$SortBy].Value } else { $null }
+                        if ($sortValue -is [string] -or $sortValue -is [datetime] -or $sortValue -is [ValueType]) { $sortValue } else { ConvertTo-SpoCellText -Value $sortValue }
+                    }
+                })
         }
 
         if ($GroupBy -and $GroupBy -notin $columns) {
@@ -406,7 +425,8 @@ function Export-SpoListPdf {
             -Title $documentTitle -Subtitle $Subtitle -Orientation $Orientation -PaperSize $PaperSize `
             -Margin $Margin -FontSize $FontSize -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
             -Css $Css -CellFormatter $CellFormatter -DateFormat $DateFormat -RowNumber:$RowNumber `
-            -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink
+            -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink `
+            -RichText $richColumns
 
         $directory = Split-Path -Parent $Path
         if ($directory -and -not (Test-Path -LiteralPath $directory)) {

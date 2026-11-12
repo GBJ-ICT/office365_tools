@@ -42,6 +42,203 @@ AfterAll {
     Remove-Module Office365Tools -Force -ErrorAction SilentlyContinue
 }
 
+Describe 'Rich text, as the text a cell shows' {
+
+    It 'removes the tags and keeps each paragraph, bullet and number on its own line' {
+        InModuleScope Office365Tools {
+            $text = ConvertTo-SpoCellText -Html -Value '<p>a</p><ul><li>b</li></ul><ol><li>c</li></ol>'
+            $lines = @($text -split "`n")
+
+            $lines.Count | Should -Be 3
+            $lines[0] | Should -Be 'a'
+            $lines[1] | Should -Be "$([char]0x2022) b"
+            $lines[2] | Should -Be '1. c'
+            $text | Should -Not -Match '<'
+        }
+    }
+
+    It 'indents a nested list' {
+        InModuleScope Office365Tools {
+            $text = ConvertTo-SpoCellText -Html -Value '<ul><li>outer<ul><li>inner</li></ul></li></ul>'
+            @($text -split "`n")[1] | Should -Be "  $([char]0x2022) inner"
+        }
+    }
+
+    It 'decodes entities and drops scripts, styles and event attributes' {
+        InModuleScope Office365Tools {
+            $text = ConvertTo-SpoCellText -Html -Value 'Tom &amp; Jo<script>x()</script><style>p{}</style><span onclick="y()">!</span>'
+            $text | Should -Be 'Tom & Jo!'
+        }
+    }
+
+    It 'turns a non-breaking space and a zero-width space into what a reader sees' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Html -Value "<p>a&nbsp;b</p><p>&#8203;</p><p>c</p>" | Should -Be "a b`nc"
+        }
+    }
+
+    It 'treats a lone less-than sign as text' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Html -Value '<p>1 < 2</p>' | Should -Be '1 < 2'
+        }
+    }
+
+    It 'leaves a plain string alone when it is not told it is HTML' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Value '<p>a</p>' | Should -Be '<p>a</p>'
+        }
+    }
+}
+
+Describe 'Links inside rich text' {
+
+    It 'keeps the caption and the address of a link' {
+        InModuleScope Office365Tools {
+            $content = ConvertFrom-SpoHtmlText -Html '<p>See <a href="https://example.org/x">Traktandum 6</a>.</p>'
+            $linked = @($content.Segment | Where-Object Href)
+
+            $linked.Count | Should -Be 1
+            $linked[0].Href | Should -Be 'https://example.org/x'
+            $linked[0].Text | Should -Be 'Traktandum 6'
+            $content.Text | Should -Be 'See Traktandum 6.'
+        }
+    }
+
+    It 'prints a link to anything but http, https, mailto and tel as text' {
+        InModuleScope Office365Tools {
+            $content = ConvertFrom-SpoHtmlText -Html '<a href="javascript:alert(1)">click</a> <a href="file:///C:/x">file</a>'
+
+            @($content.Segment | Where-Object Href) | Should -BeNullOrEmpty
+            $content.Text | Should -Be 'click file'
+        }
+    }
+
+    It 'resolves a link relative to the site against the site address' {
+        InModuleScope Office365Tools {
+            $content = ConvertFrom-SpoHtmlText -SiteUrl 'https://contoso.sharepoint.com/sites/x' `
+                -Html '<a href="/sites/x/Page.aspx">root</a> <a href="Lists/t/DispForm.aspx?ID=3">relative</a>'
+
+            @($content.Segment | Where-Object Href | ForEach-Object Href) | Should -Be @(
+                'https://contoso.sharepoint.com/sites/x/Page.aspx'
+                'https://contoso.sharepoint.com/sites/x/Lists/t/DispForm.aspx?ID=3')
+        }
+    }
+
+    It 'prints a relative link as text when there is no site to resolve it against' {
+        InModuleScope Office365Tools {
+            $content = ConvertFrom-SpoHtmlText -Html '<a href="/sites/x/Page.aspx">root</a>'
+
+            @($content.Segment | Where-Object Href) | Should -BeNullOrEmpty
+            $content.Text | Should -Be 'root'
+        }
+    }
+
+    It 'does not link an anchor within the page' {
+        InModuleScope Office365Tools {
+            @((ConvertFrom-SpoHtmlText -Html '<a href="#top">up</a>').Segment | Where-Object Href) | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'is reported with its row and column when a table is rendered' {
+        InModuleScope Office365Tools {
+            $rows = @([pscustomobject]@{ Text = '<p>See <a href="https://example.org/x">Item 6</a></p>' })
+            $render = ConvertTo-SpoPrintHtml -Row $rows -Column Text -RichText Text
+
+            @($render.Link).Count | Should -Be 1
+            $render.Link[0].Href | Should -Be 'https://example.org/x'
+            $render.Html | Should -Match '<a href="https://example\.org/x">Item 6</a>'
+        }
+    }
+}
+
+Describe 'People' {
+
+    It 'prints the display name, and several people one to a line' {
+        InModuleScope Office365Tools {
+            $people = @(
+                [pscustomobject]@{ LookupValue = 'Name A'; Email = 'a@example.org' }
+                [pscustomobject]@{ LookupValue = 'Name B'; Email = 'b@example.org' })
+
+            (ConvertTo-SpoCellText -Value $people) | Should -Be "Name A`nName B"
+            (ConvertTo-SpoCellContent -Value $people).Text | Should -Be "Name A`nName B"
+        }
+    }
+
+    It 'prints a person with no display name by the account, or else the address' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Value ([pscustomobject]@{ LookupValue = ''; Email = 'a@example.org'; LoginName = 'i:0#.f|m|a' }) |
+                Should -Be 'i:0#.f|m|a'
+            ConvertTo-SpoCellText -Value ([pscustomobject]@{ LookupValue = ''; Email = 'a@example.org' }) |
+                Should -Be 'a@example.org'
+        }
+    }
+
+    It 'links a name to the address when there is one, and a group has none' {
+        InModuleScope Office365Tools {
+            $content = ConvertTo-SpoCellContent -Value @(
+                [pscustomobject]@{ LookupValue = 'Name A'; Email = 'a@example.org' }
+                [pscustomobject]@{ LookupValue = 'Team'; Email = '' })
+
+            $linked = @($content.Segment | Where-Object Href)
+            $linked.Count | Should -Be 1
+            $linked[0].Text | Should -Be 'Name A'
+            $linked[0].Href | Should -Be 'mailto:a@example.org'
+            $content.Text | Should -Not -Match 'a@example\.org'
+        }
+    }
+
+    It 'leaves an ordinary lookup, which has no address, as it was' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Value @(
+                [pscustomobject]@{ LookupId = 1; LookupValue = 'Basel' }
+                [pscustomobject]@{ LookupId = 2; LookupValue = 'Bern' }) | Should -Be 'Basel; Bern'
+        }
+    }
+}
+
+Describe 'The column type map' {
+
+    # One value per kind of SharePoint column, as the module receives it. The
+    # same table is in the issue, in docs/user/tools.md and in
+    # docs/sandbox/printing.md.
+    It 'prints a <Kind> as <Text>' -ForEach @(
+        @{ Kind = 'single line of text'; Value = 'Titterten'; Text = 'Titterten'; Link = '' }
+        @{ Kind = 'number'; Value = 42; Text = '42'; Link = '' }
+        @{ Kind = 'choice, several allowed'; Value = @('Anna', 'Beat'); Text = 'Anna; Beat'; Link = '' }
+        @{ Kind = 'multiple lines, plain'; Value = "eins`nzwei"; Text = "eins`nzwei"; Link = '' }
+        @{ Kind = 'date'; Value = [datetime]'2026-11-21'; Text = '2026-11-21'; Link = '' }
+        @{ Kind = 'date and time'; Value = [datetime]'2026-11-21 14:30'; Text = '2026-11-21 14:30'; Link = '' }
+        @{ Kind = 'yes'; Value = $true; Text = 'Yes'; Link = '' }
+        @{ Kind = 'no'; Value = $false; Text = 'No'; Link = '' }
+        @{ Kind = 'lookup'; Value = [pscustomobject]@{ LookupId = 3; LookupValue = 'Basel' }; Text = 'Basel'; Link = '' }
+        @{ Kind = 'lookup, several'; Value = @([pscustomobject]@{ LookupId = 3; LookupValue = 'Basel' }, [pscustomobject]@{ LookupId = 4; LookupValue = 'Bern' }); Text = 'Basel; Bern'; Link = '' }
+        @{ Kind = 'managed metadata term'; Value = [pscustomobject]@{ Label = 'Gottesdienst'; TermGuid = [guid]::NewGuid() }; Text = 'Gottesdienst'; Link = '' }
+        @{ Kind = 'hyperlink with a description'; Value = [pscustomobject]@{ Url = 'https://example.org/x'; Description = 'Ticket 42' }; Text = 'Ticket 42'; Link = '' }
+        @{ Kind = 'hyperlink without one'; Value = [pscustomobject]@{ Url = 'https://example.org/x'; Description = '' }; Text = 'https://example.org/x'; Link = '' }
+        @{ Kind = 'person'; Value = [pscustomobject]@{ LookupValue = 'Pat Example'; Email = 'pat@example.org' }; Text = 'Pat Example'; Link = 'mailto:pat@example.org' }
+        @{ Kind = 'group'; Value = [pscustomobject]@{ LookupValue = 'Vorstand'; Email = '' }; Text = 'Vorstand'; Link = '' }
+        @{ Kind = 'nothing'; Value = $null; Text = ''; Link = '' }
+    ) {
+        InModuleScope Office365Tools -Parameters @{ Value = $Value; Text = $Text; Link = $Link } {
+            param($Value, $Text, $Link)
+            $content = ConvertTo-SpoCellContent -Value $Value
+
+            $content.Text | Should -Be $Text
+            (ConvertTo-SpoCellText -Value $Value) | Should -Be $Text
+            @($content.Segment | Where-Object Href | ForEach-Object Href) -join ' ' | Should -Be $Link
+        }
+    }
+
+    It 'links a hyperlink column to its address when the page is rendered' {
+        InModuleScope Office365Tools {
+            $rows = @([pscustomobject]@{ Link = [pscustomobject]@{ Url = 'https://example.org/x'; Description = 'Ticket 42' } })
+            $render = ConvertTo-SpoPrintHtml -Row $rows -Column Link
+
+            $render.Html | Should -Match '<a href="https://example\.org/x">Ticket 42</a>'
+        }
+    }
+}
+
 Describe 'Test-SpoSplitText' {
 
     BeforeAll {
@@ -90,6 +287,15 @@ Describe 'Test-SpoSplitText' {
     }
 }
 
+Describe 'The printed page' {
+
+    It 'names an emoji-capable font' {
+        InModuleScope Office365Tools {
+            (ConvertTo-SpoPrintHtml -Row @([pscustomobject]@{ A = 'x' }) -Column A).Html | Should -Match 'Segoe UI Emoji'
+        }
+    }
+}
+
 Describe 'Emoji in the check of a PDF' {
 
     It 'drops an emoji from both sides, so the words around it are still compared' {
@@ -134,6 +340,33 @@ Describe 'What a real browser makes of it' {
         @($findings | Where-Object Severity -eq 'Error') | Should -BeNullOrEmpty
     }
 
+    It 'prints emoji, links and people together, and every one of them checks out' -Skip:(-not $hasBrowser) {
+        $rich = "<p>$($script:StopSign) nicht erledigt</p><p>$($script:CheckMark) erledigt</p><ul><li>Beratung <a href=""https://example.org/planner/1"">Planner - Slogans</a></li></ul>"
+        $rows = @(
+            [pscustomobject]@{ Nr = '1'; Wer = @([pscustomobject]@{ LookupValue = 'Raphael Beispiel'; Email = 'r@example.org' }, [pscustomobject]@{ LookupValue = 'Joel Muster'; Email = '' }); Text = $rich }
+            [pscustomobject]@{ Nr = '2'; Wer = $null; Text = 'ohne alles' }
+        )
+
+        $pdf = Join-Path $script:Dir 'mixed.pdf'
+        $render = InModuleScope Office365Tools -Parameters @{ Rows = $rows; Pdf = $pdf; Dir = $script:Dir } {
+            param($Rows, $Pdf, $Dir)
+            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Wer, Text -RichText Text
+            $html = Join-Path $Dir 'mixed.html'
+            Set-Content -LiteralPath $html -Value $r.Html -Encoding utf8
+            $null = Invoke-SpoBrowserPrint -HtmlPath $html -Path $Pdf
+            $r
+        }
+
+        $inPdf = @(InModuleScope Office365Tools -Parameters @{ Pdf = $pdf } { param($Pdf) Get-SpoPdfLink -Path $Pdf })
+        $findings = @(Test-SpoPdfContent -Path $pdf -Cell $render.Cell -Link $render.Link `
+                -Attestation $render.Attestation -ExpectedRowCount $render.RowCount -NoExternalReader)
+
+        $inPdf | Should -Contain 'https://example.org/planner/1'
+        $inPdf | Should -Contain 'mailto:r@example.org'
+        @($findings | Where-Object Severity -eq 'Error') | Should -BeNullOrEmpty
+        @($findings | Where-Object RuleId -in 'Pdf.NoTextLayer', 'Pdf.ExtractionSuspect') | Should -BeNullOrEmpty
+    }
+
     It 'checks a cell taller than a page, which continues on the next one' -Skip:(-not $hasBrowser) {
         # Far more than a page of text in one narrow cell, beside another column.
         $tall = (1..1500 | ForEach-Object { 'satz{0:D4}' -f $_ }) -join ' '
@@ -165,5 +398,23 @@ Describe 'What a real browser makes of it' {
         $findings = @(Test-SpoPdfContent -Path $pdf -Cell $absent -NoExternalReader)
 
         @($findings | Where-Object RuleId -eq 'Pdf.MissingValue').Count | Should -Be 1
+    }
+
+    It 'finds a link whose address the browser wrote differently' -Skip:(-not $hasBrowser) {
+        $rows = @([pscustomobject]@{ Nr = '1'; Text = '<p>Siehe <a href="https://example.org/ein Pfad/Seite.aspx?a=b c">die Seite</a></p>' })
+        $pdf = Join-Path $script:Dir 'spaces.pdf'
+
+        $render = InModuleScope Office365Tools -Parameters @{ Rows = $rows; Pdf = $pdf; Dir = $script:Dir } {
+            param($Rows, $Pdf, $Dir)
+            $r = ConvertTo-SpoPrintHtml -Row $Rows -Column Nr, Text -RichText Text
+            $html = Join-Path $Dir 'spaces.html'
+            Set-Content -LiteralPath $html -Value $r.Html -Encoding utf8
+            $null = Invoke-SpoBrowserPrint -HtmlPath $html -Path $Pdf
+            $r
+        }
+
+        $findings = @(Test-SpoPdfContent -Path $pdf -Cell $render.Cell -Link $render.Link -Attestation $render.Attestation -ExpectedRowCount 1 -NoExternalReader)
+
+        @($findings | Where-Object Severity -eq 'Error') | Should -BeNullOrEmpty
     }
 }
