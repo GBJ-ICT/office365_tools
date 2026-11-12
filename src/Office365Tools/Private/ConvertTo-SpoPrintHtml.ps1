@@ -48,7 +48,10 @@
 .PARAMETER Margin
     CSS length for the page margin, e.g. '12mm'.
 .PARAMETER FontSize
-    Body font size in points. The table scales with it.
+    Body font size in points. The table scales with it. When it is not given
+    and the columns do not fit the page at the default, it is lowered a half
+    point at a time, to 6 at the least, until they do. When it is given it is
+    used as it is.
 .PARAMETER GroupBy
     Column to group rows under: one sub-table with its own repeating header per
     group.
@@ -82,8 +85,9 @@
     Site address, for relative links inside rich text. Defaults to the site the
     module is connected to.
 .OUTPUTS
-    PSCustomObject with Html, Column, RowCount, Cell, Link, Digest and
-    Attestation.
+    PSCustomObject with Html, Column, RowCount, Cell, Link, Digest, Attestation
+    and FontSize (the size used, which is smaller than asked for when the
+    columns did not fit the page).
 .EXAMPLE
     $render = ConvertTo-SpoPrintHtml -Row $items -Column Title, Datum -Title 'Duties'
     $render.Html | Set-Content out/duties.html
@@ -272,6 +276,26 @@ function ConvertTo-SpoPrintHtml {
     $attestation = "Rows $($rows.Count) / Columns $($Column.Count) / Digest $digest / End of report"
 
     # ---------------------------------------------------------------------
+    # Room. A list with many columns needs more than a page is wide at the
+    # size asked for: the columns would be squeezed until words break in the
+    # middle, or run off the edge. So unless a size was asked for, the type is
+    # made smaller, a half point at a time down to 6 pt, until they fit.
+    # ---------------------------------------------------------------------
+    $requestedFontSize = $FontSize
+    if (-not $PSBoundParameters.ContainsKey('FontSize')) {
+        while ($FontSize -gt 6) {
+            $fit = Get-SpoColumnWidth -Record @($text) -Column $Column -Header $Header -Fixed $ColumnWidth `
+                -PaperSize $PaperSize -Orientation $Orientation -Margin $Margin -FontSize $FontSize -RowNumber:$RowNumber -Measure
+            if ($fit.Required -le $fit.Printable) { break }
+            $FontSize = [Math]::Round($FontSize - 0.5, 1)
+        }
+
+        if ($FontSize -lt $requestedFontSize) {
+            Write-O365Log (Get-O365String 'Pdf.Layout.FontReduced' $Column.Count $requestedFontSize $FontSize) 'Info'
+        }
+    }
+
+    # ---------------------------------------------------------------------
     # Style. Sizes are in pt and mm on purpose: a length in px is a length in
     # CSS pixels, and a zoom level is precisely a change to how big one of
     # those is.
@@ -300,7 +324,7 @@ th, td { border: 0.5pt solid #999999; padding: 1.2mm 1.4mm;
          text-align: left; vertical-align: top;
          white-space: normal; overflow-wrap: anywhere; word-break: normal;
          overflow: visible; }
-th { background: #ececec; font-weight: 600; }
+th { background: #ececec; font-weight: 600; font-size: 0.9em; }
 tbody tr:nth-child(even) td { background: #f7f7f7; }
 td.rownum, th.rownum { width: 8mm; text-align: right; color: #444444; }
 td.empty-cell { color: #999999; }
@@ -356,6 +380,11 @@ $Css
                 })
         }
 
+        # Sized from what the columns hold, so a long text column is not a
+        # strip beside columns that hold a number. A -ColumnWidth wins.
+        $automatic = Get-SpoColumnWidth -Record @($text) -Column $Column -Header $Header -Fixed $ColumnWidth `
+            -PaperSize $PaperSize -Orientation $Orientation -Margin $Margin -FontSize $FontSize -RowNumber:$RowNumber
+
         foreach ($group in $groups) {
             if ($GroupBy) {
                 $label = if ($group.Name) { $group.Name } else { '(empty)' }
@@ -371,7 +400,15 @@ $Css
                 [void]$builder.AppendLine('<col class="rownum">')
             }
             foreach ($name in $Column) {
-                $width = if ($ColumnWidth.ContainsKey($name)) { " style=""width: $($ColumnWidth[$name])""" } else { '' }
+                $width = if ($ColumnWidth.ContainsKey($name)) {
+                    " style=""width: $($ColumnWidth[$name])"""
+                }
+                elseif ($automatic.ContainsKey($name)) {
+                    " style=""width: $($automatic[$name])"""
+                }
+                else {
+                    ''
+                }
                 [void]$builder.AppendLine("<col class=""$(& $classOf $name)""$width>")
             }
             [void]$builder.AppendLine('</colgroup>')
@@ -441,5 +478,6 @@ $Css
         Link        = $links.ToArray()
         Digest      = $digest
         Attestation = $attestation
+        FontSize    = $FontSize
     }
 }

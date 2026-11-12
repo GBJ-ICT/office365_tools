@@ -71,7 +71,9 @@
 .PARAMETER Margin
     Page margin as a CSS length, e.g. '12mm'.
 .PARAMETER FontSize
-    Body font size in points. Lower it before reaching for A3.
+    Body font size in points. Lower it before reaching for A3. When it is not
+    given and a list has so many columns that they do not fit the page at the
+    default, the size is lowered by itself, to 6 at the least.
 .PARAMETER ColumnWidth
     Column name to CSS width, e.g. @{ Title = '25%' }. A hint: a column still
     grows rather than clipping its contents.
@@ -422,9 +424,14 @@ function Export-SpoListPdf {
         # -------------------------------------------------------------------
         # Render.
         # -------------------------------------------------------------------
+        # The size only when one was asked for: left out, the renderer may lower
+        # it so that many columns fit the page.
+        $fontArgument = @{}
+        if ($PSBoundParameters.ContainsKey('FontSize')) { $fontArgument['FontSize'] = $FontSize }
+
         $render = ConvertTo-SpoPrintHtml -Row $rows -Column $columns -Header $header `
             -Title $documentTitle -Subtitle $Subtitle -Orientation $Orientation -PaperSize $PaperSize `
-            -Margin $Margin -FontSize $FontSize -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
+            -Margin $Margin @fontArgument -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
             -Css $Css -CellFormatter $CellFormatter -DateFormat $DateFormat -RowNumber:$RowNumber `
             -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink `
             -RichText $richColumns
