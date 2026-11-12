@@ -327,7 +327,7 @@ Describe 'Many columns on one page' {
         # long headings, and three long texts.
         $script:Wide = 1..6 | ForEach-Object {
             [pscustomobject]@{
-                Nr = "$_"; Protokollziffer = "4.$_"; Beschlusstitel = "Titel $_ zur Finanzierung"; Verantwortung = 'Andreas Koenig'
+                Nr = "$_"; Protokollziffer = "4.$_"; Beschlusstitel = "Titel $_ zur Finanzierung"; Verantwortung = 'Alex Beispiel'
                 Sitzungseinladung = 'Link'; Besprechungsdatum = '2025-11-21'; Status = 'in Kraft (VS)'
                 Einstieg = ('wort ' * (80 + $_ * 20)).Trim(); Inhalte = ('satz ' * (120 + $_ * 30)).Trim(); Beschluesse = ('text ' * (200 + $_ * 40)).Trim()
             }
