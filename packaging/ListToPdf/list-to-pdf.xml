@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Settings for "SharePoint list to PDF".
+
+  Edit this file, save it, and the next run uses it. Every setting is optional:
+  delete a line, or leave it empty, and the default in its comment applies.
+
+  The word "ask" means: ask me every time. That is the default for the things
+  that change from run to run - which list, which view, and why.
+
+  Lines like this one, between the angle-bracket-exclamation marks, are notes.
+  They are ignored.
+-->
+<ListToPdf>
+
+  <!-- ==== Where ===========================================================
+       SiteUrl   the address of the SharePoint site the list is on, for
+                 example https://contoso.sharepoint.com/sites/team
+                 Copy it out of your browser's address bar. Any address
+                 inside the site does: the site is taken from it, and so is
+                 the list when the address is that of a list.
+
+       ClientId  the application your organisation signs in with. Whoever set
+                 this up has it; it is not a password and not a secret.
+                 Leave it empty and the tool looks elsewhere: first the
+                 environment variable gbj_client_id, then the default profile
+                 in config\profiles.json. -->
+  <SiteUrl></SiteUrl>
+  <ClientId></ClientId>
+
+  <!-- ==== What to print ===================================================
+       List      the name of the list or library, as it is called in
+                 SharePoint. "ask" shows the lists of the site and you pick.
+                 Default: ask -->
+  <List>ask</List>
+
+  <!-- View      the name of a stored view, as the view picker in SharePoint
+                 shows it. The PDF has that view's columns, in its order, with
+                 its filter and sort. "ask" shows the views of the list and
+                 you pick; Enter takes the list's default view.
+                 Default: ask -->
+  <View>ask</View>
+
+  <!-- ==== The page ========================================================
+       Orientation  Landscape or Portrait. Default: Landscape
+       PaperSize    A4, A3, A5, Letter or Legal. Default: A4
+                    A list with many text columns reads better on A3. -->
+  <Orientation>Landscape</Orientation>
+  <PaperSize>A4</PaperSize>
+
+  <!-- ==== The first page ==================================================
+       The first page says what was exported, when, by whom and why. The date
+       and who you are come by themselves.
+
+       Reason    why the list is being exported, for example Board meeting
+                 2026-11. "ask" asks every time; "none" leaves the line out.
+                 Default: ask -->
+  <Reason>ask</Reason>
+
+  <!-- ==== Where it goes ===================================================
+       OutputFolder  the folder the PDF is written to. Empty: the "Reports"
+                     folder beside the launcher. The folder opens when the PDF
+                     is ready. -->
+  <OutputFolder></OutputFolder>
+
+  <!-- Language of the messages: en (English), de (Deutsch) or auto.
+       Leave it empty or "auto" and the language you chose for the tools is
+       used, or failing that the language of your Windows.
+       Default: auto -->
+  <Language></Language>
+
+</ListToPdf>
