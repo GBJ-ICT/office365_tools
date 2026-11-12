@@ -88,6 +88,7 @@
         # --- Reporting ------------------------------------------------------
         'Export-SpoReport'
         'Export-SpoListPdf'
+        'Get-SpoListView'
         'Test-SpoPdfContent'
     )
 

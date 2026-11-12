@@ -45,7 +45,9 @@
     Where to write the PDF. Parent directories are created.
 .PARAMETER View
     Print the columns of this list view, in its order, filtered and sorted by
-    its query -- so the PDF matches what the view shows on screen.
+    its query -- so the PDF matches what the view shows on screen. Give the
+    view's title, as the view picker shows it, or its GUID; the title is
+    mapped to the view's id. Get-SpoListView lists the choices.
 .PARAMETER Field
     Internal names of the columns to print, in order. Overrides -View's
     columns. Omitted, the view's columns or the list's visible columns are
@@ -142,6 +144,8 @@
     Export-SpoListPdf -Library Duties -Path out/duties.pdf -FontSize 7 `
         -ColumnWidth @{ Bemerkungen = '30%' } -Css 'td.col-datum { white-space: nowrap; }'
     Custom layout: smaller type, a wider notes column, dates kept on one line.
+.LINK
+    Get-SpoListView
 .LINK
     Test-SpoPdfContent
 .LINK
@@ -284,13 +288,10 @@ function Export-SpoListPdf {
             $viewFields = @()
             $viewQuery = $null
             if ($View) {
-                $listView = Get-PnPView -List $list -Identity $View -ErrorAction SilentlyContinue
-                if (-not $listView) {
-                    $available = @(Get-PnPView -List $list | Select-Object -ExpandProperty Title)
-                    throw [System.InvalidOperationException]::new(
-                        (Get-O365String 'Pdf.Export.ViewNotFound' $View $list.Title ($available -join ', '))
-                    )
-                }
+                # The name someone typed, mapped to the view it belongs to.
+                $listView = Resolve-SpoView -List $list -Identity $View
+                Write-O365Log (Get-O365String 'Pdf.Export.ViewResolved' $listView.Title $listView.Id) 'Info'
+
                 $viewFields = @($listView.ViewFields)
                 $viewQuery = $listView.ViewQuery
                 if (-not $Title) { $documentTitle = "$($list.Title) - $($listView.Title)" }
