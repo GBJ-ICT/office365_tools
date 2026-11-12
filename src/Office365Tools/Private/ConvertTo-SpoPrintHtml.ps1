@@ -75,6 +75,12 @@
 .PARAMETER RowNumber
     Print a leading number column, which makes 'is row 41 there' answerable by
     looking.
+.PARAMETER RichText
+    Columns whose values are HTML (enhanced rich text). They print as text with
+    paragraphs, bullets and the links they contain.
+.PARAMETER SiteUrl
+    Site address, for relative links inside rich text. Defaults to the site the
+    module is connected to.
 .OUTPUTS
     PSCustomObject with Html, Column, RowCount, Cell, Link, Digest and
     Attestation.
@@ -144,7 +150,13 @@ function ConvertTo-SpoPrintHtml {
         [string]$DateFormat = 'yyyy-MM-dd',
 
         [Parameter()]
-        [switch]$RowNumber
+        [switch]$RowNumber,
+
+        [Parameter()]
+        [string[]]$RichText = @(),
+
+        [Parameter()]
+        [string]$SiteUrl = $script:O365State.SiteUrl
     )
 
     $encode = { param($Value) [System.Net.WebUtility]::HtmlEncode([string]$Value) }
@@ -165,10 +177,12 @@ function ConvertTo-SpoPrintHtml {
     $text  = [System.Collections.Generic.List[object]]::new()
     $links = [System.Collections.Generic.List[object]]::new()
     $href  = [System.Collections.Generic.List[object]]::new()
+    $parts = [System.Collections.Generic.List[object]]::new()
 
     for ($index = 0; $index -lt $rows.Count; $index++) {
         $record = [ordered]@{}
         $target = [ordered]@{}
+        $pieces = [ordered]@{}
 
         foreach ($name in $Column) {
             $value = if ($null -ne $rows[$index].PSObject.Properties[$name]) {
@@ -178,14 +192,24 @@ function ConvertTo-SpoPrintHtml {
                 $null
             }
 
-            $rendered = if ($CellFormatter) {
-                [string](& $CellFormatter $value $name)
+            # The text of the cell, and the same text in pieces that know which
+            # of them are links. A formatter's output is one piece: it decides
+            # the words, not the addresses.
+            $rendered = ''
+            $segments = @()
+            if ($CellFormatter) {
+                $rendered = [string](& $CellFormatter $value $name)
+                if ($rendered -ne '') { $segments = @([pscustomobject]@{ Text = $rendered; Href = '' }) }
             }
             else {
-                ConvertTo-SpoCellText -Value $value -DateFormat $DateFormat
+                $content = ConvertTo-SpoCellContent -Value $value -DateFormat $DateFormat `
+                    -Html:($name -in $RichText) -SiteUrl $SiteUrl
+                $rendered = $content.Text
+                $segments = @($content.Segment)
             }
 
             $record[$name] = $rendered
+            $pieces[$name] = $segments
 
             # From the raw value, not the rendered text: a -CellFormatter that
             # shortens a URL to 'Ticket 42' should not also shorten where the
@@ -208,11 +232,27 @@ function ConvertTo-SpoPrintHtml {
                             Href   = $target[$name]
                         })
                 }
+                else {
+                    # No link for the cell as a whole: the links inside it, a
+                    # name's address or an anchor in rich text, are the ones
+                    # to look for in the PDF.
+                    foreach ($segment in $segments) {
+                        if ($segment.Href) {
+                            $links.Add([pscustomobject]@{
+                                    Row    = $index + 1
+                                    Column = $name
+                                    Text   = $segment.Text
+                                    Href   = $segment.Href
+                                })
+                        }
+                    }
+                }
             }
         }
 
         $text.Add($record)
         $href.Add($target)
+        $parts.Add($pieces)
     }
 
     # ---------------------------------------------------------------------
@@ -242,7 +282,8 @@ function ConvertTo-SpoPrintHtml {
 @page { size: $pageSize; margin: $Margin; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: #ffffff; color: #000000; }
-body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+body { font-family: "Segoe UI", "Helvetica Neue", Arial, "Segoe UI Emoji", "Segoe UI Symbol",
+                    "Apple Color Emoji", "Noto Color Emoji", sans-serif;
        font-size: $($FontSize)pt; line-height: 1.3;
        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 h1 { font-size: $([math]::Round($FontSize * 1.7, 2))pt; margin: 0 0 1mm; }
@@ -361,16 +402,22 @@ $Css
                         [void]$builder.Append("<td class=""$class empty-cell"">&ndash;</td>")
                     }
                     else {
-                        # Line breaks in a multi-line text column are content;
-                        # everything else is encoded and left to wrap.
-                        $html = (& $encode $value) -replace '\r?\n', '<br>'
-
                         # Chromium turns an <a href> into a /Link annotation
                         # with a /URI action, so the link is live in the PDF
                         # rather than printed text that looks like one.
+                        #
+                        # Line breaks in a multi-line text column are content;
+                        # everything else is encoded and left to wrap.
                         $to = $href[$index][$name]
                         if ($to) {
+                            $html = (& $encode $value) -replace '\r?\n', '<br>'
                             $html = "<a href=""$(& $encode $to)"">$html</a>"
+                        }
+                        else {
+                            $html = (@($parts[$index][$name] | ForEach-Object {
+                                        $piece = (& $encode $_.Text) -replace '\r?\n', '<br>'
+                                        if ($_.Href) { "<a href=""$(& $encode $_.Href)"">$piece</a>" } else { $piece }
+                                    }) -join '')
                         }
 
                         [void]$builder.Append("<td class=""$class"">$html</td>")
