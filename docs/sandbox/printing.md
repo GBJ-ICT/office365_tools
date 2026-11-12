@@ -91,6 +91,7 @@ way to answer "is this printout the current one".
 | `Pdf.ExtractionSuspect` | Warning | Over 40% of values missing — usually a reader problem, not a data one |
 | `Pdf.NothingToCheck` | Warning | No rows were supplied to check against |
 | `Pdf.WrappedValues` | Info | How many values were printed across a line break |
+| `Pdf.SplitValues` | Info | How many values are taller than a page and were matched in parts, one part on each side of a page break |
 | `Pdf.MissingLink` | Error | A cell was printed but carries no clickable link |
 | `Pdf.MoreMissingLinks` | Error | How many further links were missing beyond `-MaxFinding` |
 | `Pdf.NoLinks` | Error | Links were rendered and the PDF has no link annotations at all |
@@ -163,6 +164,51 @@ and a document whose text verifies perfectly can have lost every one of them.
 So they are verified separately, against the annotations themselves:
 `Pdf.MissingLink` names the row and column of a cell that printed without its
 link, and `LinkCount` on the result says how many the document carries.
+
+## What goes on the page
+
+| Column | Printed as |
+|---|---|
+| Rich text (`Note` with `RichText`) | Text with paragraphs, bullets, numbers and the links inside it. Entities are decoded; scripts, styles and event attributes are dropped; a link that is not http, https, mailto or tel, or is relative and cannot be resolved against the site, is printed as text. |
+| Person or Group | The display name (else the account, else the address); several, one to a line. A name links to `mailto:` when the person has an address. |
+| Hyperlink, Picture | The description, or the address; clickable. |
+| Date | The date, with the time when there is one (`-DateFormat`). |
+| Everything else | The value as the list shows it. |
+
+Rich text columns are found from the list's fields. Rows piped in from another
+command are printed as they are.
+
+Emoji are printed in the system's colour emoji font. They are left out of the
+verification: a PDF reader does not return an emoji reliably, so it compares the
+words around one and cannot report the emoji itself as missing.
+
+Column widths are worked out from the content. A column whose longest line is 45
+characters or fewer takes the width of that line, up to 70 mm; the others share
+what is left of the page, the more text the more room, each between 25 mm and 60
+% of the printable width. `-ColumnWidth` overrides any of them.
+
+With many columns the long texts come first. They get at least half the page
+between them, and the short columns wrap their lines to make room, though never
+in the middle of a word, so a date or a name stays whole. A heading may then wrap
+in the middle of a word, which is the price of fitting twelve columns on a page.
+When even the narrowest columns do not fit at the default type size, and no
+`-FontSize` was given, the size is lowered by itself, a half point at a time to 6
+at the least, and the log says so. A size you give is used as it is.
+
+A text taller than a page continues on the next one, and the heading row that
+repeats there comes between the two parts. The check knows this: it looks for
+the parts in turn, one more part for each page, and reports the value as
+`Pdf.SplitValues` (Info). A stretch of text that is really missing still shows as
+`Pdf.MissingValue`.
+
+The first page carries a block with the title, the date and time, who exported
+(`-ExportedBy`, by default the signed-in user), why (`-Reason`) and where the rows
+come from, and the number of rows and columns. It is printed once, above the
+first table.
+
+A view is named by its title or its GUID: `-View 'Offene Pendenzen'`.
+`Get-SpoListView -Library Dienste` lists the choices, the default view first.
+Colours from SharePoint's formatting are not carried over.
 
 ## Layout
 

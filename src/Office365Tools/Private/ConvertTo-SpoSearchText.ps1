@@ -70,6 +70,14 @@ function ConvertTo-SpoSearchText {
 
     $folded = $folded.Replace("`u{2026}", '...')
 
+    # Emoji and pictographs. They are printed in a colour font, and what a PDF
+    # reader gives back for such a glyph is not reliable: the character, a
+    # different one, or nothing. Dropped from both sides, so the words around
+    # one are still compared and the emoji itself cannot be reported missing.
+    # The variation selector goes with it, and the surrogate pairs cover the
+    # emoji planes (U+1F000 to U+1FFFF).
+    $folded = [regex]::Replace($folded, '[\uD83C-\uD83E][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF\u2900-\u297F\u2B00-\u2BFF\uFE0E\uFE0F\u20E3]', '')
+
     # Compatibility composition, which is what turns the single ligature glyph
     # a subset font uses back into the letters it stands for.
     $folded = $folded.Normalize([System.Text.NormalizationForm]::FormKC)

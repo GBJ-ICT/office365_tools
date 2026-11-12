@@ -45,7 +45,9 @@
     Where to write the PDF. Parent directories are created.
 .PARAMETER View
     Print the columns of this list view, in its order, filtered and sorted by
-    its query -- so the PDF matches what the view shows on screen.
+    its query -- so the PDF matches what the view shows on screen. Give the
+    view's title, as the view picker shows it, or its GUID; the title is
+    mapped to the view's id. Get-SpoListView lists the choices.
 .PARAMETER Field
     Internal names of the columns to print, in order. Overrides -View's
     columns. Omitted, the view's columns or the list's visible columns are
@@ -58,6 +60,12 @@
     Document heading. Defaults to the list title.
 .PARAMETER Subtitle
     Second line under the heading -- what the selection is, who it is for.
+.PARAMETER ExportedBy
+    Who made the export, printed at the top of the first page. A list is
+    printed with the display name of the signed-in user when this is omitted.
+.PARAMETER Reason
+    Why the export was made, printed at the top of the first page. Left out
+    when empty.
 .PARAMETER GroupBy
     Print one sub-table per distinct value of this column, each with its own
     repeating header.
@@ -69,7 +77,9 @@
 .PARAMETER Margin
     Page margin as a CSS length, e.g. '12mm'.
 .PARAMETER FontSize
-    Body font size in points. Lower it before reaching for A3.
+    Body font size in points. Lower it before reaching for A3. When it is not
+    given and a list has so many columns that they do not fit the page at the
+    default, the size is lowered by itself, to 6 at the least.
 .PARAMETER ColumnWidth
     Column name to CSS width, e.g. @{ Title = '25%' }. A hint: a column still
     grows rather than clipping its contents.
@@ -118,7 +128,7 @@
     Items fetched per request when reading the list.
 .OUTPUTS
     PSCustomObject with Path, RowCount, ColumnCount, PageCount, Digest,
-    LinkCount, Verified and Finding.
+    LinkCount, Verified, Finding and ExportedBy.
 .EXAMPLE
     Export-SpoListPdf -Library 'Aufgaben und Dienste' -Path out/dienste.pdf
     Prints every visible column of the list, A4 landscape, and verifies it.
@@ -142,6 +152,8 @@
     Export-SpoListPdf -Library Duties -Path out/duties.pdf -FontSize 7 `
         -ColumnWidth @{ Bemerkungen = '30%' } -Css 'td.col-datum { white-space: nowrap; }'
     Custom layout: smaller type, a wider notes column, dates kept on one line.
+.LINK
+    Get-SpoListView
 .LINK
     Test-SpoPdfContent
 .LINK
@@ -184,6 +196,12 @@ function Export-SpoListPdf {
 
         [Parameter()]
         [string]$Subtitle,
+
+        [Parameter()]
+        [string]$ExportedBy,
+
+        [Parameter()]
+        [string]$Reason,
 
         [Parameter()]
         [string]$GroupBy,
@@ -283,16 +301,15 @@ function Export-SpoListPdf {
 
             $viewFields = @()
             $viewQuery = $null
+            $viewTitle = ''
             if ($View) {
-                $listView = Get-PnPView -List $list -Identity $View -ErrorAction SilentlyContinue
-                if (-not $listView) {
-                    $available = @(Get-PnPView -List $list | Select-Object -ExpandProperty Title)
-                    throw [System.InvalidOperationException]::new(
-                        (Get-O365String 'Pdf.Export.ViewNotFound' $View $list.Title ($available -join ', '))
-                    )
-                }
+                # The name someone typed, mapped to the view it belongs to.
+                $listView = Resolve-SpoView -List $list -Identity $View
+                Write-O365Log (Get-O365String 'Pdf.Export.ViewResolved' $listView.Title $listView.Id) 'Info'
+
                 $viewFields = @($listView.ViewFields)
                 $viewQuery = $listView.ViewQuery
+                $viewTitle = $listView.Title
                 if (-not $Title) { $documentTitle = "$($list.Title) - $($listView.Title)" }
             }
 
@@ -303,6 +320,15 @@ function Export-SpoListPdf {
             foreach ($listField in $listFields) {
                 $header[$listField.InternalName] = $listField.Title
             }
+
+            # Enhanced rich text columns hold HTML. Knowing which they are is
+            # what lets them print as text with their links instead of tags.
+            $richColumns = @($listFields |
+                    Where-Object {
+                        $_.PSObject.Properties['TypeAsString'] -and $_.TypeAsString -eq 'Note' -and
+                        $_.PSObject.Properties['SchemaXml'] -and "$($_.SchemaXml)" -match 'RichText="TRUE"'
+                    } |
+                    ForEach-Object { $_.InternalName })
 
             $columns = if ($Field) {
                 $Field
@@ -361,7 +387,9 @@ function Export-SpoListPdf {
                 }
             }
 
-            $itemArguments = @{ Library = $list.Title; Field = $columns }
+            # Structured, so a person still carries an address and the page can
+            # link the name to it.
+            $itemArguments = @{ Library = $list.Title; Field = $columns; Structured = $true }
             if ($viewQuery) {
                 # The view's own filter and sort, so the PDF is the view rather
                 # than the list. RowLimit is left out on purpose: a view that
@@ -376,6 +404,8 @@ function Export-SpoListPdf {
         }
         else {
             $rows = @($collected)
+            $richColumns = @()
+            $viewTitle = ''
             if (-not $documentTitle) { $documentTitle = 'Report' }
 
             $columns = if ($Field) {
@@ -392,7 +422,14 @@ function Export-SpoListPdf {
         }
 
         if ($SortBy) {
-            $rows = @($rows | Sort-Object -Property $SortBy -Descending:$Descending)
+            # A person or a lookup is an object, which sorts by its type name;
+            # it sorts by what the cell shows instead.
+            $rows = @($rows | Sort-Object -Descending:$Descending -Property @{
+                    Expression = {
+                        $sortValue = if ($null -ne $_.PSObject.Properties[$SortBy]) { $_.PSObject.Properties[$SortBy].Value } else { $null }
+                        if ($sortValue -is [string] -or $sortValue -is [datetime] -or $sortValue -is [ValueType]) { $sortValue } else { ConvertTo-SpoCellText -Value $sortValue }
+                    }
+                })
         }
 
         if ($GroupBy -and $GroupBy -notin $columns) {
@@ -402,11 +439,35 @@ function Export-SpoListPdf {
         # -------------------------------------------------------------------
         # Render.
         # -------------------------------------------------------------------
+        # Who made this, and where from, for the block at the top of page one.
+        $exportedBy = $ExportedBy
+        $source = ''
+
+        if ($PSCmdlet.ParameterSetName -eq 'List') {
+            if (-not $exportedBy) {
+                try {
+                    $exportedBy = [string](Get-PnPWeb -Includes CurrentUser).CurrentUser.Title
+                }
+                catch {
+                    Write-O365Log (Get-O365String 'Pdf.Export.UserUnknown' $_.Exception.Message) 'Info'
+                }
+            }
+
+            $source = (@([string]$script:O365State.SiteUrl, [string]$list.Title, $viewTitle) |
+                    Where-Object { $_ }) -join " $([char]0x00B7) "
+        }
+
+        # The size only when one was asked for: left out, the renderer may lower
+        # it so that many columns fit the page.
+        $fontArgument = @{}
+        if ($PSBoundParameters.ContainsKey('FontSize')) { $fontArgument['FontSize'] = $FontSize }
+
         $render = ConvertTo-SpoPrintHtml -Row $rows -Column $columns -Header $header `
             -Title $documentTitle -Subtitle $Subtitle -Orientation $Orientation -PaperSize $PaperSize `
-            -Margin $Margin -FontSize $FontSize -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
+            -Margin $Margin @fontArgument -GroupBy $GroupBy -ColumnWidth $ColumnWidth `
             -Css $Css -CellFormatter $CellFormatter -DateFormat $DateFormat -RowNumber:$RowNumber `
-            -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink
+            -LinkColumn $LinkColumn -LinkFormatter $LinkFormatter -NoAutoLink:$NoAutoLink `
+            -RichText $richColumns -ExportedBy $exportedBy -Reason $Reason -Source $source -ExportedAt $started
 
         $directory = Split-Path -Parent $Path
         if ($directory -and -not (Test-Path -LiteralPath $directory)) {
@@ -442,6 +503,7 @@ function Export-SpoListPdf {
                     LinkCount   = @($render.Link).Count
                     Verified    = $false
                     Finding     = @()
+                    ExportedBy  = $exportedBy
                     Browser     = $null
                     Duration    = (Get-Date) - $started
                 }
@@ -505,6 +567,7 @@ function Export-SpoListPdf {
             LinkCount   = @($render.Link).Count
             Verified    = $verified
             Finding     = $findings
+            ExportedBy  = $exportedBy
             Browser     = $print.Browser
             Duration    = (Get-Date) - $started
         }

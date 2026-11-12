@@ -48,7 +48,10 @@
 .PARAMETER Margin
     CSS length for the page margin, e.g. '12mm'.
 .PARAMETER FontSize
-    Body font size in points. The table scales with it.
+    Body font size in points. The table scales with it. When it is not given
+    and the columns do not fit the page at the default, it is lowered a half
+    point at a time, to 6 at the least, until they do. When it is given it is
+    used as it is.
 .PARAMETER GroupBy
     Column to group rows under: one sub-table with its own repeating header per
     group.
@@ -75,9 +78,25 @@
 .PARAMETER RowNumber
     Print a leading number column, which makes 'is row 41 there' answerable by
     looking.
+.PARAMETER RichText
+    Columns whose values are HTML (enhanced rich text). They print as text with
+    paragraphs, bullets and the links they contain.
+.PARAMETER SiteUrl
+    Site address, for relative links inside rich text. Defaults to the site the
+    module is connected to.
+.PARAMETER ExportedBy
+    Who made this export. Printed in the block at the top of the first page.
+.PARAMETER Reason
+    Why it was made. Printed in the same block; left out when empty.
+.PARAMETER ExportedAt
+    When it was made. Defaults to now; a test passes a fixed time.
+.PARAMETER Source
+    Where the rows come from, for example the site, the list and the view.
+    Defaults to the site address.
 .OUTPUTS
-    PSCustomObject with Html, Column, RowCount, Cell, Link, Digest and
-    Attestation.
+    PSCustomObject with Html, Column, RowCount, Cell, Link, Digest, Attestation
+    and FontSize (the size used, which is smaller than asked for when the
+    columns did not fit the page).
 .EXAMPLE
     $render = ConvertTo-SpoPrintHtml -Row $items -Column Title, Datum -Title 'Duties'
     $render.Html | Set-Content out/duties.html
@@ -144,7 +163,25 @@ function ConvertTo-SpoPrintHtml {
         [string]$DateFormat = 'yyyy-MM-dd',
 
         [Parameter()]
-        [switch]$RowNumber
+        [switch]$RowNumber,
+
+        [Parameter()]
+        [string[]]$RichText = @(),
+
+        [Parameter()]
+        [string]$SiteUrl = $script:O365State.SiteUrl,
+
+        [Parameter()]
+        [string]$ExportedBy,
+
+        [Parameter()]
+        [string]$Reason,
+
+        [Parameter()]
+        [datetime]$ExportedAt = (Get-Date),
+
+        [Parameter()]
+        [string]$Source = $script:O365State.SiteUrl
     )
 
     $encode = { param($Value) [System.Net.WebUtility]::HtmlEncode([string]$Value) }
@@ -165,10 +202,12 @@ function ConvertTo-SpoPrintHtml {
     $text  = [System.Collections.Generic.List[object]]::new()
     $links = [System.Collections.Generic.List[object]]::new()
     $href  = [System.Collections.Generic.List[object]]::new()
+    $parts = [System.Collections.Generic.List[object]]::new()
 
     for ($index = 0; $index -lt $rows.Count; $index++) {
         $record = [ordered]@{}
         $target = [ordered]@{}
+        $pieces = [ordered]@{}
 
         foreach ($name in $Column) {
             $value = if ($null -ne $rows[$index].PSObject.Properties[$name]) {
@@ -178,14 +217,24 @@ function ConvertTo-SpoPrintHtml {
                 $null
             }
 
-            $rendered = if ($CellFormatter) {
-                [string](& $CellFormatter $value $name)
+            # The text of the cell, and the same text in pieces that know which
+            # of them are links. A formatter's output is one piece: it decides
+            # the words, not the addresses.
+            $rendered = ''
+            $segments = @()
+            if ($CellFormatter) {
+                $rendered = [string](& $CellFormatter $value $name)
+                if ($rendered -ne '') { $segments = @([pscustomobject]@{ Text = $rendered; Href = '' }) }
             }
             else {
-                ConvertTo-SpoCellText -Value $value -DateFormat $DateFormat
+                $content = ConvertTo-SpoCellContent -Value $value -DateFormat $DateFormat `
+                    -Html:($name -in $RichText) -SiteUrl $SiteUrl
+                $rendered = $content.Text
+                $segments = @($content.Segment)
             }
 
             $record[$name] = $rendered
+            $pieces[$name] = $segments
 
             # From the raw value, not the rendered text: a -CellFormatter that
             # shortens a URL to 'Ticket 42' should not also shorten where the
@@ -208,11 +257,27 @@ function ConvertTo-SpoPrintHtml {
                             Href   = $target[$name]
                         })
                 }
+                else {
+                    # No link for the cell as a whole: the links inside it, a
+                    # name's address or an anchor in rich text, are the ones
+                    # to look for in the PDF.
+                    foreach ($segment in $segments) {
+                        if ($segment.Href) {
+                            $links.Add([pscustomobject]@{
+                                    Row    = $index + 1
+                                    Column = $name
+                                    Text   = $segment.Text
+                                    Href   = $segment.Href
+                                })
+                        }
+                    }
+                }
             }
         }
 
         $text.Add($record)
         $href.Add($target)
+        $parts.Add($pieces)
     }
 
     # ---------------------------------------------------------------------
@@ -232,6 +297,26 @@ function ConvertTo-SpoPrintHtml {
     $attestation = "Rows $($rows.Count) / Columns $($Column.Count) / Digest $digest / End of report"
 
     # ---------------------------------------------------------------------
+    # Room. A list with many columns needs more than a page is wide at the
+    # size asked for: the columns would be squeezed until words break in the
+    # middle, or run off the edge. So unless a size was asked for, the type is
+    # made smaller, a half point at a time down to 6 pt, until they fit.
+    # ---------------------------------------------------------------------
+    $requestedFontSize = $FontSize
+    if (-not $PSBoundParameters.ContainsKey('FontSize')) {
+        while ($FontSize -gt 6) {
+            $fit = Get-SpoColumnWidth -Record @($text) -Column $Column -Header $Header -Fixed $ColumnWidth `
+                -PaperSize $PaperSize -Orientation $Orientation -Margin $Margin -FontSize $FontSize -RowNumber:$RowNumber -Measure
+            if ($fit.Required -le $fit.Printable) { break }
+            $FontSize = [Math]::Round($FontSize - 0.5, 1)
+        }
+
+        if ($FontSize -lt $requestedFontSize) {
+            Write-O365Log (Get-O365String 'Pdf.Layout.FontReduced' $Column.Count $requestedFontSize $FontSize) 'Info'
+        }
+    }
+
+    # ---------------------------------------------------------------------
     # Style. Sizes are in pt and mm on purpose: a length in px is a length in
     # CSS pixels, and a zoom level is precisely a change to how big one of
     # those is.
@@ -242,12 +327,16 @@ function ConvertTo-SpoPrintHtml {
 @page { size: $pageSize; margin: $Margin; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: #ffffff; color: #000000; }
-body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+body { font-family: "Segoe UI", "Helvetica Neue", Arial, "Segoe UI Emoji", "Segoe UI Symbol",
+                    "Apple Color Emoji", "Noto Color Emoji", sans-serif;
        font-size: $($FontSize)pt; line-height: 1.3;
        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 h1 { font-size: $([math]::Round($FontSize * 1.7, 2))pt; margin: 0 0 1mm; }
 p.subtitle { font-size: $([math]::Round($FontSize * 1.1, 2))pt; margin: 0 0 1mm; }
-p.meta { font-size: $([math]::Round($FontSize * 0.85, 2))pt; color: #444444; margin: 0 0 3mm; }
+div.docinfo { display: grid; grid-template-columns: max-content 1fr; column-gap: 4mm; row-gap: 0.4mm;
+              font-size: $([math]::Round($FontSize * 0.95, 2))pt; margin: 0 0 3.5mm; }
+div.docinfo .k { color: #444444; font-weight: 600; }
+div.docinfo .v { overflow-wrap: anywhere; }
 h2 { font-size: $([math]::Round($FontSize * 1.2, 2))pt; margin: 4mm 0 1.5mm;
      padding-bottom: 0.8mm; border-bottom: 0.6pt solid #666666;
      break-after: avoid; page-break-after: avoid; }
@@ -259,7 +348,7 @@ th, td { border: 0.5pt solid #999999; padding: 1.2mm 1.4mm;
          text-align: left; vertical-align: top;
          white-space: normal; overflow-wrap: anywhere; word-break: normal;
          overflow: visible; }
-th { background: #ececec; font-weight: 600; }
+th { background: #ececec; font-weight: 600; font-size: 0.9em; }
 tbody tr:nth-child(even) td { background: #f7f7f7; }
 td.rownum, th.rownum { width: 8mm; text-align: right; color: #444444; }
 td.empty-cell { color: #999999; }
@@ -286,12 +375,20 @@ $Css
         [void]$builder.AppendLine("<p class=""subtitle"">$(& $encode $Subtitle)</p>")
     }
 
-    $site = if ($script:O365State.SiteUrl) { $script:O365State.SiteUrl } else { '' }
-    [void]$builder.AppendLine(
-        "<p class=""meta"">$(& $encode $site) &middot; " +
-        "$(Get-Date -Format 'yyyy-MM-dd HH:mm') &middot; " +
-        "$($rows.Count) row(s), $($Column.Count) column(s)</p>"
-    )
+    # Who, when and why, once, above the first table. It is not part of the
+    # table, so it does not repeat on the pages after it.
+    $info = [System.Collections.Generic.List[object]]::new()
+    $info.Add(@((Get-O365String 'Pdf.Header.Exported'), $ExportedAt.ToString('yyyy-MM-dd HH:mm', [cultureinfo]::InvariantCulture)))
+    if ($ExportedBy) { $info.Add(@((Get-O365String 'Pdf.Header.ExportedBy'), $ExportedBy)) }
+    if ($Reason) { $info.Add(@((Get-O365String 'Pdf.Header.Reason'), $Reason)) }
+    if ($Source) { $info.Add(@((Get-O365String 'Pdf.Header.Source'), $Source)) }
+    $info.Add(@((Get-O365String 'Pdf.Header.Size'), (Get-O365String 'Pdf.Header.Counts' $rows.Count $Column.Count)))
+
+    [void]$builder.AppendLine('<div class="docinfo">')
+    foreach ($pair in $info) {
+        [void]$builder.AppendLine("<span class=""k"">$(& $encode $pair[0])</span><span class=""v"">$(& $encode $pair[1])</span>")
+    }
+    [void]$builder.AppendLine('</div>')
 
     if ($rows.Count -eq 0) {
         [void]$builder.AppendLine('<div class="nothing">No rows matched. Nothing to print.</div>')
@@ -315,6 +412,11 @@ $Css
                 })
         }
 
+        # Sized from what the columns hold, so a long text column is not a
+        # strip beside columns that hold a number. A -ColumnWidth wins.
+        $automatic = Get-SpoColumnWidth -Record @($text) -Column $Column -Header $Header -Fixed $ColumnWidth `
+            -PaperSize $PaperSize -Orientation $Orientation -Margin $Margin -FontSize $FontSize -RowNumber:$RowNumber
+
         foreach ($group in $groups) {
             if ($GroupBy) {
                 $label = if ($group.Name) { $group.Name } else { '(empty)' }
@@ -330,7 +432,15 @@ $Css
                 [void]$builder.AppendLine('<col class="rownum">')
             }
             foreach ($name in $Column) {
-                $width = if ($ColumnWidth.ContainsKey($name)) { " style=""width: $($ColumnWidth[$name])""" } else { '' }
+                $width = if ($ColumnWidth.ContainsKey($name)) {
+                    " style=""width: $($ColumnWidth[$name])"""
+                }
+                elseif ($automatic.ContainsKey($name)) {
+                    " style=""width: $($automatic[$name])"""
+                }
+                else {
+                    ''
+                }
                 [void]$builder.AppendLine("<col class=""$(& $classOf $name)""$width>")
             }
             [void]$builder.AppendLine('</colgroup>')
@@ -361,16 +471,22 @@ $Css
                         [void]$builder.Append("<td class=""$class empty-cell"">&ndash;</td>")
                     }
                     else {
-                        # Line breaks in a multi-line text column are content;
-                        # everything else is encoded and left to wrap.
-                        $html = (& $encode $value) -replace '\r?\n', '<br>'
-
                         # Chromium turns an <a href> into a /Link annotation
                         # with a /URI action, so the link is live in the PDF
                         # rather than printed text that looks like one.
+                        #
+                        # Line breaks in a multi-line text column are content;
+                        # everything else is encoded and left to wrap.
                         $to = $href[$index][$name]
                         if ($to) {
+                            $html = (& $encode $value) -replace '\r?\n', '<br>'
                             $html = "<a href=""$(& $encode $to)"">$html</a>"
+                        }
+                        else {
+                            $html = (@($parts[$index][$name] | ForEach-Object {
+                                        $piece = (& $encode $_.Text) -replace '\r?\n', '<br>'
+                                        if ($_.Href) { "<a href=""$(& $encode $_.Href)"">$piece</a>" } else { $piece }
+                                    }) -join '')
                         }
 
                         [void]$builder.Append("<td class=""$class"">$html</td>")
@@ -394,5 +510,6 @@ $Css
         Link        = $links.ToArray()
         Digest      = $digest
         Attestation = $attestation
+        FontSize    = $FontSize
     }
 }

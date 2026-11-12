@@ -33,3 +33,13 @@ added over time; keep this file short and add each rule under the right heading.
   line, a blank line, then a body in plain prose explaining what changed and why.
 - **Stay local.** Do not push, open pull requests or change anything on GitHub
   unless the user asks for it.
+
+## Issues and pull requests
+
+- **Name every deviation from the issue, in both places.** When what was built
+  differs from the issue (a different approach or value, a requirement met
+  another way or not met, a test in another place, something added that the
+  issue does not ask for), write it as a comment on the issue and under
+  "Deviations from the issue" in the pull request. Give each one three parts:
+  what the issue says, what was done instead, and why. Do not edit the issue's
+  own text to hide a deviation. The `branch-wrap-up` skill has the steps.

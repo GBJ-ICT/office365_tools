@@ -558,6 +558,24 @@
 
     'Pdf.Export.Wrote'                                         = '''{0}'' geschrieben: {1} Zeile(n), {2} Spalte(n), {3} Seite(n), {4} Prüffehler.'
 
+    'Pdf.Export.ViewResolved'                                  = 'Verwende die Ansicht ''{0}'' ({1}).'
+
+    'Pdf.Export.UserUnknown'                                   = 'Wer angemeldet ist, konnte nicht gelesen werden; die Seite sagt deshalb nicht, wer exportiert hat: {0}'
+
+    'Pdf.Header.Exported'                                      = 'Exportiert'
+
+    'Pdf.Header.ExportedBy'                                    = 'Exportiert von'
+
+    'Pdf.Header.Reason'                                        = 'Grund'
+
+    'Pdf.Header.Source'                                        = 'Quelle'
+
+    'Pdf.Header.Size'                                          = 'Umfang'
+
+    'Pdf.Header.Counts'                                        = '{0} Zeile(n), {1} Spalte(n)'
+
+    'Pdf.Layout.FontReduced'                                   = '{0} Spalten passen bei {1} pt nicht auf die Seite, darum ist der Text mit {2} pt gesetzt.'
+
     'Rule.Pdf.Missing'                                         = 'Das PDF gibt es nicht, darum lässt sich über seinen Inhalt nichts prüfen.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'Es wurden keine Zeilen angegeben, darum wurde das PDF gegen nichts geprüft.'
@@ -583,6 +601,8 @@
     'Rule.Pdf.WrappedValue'                                    = 'Zeile {0}, Spalte ''{1}'': gedruckt, aber über mehrere Zeilen umbrochen.'
 
     'Rule.Pdf.WrappedValues'                                   = '{0} von {1} Wert(en) wurden über einen Zeilenumbruch gedruckt und ohne Rücksicht auf Leerräume zugeordnet. Mit -ReportWrapped werden sie aufgelistet.'
+
+    'Rule.Pdf.SplitValues'                                     = '{0} von {1} Wert(en) sind länger als eine Seite und gehen auf der nächsten weiter; sie wurden in Teilen geprüft, jeder Teil am richtigen Ort.'
 
     'Rule.Pdf.MissingLink'                                     = '{0}: Die Zelle wurde gedruckt, trägt im PDF aber keinen anklickbaren Link.'
 

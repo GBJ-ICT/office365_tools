@@ -558,6 +558,24 @@
 
     'Pdf.Export.Wrote'                                         = 'Wrote ''{0}'': {1} row(s), {2} column(s), {3} page(s), {4} verification error(s).'
 
+    'Pdf.Export.ViewResolved'                                  = 'Using the view ''{0}'' ({1}).'
+
+    'Pdf.Export.UserUnknown'                                   = 'Could not read who is signed in, so the page does not say who exported it: {0}'
+
+    'Pdf.Header.Exported'                                      = 'Exported'
+
+    'Pdf.Header.ExportedBy'                                    = 'Exported by'
+
+    'Pdf.Header.Reason'                                        = 'Reason'
+
+    'Pdf.Header.Source'                                        = 'Source'
+
+    'Pdf.Header.Size'                                          = 'Contents'
+
+    'Pdf.Header.Counts'                                        = '{0} row(s), {1} column(s)'
+
+    'Pdf.Layout.FontReduced'                                   = '{0} columns do not fit the page at {1} pt, so the text is set at {2} pt.'
+
     'Rule.Pdf.Missing'                                         = 'The PDF does not exist, so nothing about its contents can be checked.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'No rows were supplied, so the PDF was not checked against anything.'
@@ -583,6 +601,8 @@
     'Rule.Pdf.WrappedValue'                                    = 'Row {0}, column ''{1}'': printed, but broken across lines.'
 
     'Rule.Pdf.WrappedValues'                                   = '{0} of {1} value(s) were printed across a line break and were matched with spacing ignored. Pass -ReportWrapped to list them.'
+
+    'Rule.Pdf.SplitValues'                                     = '{0} of {1} value(s) are longer than a page and continue on the next one; they were matched in parts, each part in the right place.'
 
     'Rule.Pdf.MissingLink'                                     = '{0}: the cell was printed but carries no clickable link in the PDF.'
 
