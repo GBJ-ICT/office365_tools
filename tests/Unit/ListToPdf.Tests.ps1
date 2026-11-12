@@ -250,6 +250,155 @@ Describe 'The column type map' {
     }
 }
 
+Describe 'Column widths' {
+
+    BeforeAll {
+        $script:Records = @(
+            [ordered]@{ Nr = '4,3'; Datum = "'25/07"; Beschluss = ('wort ' * 120).Trim(); Notiz = ('kurz ' * 20).Trim() }
+            [ordered]@{ Nr = '12'; Datum = "'25/08"; Beschluss = ('wort ' * 100).Trim(); Notiz = '' }
+        )
+    }
+
+    It 'gives a short column the width of its content, never more than 70 mm' {
+        InModuleScope Office365Tools -Parameters @{ Records = $script:Records } {
+            param($Records)
+            $wide = @([ordered]@{ Name = 'x' * 44 })
+            $width = Get-SpoColumnWidth -Record $Records -Column Nr, Datum
+
+            [double]($width['Nr'] -replace 'mm$') | Should -BeLessThan 15
+            [double]($width['Datum'] -replace 'mm$') | Should -BeLessThan 20
+            [double]((Get-SpoColumnWidth -Record $wide -Column Name)['Name'] -replace 'mm$') | Should -BeLessOrEqual 70
+        }
+    }
+
+    It 'gives a text column more room the more text it holds, within its limits' {
+        InModuleScope Office365Tools -Parameters @{ Records = $script:Records } {
+            param($Records)
+            $width = Get-SpoColumnWidth -Record $Records -Column Nr, Datum, Beschluss, Notiz
+            $beschluss = [double]($width['Beschluss'] -replace 'mm$')
+            $notiz = [double]($width['Notiz'] -replace 'mm$')
+            $printable = 297 - 24
+
+            $beschluss | Should -BeGreaterThan $notiz
+            $notiz | Should -BeGreaterOrEqual 25
+            $beschluss | Should -BeLessOrEqual (0.6 * $printable + 0.1)
+        }
+    }
+
+    It 'leaves a column named in -Fixed out of what it works out' {
+        InModuleScope Office365Tools -Parameters @{ Records = $script:Records } {
+            param($Records)
+            $width = Get-SpoColumnWidth -Record $Records -Column Nr, Beschluss -Fixed @{ Beschluss = '40%' }
+
+            $width.ContainsKey('Beschluss') | Should -BeFalse
+            $width.ContainsKey('Nr') | Should -BeTrue
+        }
+    }
+
+    It 'puts the widths on the columns of the printed table, and an explicit width wins' {
+        InModuleScope Office365Tools -Parameters @{ Records = $script:Records } {
+            param($Records)
+            $rows = @($Records | ForEach-Object { [pscustomobject]$_ })
+
+            $automatic = ConvertTo-SpoPrintHtml -Row $rows -Column Nr, Beschluss
+            $automatic.Html | Should -Match '<col class="col-nr" style="width: [\d.]+mm">'
+            $automatic.Html | Should -Match '<col class="col-beschluss" style="width: [\d.]+mm">'
+
+            $explicit = ConvertTo-SpoPrintHtml -Row $rows -Column Nr, Beschluss -ColumnWidth @{ Beschluss = '40%' }
+            $explicit.Html | Should -Match '<col class="col-beschluss" style="width: 40%">'
+        }
+    }
+
+    It 'lets a long word with no spaces wrap inside its cell' {
+        InModuleScope Office365Tools {
+            $rows = @([pscustomobject]@{ Link = 'x' * 200 })
+            $render = ConvertTo-SpoPrintHtml -Row $rows -Column Link
+
+            $render.Html | Should -Match 'overflow-wrap: anywhere'
+            $render.Html | Should -Not -Match 'white-space: nowrap'
+        }
+    }
+}
+
+Describe 'Many columns on one page' {
+
+    BeforeAll {
+        # Twelve columns shaped like a board's decision list: short ones with
+        # long headings, and three long texts.
+        $script:Wide = 1..6 | ForEach-Object {
+            [pscustomobject]@{
+                Nr = "$_"; Protokollziffer = "4.$_"; Beschlusstitel = "Titel $_ zur Finanzierung"; Verantwortung = 'Andreas Koenig'
+                Sitzungseinladung = 'Link'; Besprechungsdatum = '2025-11-21'; Status = 'in Kraft (VS)'
+                Einstieg = ('wort ' * (80 + $_ * 20)).Trim(); Inhalte = ('satz ' * (120 + $_ * 30)).Trim(); Beschluesse = ('text ' * (200 + $_ * 40)).Trim()
+            }
+        }
+        $script:WideColumns = 'Nr', 'Protokollziffer', 'Beschlusstitel', 'Verantwortung', 'Sitzungseinladung', 'Besprechungsdatum', 'Status', 'Einstieg', 'Inhalte', 'Beschluesse'
+    }
+
+    It 'gives the text columns at least half the page between them' {
+        InModuleScope Office365Tools -Parameters @{ Rows = $script:Wide; Columns = $script:WideColumns } {
+            param($Rows, $Columns)
+            $records = foreach ($row in $Rows) { $record = [ordered]@{}; foreach ($name in $Columns) { $record[$name] = [string]$row.$name }; $record }
+            $width = Get-SpoColumnWidth -Record @($records) -Column $Columns
+
+            $text = 0.0
+            foreach ($name in 'Einstieg', 'Inhalte', 'Beschluesse') { $text += [double]($width[$name] -replace 'mm$') }
+
+            $text | Should -BeGreaterOrEqual (0.5 * 273 - 1)
+        }
+    }
+
+    It 'never makes a date or a word narrower than the word itself' {
+        InModuleScope Office365Tools -Parameters @{ Rows = $script:Wide; Columns = $script:WideColumns } {
+            param($Rows, $Columns)
+            $records = foreach ($row in $Rows) { $record = [ordered]@{}; foreach ($name in $Columns) { $record[$name] = [string]$row.$name }; $record }
+            $width = Get-SpoColumnWidth -Record @($records) -Column $Columns
+            $charMm = 8.5 * 0.5 * 25.4 / 72
+
+            # '2025-11-21' is ten characters that cannot be split.
+            [double]($width['Besprechungsdatum'] -replace 'mm$') | Should -BeGreaterOrEqual (10 * $charMm)
+            [double]($width['Verantwortung'] -replace 'mm$') | Should -BeGreaterOrEqual (7 * $charMm)
+        }
+    }
+
+    It 'adds up to no more than the printable width' {
+        InModuleScope Office365Tools -Parameters @{ Rows = $script:Wide; Columns = $script:WideColumns } {
+            param($Rows, $Columns)
+            $records = foreach ($row in $Rows) { $record = [ordered]@{}; foreach ($name in $Columns) { $record[$name] = [string]$row.$name }; $record }
+            $width = Get-SpoColumnWidth -Record @($records) -Column $Columns
+
+            $sum = 0.0
+            foreach ($name in $Columns) { $sum += [double]($width[$name] -replace 'mm$') }
+            $sum | Should -BeLessOrEqual (273 + 1)
+        }
+    }
+
+    It 'lowers the type until the columns fit, when no size was asked for' {
+        InModuleScope Office365Tools {
+            $rows = @([pscustomobject]@{ A = '1' }) | ForEach-Object {
+                $row = [ordered]@{}
+                1..30 | ForEach-Object { $row["Spalte$_"] = 'wert' }
+                [pscustomobject]$row
+            }
+            $columns = 1..30 | ForEach-Object { "Spalte$_" }
+
+            $reduced = ConvertTo-SpoPrintHtml -Row $rows -Column $columns
+            $asked = ConvertTo-SpoPrintHtml -Row $rows -Column $columns -FontSize 8.5
+
+            $reduced.FontSize | Should -BeLessThan 8.5
+            $reduced.FontSize | Should -BeGreaterOrEqual 6
+            $asked.FontSize | Should -Be 8.5
+        }
+    }
+
+    It 'keeps the type as it is when the columns fit' {
+        InModuleScope Office365Tools -Parameters @{ Rows = $script:Wide; Columns = $script:WideColumns } {
+            param($Rows, $Columns)
+            (ConvertTo-SpoPrintHtml -Row $Rows -Column $Columns).FontSize | Should -Be 8.5
+        }
+    }
+}
+
 Describe 'Test-SpoSplitText' {
 
     BeforeAll {

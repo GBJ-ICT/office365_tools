@@ -560,6 +560,8 @@
 
     'Pdf.Export.ViewResolved'                                  = 'Verwende die Ansicht ''{0}'' ({1}).'
 
+    'Pdf.Layout.FontReduced'                                   = '{0} Spalten passen bei {1} pt nicht auf die Seite, darum ist der Text mit {2} pt gesetzt.'
+
     'Rule.Pdf.Missing'                                         = 'Das PDF gibt es nicht, darum lässt sich über seinen Inhalt nichts prüfen.'
 
     'Rule.Pdf.NothingToCheck'                                  = 'Es wurden keine Zeilen angegeben, darum wurde das PDF gegen nichts geprüft.'
