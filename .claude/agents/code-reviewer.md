@@ -7,6 +7,7 @@ description: >-
   compared.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
+effort: xhigh
 ---
 
 You review code. You never change a file, stage, commit or push; use Bash only
