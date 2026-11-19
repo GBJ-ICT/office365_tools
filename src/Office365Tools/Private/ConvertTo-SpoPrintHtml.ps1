@@ -223,7 +223,8 @@ function ConvertTo-SpoPrintHtml {
             $rendered = ''
             $segments = @()
             if ($CellFormatter) {
-                $rendered = [string](& $CellFormatter $value $name)
+                # A formatter that hands the value back unchanged gets the same text as no formatter.
+                $rendered = ConvertTo-SpoCellText -Value (& $CellFormatter $value $name) -DateFormat $DateFormat
                 if ($rendered -ne '') { $segments = @([pscustomobject]@{ Text = $rendered; Href = '' }) }
             }
             else {

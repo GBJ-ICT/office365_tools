@@ -222,7 +222,7 @@ try {
         if (-not $List) {
             $named = $null
             if ($parsed.Library -eq 'Lists' -and $parsed.RemoteFolder) { $named = @($parsed.RemoteFolder -split '/')[0] }
-            elseif ($parsed.Library -and $parsed.Library -ne 'Lists') { $named = $parsed.Library }
+            elseif ($parsed.Library -and $parsed.Library -notin 'Lists', 'SitePages') { $named = $parsed.Library }
 
             if ($named) {
                 $List = $named
@@ -291,7 +291,7 @@ try {
     $name = $List
     if ($chosenView) { $name = "$List $($chosenView.Title)" }
     $safeName = [regex]::Replace($name, '[^\w\-]+', '-').Trim('-')
-    $pdfPath = Join-Path $OutputFolder "$safeName-$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
+    $pdfPath = Join-Path $OutputFolder "$safeName-$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
 
     Write-Host ''
     Write-Host ('  ' + (Get-LauncherString 'ListPdf.Run.Printing' $name)) -ForegroundColor Cyan

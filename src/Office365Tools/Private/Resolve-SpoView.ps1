@@ -72,7 +72,8 @@ function Resolve-SpoView {
             $views | Where-Object { $_.Id -eq $guid }
         }
         else {
-            $views | Where-Object { $_.Title -eq $wanted }
+            # A visible view wins over a hidden or personal one of the same title.
+            @($selectable) + @($views | Where-Object { $_.Hidden -or $_.Personal }) | Where-Object { $_.Title -eq $wanted }
         })
 
     if ($found.Count -eq 0) {

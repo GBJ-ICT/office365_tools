@@ -88,7 +88,10 @@
     defaults.
 .PARAMETER CellFormatter
     Script block called per cell with the value and the column name, returning
-    the text to print.
+    the text to print. In a list, the value of a person, lookup or link column is
+    the SharePoint value behind the cell, not text: returned as it is, it prints
+    as the cell would without a formatter, and its properties (LookupValue, Url)
+    are there to build text from.
 .PARAMETER LinkColumn
     Column name to URL template, making that column's cells clickable in the
     PDF. '{Name}' is replaced with that column's value from the row, escaped

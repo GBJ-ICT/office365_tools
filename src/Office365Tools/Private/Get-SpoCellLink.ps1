@@ -92,8 +92,11 @@ function Get-SpoCellLink {
                 $field = if ($null -ne $Row -and $null -ne $Row.PSObject.Properties[$name]) {
                     # Through the cell text, so a value that arrives as an
                     # object (a lookup, a person) fills the template with what
-                    # the cell shows rather than with its type name.
-                    ConvertTo-SpoCellText -Value $Row.PSObject.Properties[$name].Value
+                    # the cell shows rather than with its type name. A hyperlink
+                    # is the exception: a template needs its address, not its caption.
+                    $raw = $Row.PSObject.Properties[$name].Value
+                    if ($null -ne $raw -and $raw -isnot [string] -and $null -ne $raw.PSObject.Properties['Url']) { [string]$raw.Url }
+                    else { ConvertTo-SpoCellText -Value $raw }
                 }
                 else {
                     ''

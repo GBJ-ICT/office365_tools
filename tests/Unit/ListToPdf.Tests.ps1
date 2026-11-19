@@ -82,6 +82,13 @@ Describe 'Rich text, as the text a cell shows' {
         }
     }
 
+    It 'drops a script or a style that is never closed, rather than printing it' {
+        InModuleScope Office365Tools {
+            ConvertTo-SpoCellText -Html -Value '<p>a</p><script>x()' | Should -Be 'a'
+            ConvertTo-SpoCellText -Html -Value '<p>a<style>p{}' | Should -Be 'a'
+        }
+    }
+
     It 'turns a non-breaking space and a zero-width space into what a reader sees' {
         InModuleScope Office365Tools {
             ConvertTo-SpoCellText -Html -Value "<p>a&nbsp;b</p><p>&#8203;</p><p>c</p>" | Should -Be "a b`nc"
@@ -203,6 +210,17 @@ Describe 'People' {
             ConvertTo-SpoCellText -Value @(
                 [pscustomobject]@{ LookupId = 1; LookupValue = 'Basel' }
                 [pscustomobject]@{ LookupId = 2; LookupValue = 'Bern' }) | Should -Be 'Basel; Bern'
+        }
+    }
+
+    It 'prints a person as a name when a -CellFormatter hands the value back unchanged' {
+        InModuleScope Office365Tools {
+            $rows = @([pscustomobject]@{ Wer = [pscustomobject]@{ LookupValue = 'Name A'; Email = 'a@example.org' } })
+
+            $render = ConvertTo-SpoPrintHtml -Row $rows -Column Wer -CellFormatter { param($Value, $Column) $Value }
+
+            $render.Html | Should -Match 'Name A'
+            $render.Html | Should -Not -Match 'LookupValue'
         }
     }
 }
@@ -433,6 +451,16 @@ Describe 'Test-SpoSplitText' {
         }
     }
 
+    It 'does not accept the pieces of a text in the wrong order' {
+        InModuleScope Office365Tools -Parameters @{ Needle = $script:Needle } {
+            param($Needle)
+            # Both halves are there, but the second is printed before the first.
+            $haystack = $Needle.Substring(30) + 'headerrowothercells' + $Needle.Substring(0, 30)
+
+            Test-SpoSplitText -Needle $Needle -Haystack $haystack -MaxPart 2 | Should -BeFalse
+        }
+    }
+
     It 'does not accept a text whose end is missing' {
         InModuleScope Office365Tools -Parameters @{ Needle = $script:Needle } {
             param($Needle)
@@ -557,6 +585,21 @@ Describe 'Finding a view by its name' {
 
             (Resolve-SpoView -List $List -Identity "$Offen").Title | Should -Be 'Offene Pendenzen'
             (Resolve-SpoView -List $List -Identity "{$Offen}").Title | Should -Be 'Offene Pendenzen'
+        }
+    }
+
+    It 'takes the shared view when a personal or a hidden one has the same title' {
+        InModuleScope Office365Tools -Parameters @{ List = $script:List } {
+            param($List)
+            $shared = [guid]::NewGuid()
+            $views = @(
+                [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Alle Elemente'; DefaultView = $false; Hidden = $false; PersonalView = $true; ViewFields = @('Title'); ViewQuery = '' }
+                [pscustomobject]@{ Id = [guid]::NewGuid(); Title = 'Alle Elemente'; DefaultView = $false; Hidden = $true; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' }
+                [pscustomobject]@{ Id = $shared; Title = 'Alle Elemente'; DefaultView = $true; Hidden = $false; PersonalView = $false; ViewFields = @('Title'); ViewQuery = '' }
+            )
+            Mock Get-PnPView { $views }
+
+            (Resolve-SpoView -List $List -Identity 'Alle Elemente').Id | Should -Be $shared
         }
     }
 

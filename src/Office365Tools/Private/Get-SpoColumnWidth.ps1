@@ -263,8 +263,9 @@ function Get-SpoColumnWidth {
         $settled = @{}
 
         for ($pass = 0; $pass -lt 4 -and $open.Count -gt 0; $pass++) {
-            $share = $remaining - (($settled.Values | Measure-Object -Sum).Sum)
-            if ($null -eq $share) { $share = $remaining }
+            $taken = 0.0
+            foreach ($width in $settled.Values) { $taken += $width }
+            $share = $remaining - $taken
             $totalWeight = 0.0
             foreach ($name in $open) { $totalWeight += $weight[$name] }
 

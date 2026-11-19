@@ -122,8 +122,8 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
         $german = Invoke-Menu -Language 'de' -Answer '1'
         $english = Invoke-Menu -Language 'en' -Answer '1'
 
-        $german.Text | Should -BeLike '*list-to-pdf.xml*'
-        $english.Text | Should -BeLike '*list-to-pdf.xml*'
+        $german.Text | Should -BeLike '*Zum Drucken einer Liste musst du dich anmelden*'
+        $english.Text | Should -BeLike '*Printing a list means signing in*'
         $english.Text | Should -Not -BeLike '*upload-check.xml*'
     }
 

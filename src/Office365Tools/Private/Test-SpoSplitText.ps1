@@ -59,18 +59,19 @@ function Test-SpoSplitText {
     if ($Needle.Length -lt ($middleMinimum + $lastMinimum)) { return $false }
 
     $at = 0
+    $from = 0
     $parts = 0
 
     while ($at -lt $Needle.Length) {
-        # The longest run from here that is in the document. A run that is in
-        # it has all its shorter beginnings in it too, which is what lets this
-        # be searched by halving.
+        # The longest run from here that is in the document, after the previous
+        # run. A run that is in it has all its shorter beginnings in it too,
+        # which is what lets this be searched by halving.
         $low = 0
         $high = $Needle.Length - $at
 
         while ($low -lt $high) {
             $middle = [int][Math]::Ceiling(($low + $high) / 2)
-            if ($Haystack.Contains($Needle.Substring($at, $middle))) {
+            if ($Haystack.IndexOf($Needle.Substring($at, $middle), $from, [StringComparison]::Ordinal) -ge 0) {
                 $low = $middle
             }
             else {
@@ -86,6 +87,7 @@ function Test-SpoSplitText {
         $parts++
         if ($parts -gt $MaxPart) { return $false }
 
+        $from = $Haystack.IndexOf($Needle.Substring($at, $low), $from, [StringComparison]::Ordinal) + $low
         $at += $low
     }
 

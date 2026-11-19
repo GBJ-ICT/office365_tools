@@ -58,6 +58,8 @@ function ConvertFrom-SpoHtmlText {
     # them and a script's text must never reach the page.
     $clean = [regex]::Replace($Html, '<!--.*?-->', '', 'Singleline')
     $clean = [regex]::Replace($clean, '<(script|style)\b[^>]*>.*?</\1\s*>', '', 'Singleline, IgnoreCase')
+    # An opening tag with no closing tag runs to the end of the value, as it does in a browser.
+    $clean = [regex]::Replace($clean, '<(script|style)\b[^>]*>.*', '', 'Singleline, IgnoreCase')
 
     $attributeOf = {
         param([string]$Attributes, [string]$Name)

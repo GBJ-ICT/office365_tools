@@ -440,7 +440,7 @@ Describe 'The script that prints' {
     It 'asks which list, from the lists of the site, hidden ones left out' {
         Invoke-Tool -Arguments @{ View = 'Alle Elemente'; NoReason = $true } -Answer '2' | Should -Be 0
 
-        Should -Invoke Export-SpoListPdf -Times 1 -Exactly -ParameterFilter { $Library -eq 'Protokoll' -or $Library -eq 'Aufgaben' }
+        Should -Invoke Export-SpoListPdf -Times 1 -Exactly -ParameterFilter { $Library -eq 'Protokoll' }
         ($global:ListPdfSaid -join "`n") | Should -Not -BeLike '*Versteckt*'
     }
 
@@ -463,6 +463,22 @@ Describe 'The script that prints' {
 
         Should -Invoke Connect-O365 -Times 1 -Exactly -ParameterFilter { $SiteUrl -eq 'https://contoso.sharepoint.com/sites/team' }
         Should -Invoke Export-SpoListPdf -Times 1 -Exactly -ParameterFilter { $Library -eq 'Shared Documents' }
+    }
+
+    It 'asks for the list when the address is a page of the site, such as its home page' {
+        $address = 'https://contoso.sharepoint.com/sites/team/SitePages/Home.aspx'
+
+        Invoke-Tool -Arguments @{ SiteUrl = $address; View = 'Alle Elemente'; NoReason = $true } -Answer '1' | Should -Be 0
+
+        Should -Invoke Connect-O365 -Times 1 -Exactly -ParameterFilter { $SiteUrl -eq 'https://contoso.sharepoint.com/sites/team' }
+        Should -Invoke Get-PnPList -Times 1 -Exactly
+        Should -Invoke Export-SpoListPdf -Times 1 -Exactly -ParameterFilter { $Library -eq 'Aufgaben' }
+    }
+
+    It 'names the PDF down to the second, so a second run in the same minute has a path of its own' {
+        Invoke-Tool -Arguments @{ List = 'Protokoll'; View = 'Alle Elemente'; NoReason = $true } | Should -Be 0
+
+        Should -Invoke Export-SpoListPdf -Times 1 -Exactly -ParameterFilter { $Path -match '-\d{8}_\d{6}\.pdf$' }
     }
 
     It 'prefers the list it was told to the one in the address' {

@@ -252,6 +252,12 @@ What the formatter returns is HTML-encoded like any other value, and it is what
 verification then looks for — the check always runs against the strings that
 were actually printed.
 
+In a list, a person, lookup or link column reaches the formatter as the SharePoint
+value behind the cell, not as text. Returned unchanged, as `$Value` is in the
+example, it prints as the cell would without a formatter; to build text from it,
+read its properties (`$Value.LookupValue` for a person or a lookup, `$Value.Url`
+for a link).
+
 ### Working on a layout
 
 `-KeepHtml` leaves the intermediate HTML next to the PDF. That is the file to

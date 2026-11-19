@@ -329,6 +329,16 @@ Describe 'Get-SpoCellLink' {
         }
     }
 
+    It 'inserts the address of a hyperlink column, not its caption' {
+        InModuleScope Office365Tools {
+            $row = [pscustomobject]@{ Website = [pscustomobject]@{ Url = 'https://example.org/start'; Description = 'Home' } }
+
+            Get-SpoCellLink -Value 'x' -Column 'Titel' -Row $row `
+                -LinkColumn @{ Titel = '{Website:raw}' } |
+                Should -Be 'https://example.org/start'
+        }
+    }
+
     It 'prefers a formatter over a template' {
         InModuleScope Office365Tools {
             $row = [pscustomobject]@{ ID = 7 }

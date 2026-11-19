@@ -28,7 +28,8 @@ print. It only reads; it never changes anything in SharePoint.
 2. The first time it asks for an address. Copy it out of your browser and paste it.
    It can be the address of the site, or of a page in it: if you copy the address
    of the list you want, the site is taken from it, and the list too, so you are not
-   asked which one. Put the address in `list-to-pdf.xml` beside the launcher and it
+   asked which one. A page that is not a list, such as the home page of the
+   site, names no list, so you are asked. Put the address in `list-to-pdf.xml` beside the launcher and it
    stops asking.
 3. Sign in with your work account, then pick the **list** and the **view** from
    numbered lists. The views are the stored selections of that list, named as the
@@ -55,7 +56,7 @@ How each kind of column is printed:
 | Person or Group | The display name. Several people are one name to a line. The name opens an email to that person; a group has no address. |
 | Lookup, Managed metadata | The value, or the values separated by `;`. |
 | Hyperlink, Picture | The description, or the address when there is none. It is a clickable link. |
-| Attachments, Content type | Not printed. |
+| Attachments, Content type | Not printed, unless the view contains them. |
 
 Colours from SharePoint (conditional formatting, coloured choices) are not carried
 over: the table has a grey header row and every second row is shaded.
