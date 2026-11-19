@@ -26,8 +26,8 @@ tell the user how to sign in.
 Never poll: no sleep loops, no repeated status commands, no scheduled wake-ups.
 
 - **If the session has a tool that watches pull requests and notifies you**
-  (in the Claude desktop app: `mcp__ccd_pr__get_status`, and
-  `mcp__ccd_pr__bind_pr` when the status does not show the pull request), use
+  (for example the Claude desktop app's pull-request status and bind tools,
+  when they are listed), use
   it. Report the current state and stop; continue when the notification
   arrives. Never turn on auto-merge unless the user asked.
 - **Otherwise** run the platform's blocking wait command once, with a timeout of
