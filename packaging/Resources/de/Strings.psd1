@@ -11,6 +11,8 @@
     'Menu.Explain'              = 'Klicke ein Tool an, um es zu starten. Es läuft im Fenster dahinter.'
     'Menu.Close'                = 'Schliessen'
     'Menu.Language.Label'       = 'Language / Sprache:'
+    'Menu.Docs.Link'            = 'Benutzerhandbuch (online)'
+    'Menu.Docs.Line'            = 'Benutzerhandbuch: {0}'
     'Menu.List.Prompt'          = 'Nummer [1]'
     'Menu.NothingChosen'        = 'Nichts gewählt, also wurde nichts ausgeführt.'
     'Menu.Window.Failed'        = '(Ein Fenster konnte nicht geöffnet werden: {0})'

@@ -129,6 +129,19 @@ function Get-MenuString {
     return (Format-O365String -Table $script:Strings -Key $Key -FormatArguments $FormatArguments)
 }
 
+# The user guide on GitHub Pages, in the given language: the German pages are
+# under de/, every other language gets the English ones.
+function Get-DocumentationUrl {
+    param(
+        [string]$Language
+    )
+
+    $site = 'https://gbj-ict.github.io/office365_tools/'
+    if ($Language -eq 'de') { return $site + 'de/' }
+
+    return $site
+}
+
 # A text of several lines, for Write-Problem: one line per line of the text.
 function Get-MenuLines {
     param(
@@ -507,7 +520,21 @@ function New-ToolWindow {
             $owner.DialogResult = [System.Windows.Forms.DialogResult]::Retry
         })
 
-    $form.Controls.AddRange(@($heading, $explain, $list, $languageLabel, $languageBox, $close))
+    # The user guide, between the language box and Close. A click opens it in
+    # the default browser and leaves the menu open.
+    $docs = New-Object System.Windows.Forms.LinkLabel
+    $docs.Text = Get-MenuString 'Menu.Docs.Link'
+    $docs.AutoSize = $true
+    $docs.Tag = Get-DocumentationUrl -Language $script:LanguageInUse.Language
+    $docs.AccessibleDescription = $docs.Tag
+    $docs.Location = New-Object System.Drawing.Point(($margin + (ConvertTo-Pixel 300)), ($closeTop + (ConvertTo-Pixel 5)))
+    $docs.Add_LinkClicked({
+            param($source)
+
+            Start-Process -FilePath $source.Tag
+        })
+
+    $form.Controls.AddRange(@($heading, $explain, $list, $languageLabel, $languageBox, $docs, $close))
     $form.CancelButton = $close
     $form.ClientSize = New-Object System.Drawing.Size(($width + 2 * $margin), ($closeTop + $close.Height + $margin))
 
@@ -544,6 +571,8 @@ function Read-ToolFromList {
             }
         }
 
+        Write-Host ''
+        Write-Host ('  ' + (Get-MenuString 'Menu.Docs.Line' (Get-DocumentationUrl -Language $script:LanguageInUse.Language))) -ForegroundColor DarkGray
         Write-Host ''
         $answer = "$(Read-Host ('  ' + (Get-MenuString 'Menu.List.Prompt')))".Trim()
         if (-not $answer) { $answer = '1' }

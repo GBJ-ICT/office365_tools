@@ -3,6 +3,9 @@
 PowerShell tools for administering SharePoint Online: libraries, lists, content
 types and permissions. Built on [PnP.PowerShell](https://pnp.github.io/powershell/).
 
+**Documentation:** https://gbj-ict.github.io/office365_tools/ (in German:
+https://gbj-ict.github.io/office365_tools/de/)
+
 Everything ships as one module with 41 verb-noun commands, so `Get-Help` and tab
 completion work the way you already expect.
 

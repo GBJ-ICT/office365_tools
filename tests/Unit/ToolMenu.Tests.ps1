@@ -127,6 +127,11 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
         $english.Text | Should -Not -BeLike '*upload-check.xml*'
     }
 
+    It 'shows where the user guide is, in the language in use' {
+        (Invoke-Menu -Language 'en').Text | Should -BeLike '*User guide: https://gbj-ict.github.io/office365_tools/*'
+        (Invoke-Menu -Language 'de').Text | Should -BeLike '*Benutzerhandbuch: https://gbj-ict.github.io/office365_tools/de/*'
+    }
+
     It 'starts the tool in the language it was asked in' -Skip:$idElsewhere {
         $german = Invoke-Menu -Language 'de'
         $english = Invoke-Menu -Language 'en'

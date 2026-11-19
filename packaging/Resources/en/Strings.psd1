@@ -11,6 +11,8 @@
     'Menu.Explain'              = 'Click one to start it. It runs in the window behind this one.'
     'Menu.Close'                = 'Close'
     'Menu.Language.Label'       = 'Language / Sprache:'
+    'Menu.Docs.Link'            = 'User guide (online)'
+    'Menu.Docs.Line'            = 'User guide: {0}'
     'Menu.List.Prompt'          = 'Number [1]'
     'Menu.NothingChosen'        = 'Nothing chosen, so nothing was run.'
     'Menu.Window.Failed'        = '(Could not open a window: {0})'

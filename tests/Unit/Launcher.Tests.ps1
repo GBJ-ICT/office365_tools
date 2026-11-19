@@ -360,15 +360,34 @@ Describe 'The menu window' -Skip:(-not $IsWindows) {
         $label.Text | Should -BeLike '*Language*Sprache*'
     }
 
+    It 'links to the English user guide on GitHub Pages' {
+        $link = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.LinkLabel] }
+
+        $link.Text | Should -Be 'User guide (online)'
+        $link.Tag | Should -Be 'https://gbj-ict.github.io/office365_tools/'
+    }
+
+    It 'puts the user guide link between the language box and Close, overlapping neither' {
+        $link = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.LinkLabel] }
+        $box = $script:Form.Controls | Where-Object { $_ -is [System.Windows.Forms.ComboBox] }
+
+        $link.Left | Should -BeGreaterThan $box.Right
+        $link.Right | Should -BeLessThan $script:Form.CancelButton.Left
+    }
+
     It 'is drawn in German when German is in use' {
         $script:LanguageInUse = Resolve-O365Language -Language 'de'
         $script:Strings = Import-O365StringTable -Language 'de' -Path $menuResources
         $german = New-ToolWindow -Tools $script:MenuTools
         try {
             $texts = @($german.Controls | ForEach-Object { $_.Text })
+            $link = $german.Controls | Where-Object { $_ -is [System.Windows.Forms.LinkLabel] }
 
             $texts | Should -Contain 'Was m*chtest du tun?'.Replace('*', [string][char]0x00F6)
             $texts | Should -Contain 'Schliessen'
+            $link.Text | Should -Be 'Benutzerhandbuch (online)'
+            $link.Tag | Should -Be 'https://gbj-ict.github.io/office365_tools/de/'
+            $link.Right | Should -BeLessThan $german.CancelButton.Left
         }
         finally {
             $german.Dispose()
