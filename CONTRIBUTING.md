@@ -11,10 +11,10 @@ reviewed (label `TO BE REVIEWED`, then `ACCEPTED`). Work goes on a branch, in
 small commits that each pass `./build.ps1`, and ends in a pull request that
 shows the issue's requirements and how each was tested.
 
-Three Claude skills in `.claude/skills/` help with this: `create-issue`,
-`branch-wrap-up` and `pipeline-monitoring`. The steps, the labels and the
-skills are described in [docs/dev/workflow.md](docs/dev/workflow.md); the Git
-rules are in [CLAUDE.md](CLAUDE.md).
+Claude skills in `.claude/skills/` help with each step, from `writing-issues`
+to `checking-ci`. The steps, the labels and the skills are described in
+[docs/dev/workflow.md](docs/dev/workflow.md); the Git rules and the project
+facts the skills use are in [CLAUDE.md](CLAUDE.md).
 
 ## Adding a command
 
