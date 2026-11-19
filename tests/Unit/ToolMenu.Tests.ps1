@@ -48,7 +48,7 @@ BeforeAll {
     function Invoke-Menu {
         param(
             [string]$Language,
-            [string[]]$Answer = @('1'),
+            [string[]]$Answer = @('2'),
             [string]$SettingsFile,
             [string]$Tool
         )
@@ -90,7 +90,8 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
         $result = Invoke-Menu -Language 'en'
 
         $result.Text | Should -BeLike '*What would you like to do?*'
-        $result.Text | Should -BeLike '*1) Upload checker*'
+        $result.Text | Should -BeLike '*1) SharePoint list to PDF*'
+        $result.Text | Should -BeLike '*2) Upload checker*'
         $result.Text | Should -BeLike '*Language: English*L = change*'
     }
 
@@ -98,7 +99,8 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
         $result = Invoke-Menu -Language 'de'
 
         $result.Text | Should -BeLike '*Was m*chtest du tun?*'
-        $result.Text | Should -BeLike '*1) Upload-Pr*fung*'
+        $result.Text | Should -BeLike '*1) SharePoint-Liste als PDF*'
+        $result.Text | Should -BeLike '*2) Upload-Pr*fung*'
         $result.Text | Should -BeLike '*Sprache: Deutsch*'
         $result.Text | Should -Not -BeLike '*What would you like to do?*'
     }
@@ -106,6 +108,23 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
     It 'describes the tool in the language in use' {
         (Invoke-Menu -Language 'en').Text | Should -BeLike '*Check a folder before uploading it to SharePoint*'
         (Invoke-Menu -Language 'de').Text | Should -BeLike '*Pr*fe einen Ordner, bevor du ihn nach SharePoint*'
+    }
+
+    It 'describes the list-to-PDF tool in the language in use' {
+        (Invoke-Menu -Language 'en').Text | Should -BeLike '*Print a SharePoint list, or one of its views, to a PDF*'
+        (Invoke-Menu -Language 'de').Text | Should -BeLike '*Druckt eine SharePoint-Liste oder eine ihrer Ansichten als PDF*'
+    }
+
+    It 'starts the list-to-PDF tool when 1 is chosen, in the language it was asked in' {
+        # The upload checker's settings are not read: this is the other tool.
+        # It is stopped by what it lacks (no site address, no sign-in details),
+        # which is said in the chosen language.
+        $german = Invoke-Menu -Language 'de' -Answer '1'
+        $english = Invoke-Menu -Language 'en' -Answer '1'
+
+        $german.Text | Should -BeLike '*list-to-pdf.xml*'
+        $english.Text | Should -BeLike '*list-to-pdf.xml*'
+        $english.Text | Should -Not -BeLike '*upload-check.xml*'
     }
 
     It 'starts the tool in the language it was asked in' -Skip:$idElsewhere {
@@ -118,7 +137,7 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
     }
 
     It 'changes language on L and 2, draws the list again in German, and remembers it' -Skip:$idElsewhere {
-        $result = Invoke-Menu -Language 'en' -Answer 'l', '2', '1'
+        $result = Invoke-Menu -Language 'en' -Answer 'l', '2', '2'
 
         $result.Text | Should -BeLike '*What would you like to do?*Which language?*Was m*chtest du tun?*'
         $result.Text | Should -BeLike '*Anwendungs-ID*'
@@ -126,7 +145,7 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
     }
 
     It 'keeps the language when Enter is pressed at the question' {
-        $result = Invoke-Menu -Language 'en' -Answer 'l', '', '1'
+        $result = Invoke-Menu -Language 'en' -Answer 'l', '', '2'
 
         $result.Text | Should -BeLike '*Which language?*'
         $result.Text | Should -Not -BeLike '*Was m*chtest du tun?*'
@@ -137,7 +156,7 @@ Describe 'The tool menu, as a numbered list' -Skip:(-not $canRunWindowsPowerShel
         $blocker = Join-Path $script:Folder 'blocker'
         Set-Content -LiteralPath $blocker -Value 'a file'
 
-        $result = Invoke-Menu -Language 'en' -Answer 'l', '2', '1' -SettingsFile (Join-Path $blocker 'settings.json')
+        $result = Invoke-Menu -Language 'en' -Answer 'l', '2', '2' -SettingsFile (Join-Path $blocker 'settings.json')
 
         $result.Text | Should -BeLike '*konnte aber nicht in*gespeichert werden*'
         $result.Text | Should -BeLike '*Anwendungs-ID*'
