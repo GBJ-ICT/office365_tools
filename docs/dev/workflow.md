@@ -1,7 +1,7 @@
 # Contribution workflow
 
-How a change goes from an idea to a merged pull request, and the three Claude
-skills that help at each step. The same steps apply when you work without
+How a change goes from an idea to a merged pull request, and the Claude skills
+that help at each step. The same steps apply when you work without
 Claude; the skills only make them quicker and keep them uniform.
 
 The Git rules that always apply are in [CLAUDE.md](https://github.com/GBJ-ICT/office365_tools/blob/master/CLAUDE.md).
@@ -70,11 +70,15 @@ Before the pull request, go through the requirements table: run each test that
 can be run, write a missing Unit or Static test, and list the Manual tests for
 a person. The result goes into the pull request as a status table.
 
+Compare what was built with the whole issue too. Every deviation (what the issue
+says, what was done instead, and why) is written as a comment on the issue and
+again in the pull request. The issue's own text is not edited to hide one.
+
 ### 6. Open the pull request
 
-The description summarises the change, shows the status table and says what was
-not verified. It says `Closes #N` only if every requirement passed, otherwise
-`Part of #N` and the open rows.
+The description summarises the change, shows the status table, lists the
+deviations from the issue and says what was not verified. It says `Closes #N`
+only if every requirement passed, otherwise `Part of #N` and the open rows.
 
 ### 7. Read the pipeline
 
@@ -87,21 +91,32 @@ with a new commit.
 
 The skills live in `.claude/skills/`. Claude Code loads them by itself when your
 request matches, or you can name one ("wrap up this branch"). Each one stops and
-asks before anything outward-facing: a commit, a push, a pull request, a label.
+asks before anything outward-facing: a commit, a push, a pull request, a label,
+a comment.
+
+The skills hold only the procedure and name no project, so they work in any
+repository on GitHub or GitLab. What is particular to this repository (the base
+branch, the build and docs commands, the CI jobs, the files that are never
+committed, the labels) is in the "Project facts" section of
+[CLAUDE.md](https://github.com/GBJ-ICT/office365_tools/blob/master/CLAUDE.md),
+where the skills look it up.
 
 | Skill | Use it to | What it does |
 |---|---|---|
-| `create-issue` | Turn a request into an issue | Writes the issue in the fixed structure, copies your prompt into **Issue Prompt**, labels it **TO BE REVIEWED**, and sets **ACCEPTED** only when a person other than the author accepts it. |
-| `branch-wrap-up` | Finish a branch | Plans small commits, stages each one for your review, runs the pipelines on the staged state, commits after your approval, checks the work against the issue, and offers the pull request. |
-| `pipeline-monitoring` | Read CI after a pull request | Reads the GitHub Actions result, and for a failed job finds the cause in the log, reproduces it locally and proposes a fix. It does not poll. |
+| `writing-issues` | Turn a request into an issue | Writes the issue in the fixed structure, copies your prompt into **Issue Prompt**, labels it **TO BE REVIEWED**, and sets **ACCEPTED** only when a person other than the author accepts it. |
+| `committing-changes` | Commit your work | Plans small commits, stages each one for your review, runs the verify commands on the staged state, and commits after your approval. |
+| `verifying-against-issue` | Check the work against its issue | Runs each requirement's test, adds a missing Unit or Static test, lists the Manual tests, names every deviation from the issue and builds the status table. |
+| `opening-pull-requests` | Open the pull request | Drafts the title and description with the status table and deviations, and after your approval pushes and opens it. |
+| `checking-ci` | Read CI after a pull request | Waits once for the checks, and for a failed job finds the cause in the log, reproduces it locally and proposes a fix. It does not poll. |
+| `wrapping-up-branches` | Finish a branch in one go | Runs `committing-changes`, `verifying-against-issue`, `opening-pull-requests` and `checking-ci` in that order. |
 
-The usual order is `create-issue`, then your work, then `branch-wrap-up`, then
-`pipeline-monitoring`.
+The usual order is `writing-issues`, then your work, then
+`wrapping-up-branches`.
 
 ## Notes
 
 - The labels **TO BE REVIEWED** and **ACCEPTED** must exist in the repository
-  before the first issue uses them; `create-issue` asks before creating them.
+  before the first issue uses them; `writing-issues` asks before creating them.
 - The skills use the GitHub CLI (`gh`), which has to be installed and logged in
   (`gh auth status`).
 - Nothing is pushed or changed on GitHub without your approval in the

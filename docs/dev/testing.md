@@ -63,7 +63,7 @@ No secret belongs in the repository. `config/*.json` is ignored by git; only the
 
 ## Using the types in an issue
 
-The `create-issue` skill puts each requirement, its test and its expected
+The `writing-issues` skill puts each requirement, its test and its expected
 behaviour in one table row. The test cell starts with its type:
 
 | # | Requirement | Verification Test | Expected Behaviour |
