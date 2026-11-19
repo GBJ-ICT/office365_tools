@@ -30,7 +30,8 @@ SharePoint.
 2. Beim ersten Mal fragt es nach einer Adresse. Kopiere sie aus deinem Browser und
    füge sie ein. Es kann die Adresse der Website sein oder einer Seite darin: Kopierst
    du die Adresse der gewünschten Liste, wird daraus die Website genommen und auch die
-   Liste, du wirst also nicht nach ihr gefragt. Trage die Adresse in `list-to-pdf.xml`
+   Liste, du wirst also nicht nach ihr gefragt. Eine Seite, die keine Liste ist, etwa
+   die Startseite der Website, nennt keine Liste, dann wirst du gefragt. Trage die Adresse in `list-to-pdf.xml`
    neben dem Starter ein, dann fragt es nicht mehr.
 3. Melde dich mit deinem Geschäftskonto an und wähle dann die **Liste** und die
    **Ansicht** aus nummerierten Listen. Die Ansichten sind die gespeicherten Auswahlen
@@ -59,7 +60,7 @@ So wird jede Art von Spalte gedruckt:
 | Person oder Gruppe | Der Anzeigename. Mehrere Personen stehen untereinander, ein Name pro Zeile. Der Name öffnet eine E-Mail an die Person; eine Gruppe hat keine Adresse. |
 | Nachschlagen, Verwaltete Metadaten | Der Wert, oder die Werte, mit `;` getrennt. |
 | Link, Bild | Die Beschreibung, oder die Adresse, wenn es keine gibt. Es ist ein anklickbarer Link. |
-| Anlagen, Inhaltstyp | Werden nicht gedruckt. |
+| Anlagen, Inhaltstyp | Werden nicht gedruckt, es sei denn, die Ansicht enthält sie. |
 
 Farben aus SharePoint (bedingte Formatierung, farbige Auswahlwerte) werden nicht
 übernommen: Die Tabelle hat eine graue Kopfzeile, und jede zweite Zeile ist schattiert.
