@@ -109,9 +109,22 @@ where the skills look it up.
 | `opening-pull-requests` | Open the pull request | Drafts the title and description with the status table and deviations, and after your approval pushes and opens it. |
 | `checking-ci` | Read CI after a pull request | Waits once for the checks, and for a failed job finds the cause in the log, reproduces it locally and proposes a fix. It does not poll. |
 | `wrapping-up-branches` | Finish a branch in one go | Runs `committing-changes`, `verifying-against-issue`, `opening-pull-requests` and `checking-ci` in that order. |
+| `reviewing-across-models` | Get several independent reviews | Has Haiku, Sonnet and Opus review the code in parallel, then compares the reviews: where they agree, contradict or stand alone. Shows each finding with its suggested diff; you decide what is fixed. |
 
 The usual order is `writing-issues`, then your work, then
-`wrapping-up-branches`.
+`wrapping-up-branches`. Run `reviewing-across-models` before the pull request
+when a change is large or risky.
+
+### Review agent
+
+`reviewing-across-models` hands the reviews to the agent `code-reviewer` in
+`.claude/agents/`, started once each with Haiku, Sonnet and Opus. An agent works
+in its own context and returns only its result, so the three reviews run at the
+same time and none sees the others.
+
+The agent reviews the diff for bugs, security, tests and maintainability. It
+can only read: it changes no file. Every finding comes back with a suggested
+diff, and nothing is applied until you pick it.
 
 ## Notes
 
