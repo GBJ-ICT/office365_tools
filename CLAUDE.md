@@ -16,9 +16,8 @@ added over time; keep this file short and add each rule under the right heading.
   stays staged. Use `git add -p` when one file holds changes for two commits.
   Staging is not committing: it still waits for the "yes".
 - **Every commit passes the pipelines on its own.** Before proposing a commit,
-  check that the staged state, not just the working copy, passes what CI runs:
-  `./build.ps1` (the analyzer and the unit tests), and `mkdocs build --strict`
-  when documentation changed. Export the index to a temporary folder
+  check that the staged state, not just the working copy, passes the verify
+  commands under "Project facts". Export the index to a temporary folder
   (`git checkout-index -a --prefix=<folder>/`) and run them there. A change that
   only works together with a later one belongs in the same commit, or the
   later part is held back until its turn. Say in the proposal that the check
@@ -33,3 +32,49 @@ added over time; keep this file short and add each rule under the right heading.
   line, a blank line, then a body in plain prose explaining what changed and why.
 - **Stay local.** Do not push, open pull requests or change anything on GitHub
   unless the user asks for it.
+
+## Issues and pull requests
+
+- **Name every deviation from the issue, in both places.** When what was built
+  differs from the issue (a different approach or value, a requirement met
+  another way or not met, a test in another place, something added that the
+  issue does not ask for), write it as a comment on the issue and under
+  "Deviations from the issue" in the pull request. Give each one three parts:
+  what the issue says, what was done instead, and why. Do not edit the issue's
+  own text to hide a deviation.
+
+## Project facts
+
+The facts that the skills in `.claude/skills/` look up. The skills hold the
+procedures and name no project; this section is the only place for the
+repository's own commands, names and quirks.
+
+- **Platform:** GitHub, repository `GBJ-ICT/office365_tools`, CLI `gh`.
+- **Base branch:** `master`.
+- **Verify commands** (what CI runs, for every commit):
+  - `./build.ps1`: the script analyzer and the unit tests. It takes about
+    13 minutes; run it in the background.
+  - When texts or tests changed, also run it in English
+    (`$env:O365_LANGUAGE = 'en'; ./build.ps1`). This machine is set to German,
+    the CI runners are not.
+  - `mkdocs build --strict` when anything under `docs/` or `mkdocs.yml`
+    changed. It needs the packages from `requirements-docs.txt`.
+- **CI jobs and how to reproduce them locally:**
+  - `CI` / `PSScriptAnalyzer` and `CI` / `Pester (unit)`: `./build.ps1`.
+  - `CI` / `Module manifest`: the commands of that step in
+    `.github/workflows/ci.yml`.
+  - `Docs` / `Build site`: `mkdocs build --strict`.
+  - Failed downloads from the PowerShell Gallery or PyPI are infrastructure,
+    not code.
+- **Never commit:** `.claude/launch.json`, `config/*.json` (only the
+  `*.example.json` templates are tracked), certificates and keys.
+- **Every user-visible text** goes into both string tables, `en` and `de`
+  (UTF-8 with BOM).
+- **Test types:** Unit, Integration, Static, Smoke and Manual, as defined in
+  `docs/dev/testing.md`. Integration tests need a test tenant and are not part
+  of `./build.ps1`.
+- **Constraints for a design:** a PowerShell 7 module with a launcher that
+  still starts on Windows PowerShell 5.1; no secrets, tenant names or customer
+  data in the repository or in issues.
+- **Issue review labels:** `TO BE REVIEWED` on a new issue; `ACCEPTED` once a
+  person other than the author accepts it.
