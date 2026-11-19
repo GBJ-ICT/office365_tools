@@ -31,7 +31,7 @@ Show the scope in one line: commits, files, lines changed.
 ## 2. Start the reviews in parallel
 
 Start all three in one message, so they run at the same time and none sees
-another's result:
+another's result. Pass each one's model explicitly; the agent file sets none:
 
 | Reviewer | Agent | Model |
 |---|---|---|
@@ -39,9 +39,10 @@ another's result:
 | B | `code-reviewer` | `sonnet` |
 | C | `code-reviewer` | `opus` |
 
-Give each the same brief: the scope (base, head, or the file list), the
-project's verify commands if a reviewer may run tests, and "change nothing". Do
-not tell a reviewer about the others, or what you expect it to find.
+Give each the same brief: the scope (base, head, or the file list) and
+"change nothing; do not run the build". Run the verify commands yourself,
+once, if the review needs them. Do not tell a reviewer about the others, or
+what you expect it to find.
 
 ## 3. Match the findings
 

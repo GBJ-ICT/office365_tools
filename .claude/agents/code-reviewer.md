@@ -5,7 +5,7 @@ description: >-
   changing anything, and returns findings in a fixed format with a suggested diff for each. Used
   by the reviewing-across-models skill, which starts it once per model so the reviews can be
   compared.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git rev-parse:*), Bash(git ls-tree:*)
 disallowedTools: Edit, Write, NotebookEdit, Agent
 effort: xhigh
 ---
@@ -16,9 +16,11 @@ it).
 
 ## What to review
 
-The brief names the scope: a base and a head commit, or a list of files. Read
-the whole diff, then the surrounding code each change depends on. Look for, in
-this order:
+The brief names the scope: a base and a head commit, or a list of files. If
+it gives commits, read every file at the head commit (`git show <head>:<path>`,
+`git ls-tree -r --name-only <head>`); the working copy may be on another
+branch. Read the whole diff, then the surrounding code each change depends
+on. Look for, in this order:
 
 1. **Bugs:** wrong results, unhandled errors and edge cases, broken contracts
    with callers.

@@ -56,8 +56,9 @@ implementation, tests, texts and documentation it needs together. Locally, the
 pipelines are:
 
 ```powershell
-./build.ps1              # the analyzer and the unit tests
-mkdocs build --strict    # when the documentation changed
+./build.ps1                               # the analyzer and the unit tests
+$env:O365_LANGUAGE = 'en'; ./build.ps1    # also, when texts or tests changed
+mkdocs build --strict                     # when the documentation changed
 ```
 
 Commits are proposed one at a time, with the message and the file list, and made

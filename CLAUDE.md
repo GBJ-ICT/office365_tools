@@ -38,8 +38,9 @@ added over time; keep this file short and add each rule under the right heading.
 - **Name every deviation from the issue, in both places.** When what was built
   differs from the issue (a different approach or value, a requirement met
   another way or not met, a test in another place, something added that the
-  issue does not ask for), write it as a comment on the issue and under
-  "Deviations from the issue" in the pull request. Give each one three parts:
+  issue does not ask for), write it as a comment on the issue, after the user
+  approves it, and under "Deviations from the issue" in the pull request. Give
+  each one three parts:
   what the issue says, what was done instead, and why. Do not edit the issue's
   own text to hide a deviation.
 
@@ -59,17 +60,23 @@ repository's own commands, names and quirks.
     the CI runners are not.
   - `mkdocs build --strict` when anything under `docs/` or `mkdocs.yml`
     changed. It needs the packages from `requirements-docs.txt`.
+  - When `src/Office365Tools/` changed: the `Test-ModuleManifest` and
+    `Import-Module` commands of the `Module manifest` job in
+    `.github/workflows/ci.yml`.
 - **CI jobs and how to reproduce them locally:**
-  - `CI` / `PSScriptAnalyzer` and `CI` / `Pester (unit)`: `./build.ps1`.
+  - `CI` / `PSScriptAnalyzer`: `./build.ps1 -Task Analyze`.
+  - `CI` / `Pester (unit)`: `./build.ps1 -Task Test`.
   - `CI` / `Module manifest`: the commands of that step in
     `.github/workflows/ci.yml`.
   - `Docs` / `Build site`: `mkdocs build --strict`.
   - Failed downloads from the PowerShell Gallery or PyPI are infrastructure,
     not code.
 - **Never commit:** `.claude/launch.json`, `config/*.json` (only the
-  `*.example.json` templates are tracked), certificates and keys.
-- **Every user-visible text** goes into both string tables, `en` and `de`
-  (UTF-8 with BOM).
+  `*.example.json` templates and `*.schema.json` are tracked), certificates
+  and keys.
+- **Every user-visible text** goes into the `en` and the `de` `Strings.psd1`
+  of its component (`src/Office365Tools`, `scripts`, `packaging` or
+  `packaging/UploadCheck`, each under `Resources/`), UTF-8 with BOM.
 - **Test types:** Unit, Integration, Static, Smoke and Manual, as defined in
   `docs/dev/testing.md`. Integration tests need a test tenant and are not part
   of `./build.ps1`.

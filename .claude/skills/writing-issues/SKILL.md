@@ -28,8 +28,9 @@ the project has none, use the defaults below and say so.
    [reference/requirements.md](reference/requirements.md). Pick each test type
    with [reference/test-types.md](reference/test-types.md), unless the project
    defines its own types.
-4. **Show the title and body to the user.** Creating the issue changes the
-   platform, so file it only when the user asked for an issue.
+4. **Show the title and body to the user and wait for a clear "yes".**
+   Creating the issue changes the platform: file it only when the user asked
+   for an issue and approved this exact title and body.
 5. **File it** with the new-issue label (default `TO BE REVIEWED`). Write the
    body to a temporary file and use the command for the platform below. Take
    the repository from `git remote -v`. Report the link.
