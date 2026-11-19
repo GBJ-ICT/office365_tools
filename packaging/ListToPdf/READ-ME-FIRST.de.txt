@@ -1,0 +1,85 @@
+﻿SharePoint-Liste als PDF
+========================
+
+(English: READ-ME-FIRST.txt)
+
+Was es macht
+------------
+Druckt eine SharePoint-Liste oder eine ihrer Ansichten als PDF - so, wie die
+Liste am Bildschirm aussieht, aber als Dokument, das du aufbewahren,
+verschicken oder ausdrucken kannst:
+
+  - Der ganze Text jeder Zelle steht darauf. Lange Texte brechen um; nichts
+    wird abgeschnitten.
+  - Links in einem Text sind anklickbar, ebenso die Namen von Personen (sie
+    öffnen eine E-Mail an diese Person).
+  - Emoji werden mitgedruckt.
+  - Jede Spalte bekommt die Breite, die sie braucht. Eine Zahl oder ein Datum
+    bleibt schmal, und die langen Texte teilen sich den Rest der Seite.
+  - Die erste Seite sagt, was exportiert wurde, wann, von wem und warum.
+  - Das Tool liest das fertige PDF zurück und prüft, dass jeder Wert darauf
+    steht.
+
+Es liest nur. Es ändert, ergänzt oder löscht nichts in SharePoint.
+
+
+So benutzt du es
+----------------
+1. Entpacke zuerst das ZIP (Rechtsklick, "Alle extrahieren..."). Doppelklicke
+   dann im entstandenen Ordner auf  List-To-Pdf.cmd
+   Wenn du mehrere Tools auf einmal bekommen hast, heisst die Datei
+   stattdessen Office365-Tools.cmd und fragt zuerst, welches.
+
+   Es braucht jedes Mal kurz Internet: Es holt sich die neueste Kopie des
+   Tools, bevor es startet.
+
+2. Kennt es die Website noch nicht, fragt es nach einer Adresse. Öffne die
+   Website oder die gewünschte Liste im Browser, kopiere die Adresse aus der
+   Adressleiste und füge sie ein (Rechtsklick). Daraus wird die Website
+   genommen, und die Liste auch, wenn es die Adresse einer Liste ist. Trage sie
+   in list-to-pdf.xml ein, dann fragt es nicht mehr.
+
+3. Es folgt ein Microsoft-Anmeldefenster. Dann wählst du aus nummerierten
+   Listen:
+
+     - die Liste
+     - die Ansicht: die gespeicherten Auswahlen dieser Liste, so benannt, wie
+       sie die Ansichtsauswahl in SharePoint zeigt. Enter nimmt die
+       Standardansicht.
+
+   Ausserdem wirst du gefragt, warum du exportierst. Das steht auf der ersten
+   Seite. Enter lässt es weg.
+
+4. Das PDF wird in den Ordner "Reports" neben dem Starter geschrieben, und der
+   Ordner öffnet sich mit dem PDF markiert.
+
+   Hat die Ansicht keine Zeilen, wird kein PDF geschrieben. Fehlt bei der
+   Prüfung des fertigen PDFs ein Wert, sagt das Tool es und rät, sich nicht auf
+   die Datei zu verlassen.
+
+
+Einstellungen
+-------------
+list-to-pdf.xml neben dem Starter enthält die Antworten, die du nicht jedes
+Mal geben willst: die Website, die Liste, die Ansicht, das Papier (A4 quer; A3
+hilft bei einer Liste mit vielen Textspalten), den Grund und den Ordner. Öffne
+sie im Editor. Eine Einstellung, die "ask" sagt, wird jedes Mal gefragt.
+
+
+Die Sprache
+-----------
+Englisch oder Deutsch. Es folgt der Sprache, die du für die Tools gewählt hast,
+sonst der Sprache von Windows. <Language> in list-to-pdf.xml legt sie für
+dieses Tool fest.
+
+
+Wenn etwas nicht klappt
+-----------------------
+Das Tool sagt im Fenster, was nicht stimmt. Die üblichen Gründe:
+
+  - PowerShell 7 ist nicht installiert. Das Tool sagt dir, wie; es ist ein
+    kostenloser Download.
+  - Die Anwendungs-ID fehlt. Wer dir das geschickt hat, kennt sie.
+  - Du darfst die Liste nicht lesen. Frage den Besitzer der Website.
+
+Zeige das Fenster dem, der dir dieses Paket geschickt hat.

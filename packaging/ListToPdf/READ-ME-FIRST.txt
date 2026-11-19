@@ -1,0 +1,76 @@
+﻿SharePoint list to PDF
+======================
+
+(Deutsch: READ-ME-FIRST.de.txt)
+
+What it does
+------------
+Prints a SharePoint list, or one of its views, to a PDF - the way the list
+reads on screen, but as a document you can keep, send or print:
+
+  - All the text of every cell is on it. Long texts wrap; nothing is cut off.
+  - Links in a text are clickable, and so are the names of people (they open
+    an email to that person).
+  - Emoji are printed.
+  - Every column gets the width it needs. A number or a date stays narrow, and
+    the long texts share the rest of the page.
+  - The first page says what was exported, when, by whom and why.
+  - The tool reads the finished PDF back and checks that every value is on it.
+
+It only reads. It never changes, adds or deletes anything in SharePoint.
+
+
+How to use it
+-------------
+1. Extract the ZIP first (right-click it, "Extract All..."). Then
+   double-click  List-To-Pdf.cmd  in the folder that creates.
+   If you were sent several tools at once, the file is called
+   Office365-Tools.cmd instead, and it asks which one first.
+
+   It needs the internet for a moment each time: it fetches the newest copy
+   of the tool before it starts.
+
+2. If it does not know the site yet, it asks for an address. Open the site, or
+   the list you want, in your browser, copy the address out of the address bar
+   and paste it (right-click). The site is taken from it, and the list too when
+   the address is that of a list. Put it in list-to-pdf.xml and it stops asking.
+
+3. A Microsoft sign-in window follows. Then you pick, from numbered lists:
+
+     - the list
+     - the view: the stored selections of that list, as the view picker in
+       SharePoint names them. Enter takes the default view.
+
+   You are also asked why you are exporting it. That goes on the first page.
+   Enter leaves it out.
+
+4. The PDF is written to the "Reports" folder beside the launcher, and the
+   folder opens with the PDF selected.
+
+   If the view has no rows, no PDF is written. If the check of the finished PDF
+   finds a value missing, it says so and tells you not to rely on the file.
+
+
+Settings
+--------
+list-to-pdf.xml, beside the launcher, holds the answers you do not want to give
+every time: the site, the list, the view, the paper (A4 landscape; A3 helps a
+list with many text columns), the reason and the folder. Open it in Notepad. A
+setting that says "ask" is asked every time.
+
+
+The language
+------------
+English or German. It follows the language you chose for the tools, or else
+the language of Windows. <Language> in list-to-pdf.xml fixes it for this tool.
+
+
+If something does not work
+--------------------------
+It says what is wrong in the window. The usual causes:
+
+  - PowerShell 7 is not installed. It tells you how; it is a free download.
+  - The application ID is missing. Whoever sent you this has it.
+  - You may not read the list. Ask the owner of the site.
+
+Show the window to whoever sent you this package.
